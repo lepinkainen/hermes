@@ -95,6 +95,7 @@ func parse_imdb() {
 
 	// Create a new CSV reader
 	reader := csv.NewReader(csvFile)
+	reader.FieldsPerRecord = 14 // Imdb watched export has exactly 14 fields
 
 	// Skip the header row (assuming the first row contains column names)
 	_, err = reader.Read()
@@ -118,26 +119,33 @@ func parse_imdb() {
 
 		imdbRating, err := strconv.ParseFloat(record[7], 64)
 		if err != nil {
+			fmt.Printf("%s: Error parsing imdbRating %s: %v\n", record[0], record[7], err)
 			imdbRating = 0.0
 		}
 
 		myRating, err := strconv.Atoi(record[1])
 		if err != nil {
+			fmt.Printf("Error parsing myRating: %v\n", err)
 			myRating = 0
 		}
 
 		runtimeMins, err := strconv.Atoi(record[8])
 		if err != nil {
+			if record[8] != "" {
+				fmt.Printf("%s: Error parsing runtime %s: %v\n", record[0], record[8], err)
+			}
 			runtimeMins = 0
 		}
 
 		year, err := strconv.Atoi(record[9])
 		if err != nil {
 			year = 0
+			fmt.Printf("Error parsing year: %v\n", err)
 		}
 
 		numVotes, err := strconv.Atoi(record[11])
 		if err != nil {
+			fmt.Printf("Error parsing votes: %v\n", err)
 			numVotes = 0
 		}
 
@@ -164,11 +172,17 @@ func parse_imdb() {
 			ReleaseDate:   record[12],
 			Directors:     directors,
 		}
+
+		// debug fmt.Printf("%v\n", movie)
+
 		movies = append(movies, movie)
 	}
 
 	writeMovieToJson(movies)
-	writeMoviesToMarkdown(movies, "markdown/imdb/")
+	err = writeMoviesToMarkdown(movies, "markdown/imdb/")
+	if err != nil {
+		fmt.Printf("Error writing markdown: %v", err)
+	}
 
 	fmt.Printf("Processed %d movies\n", len(movies))
 }
@@ -219,7 +233,7 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	genreList := strings.Join(movie.Genres, "\n  - ")
 	tagList := strings.Join(tags, "\n  - ")
 
-	content := fmt.Sprintf("---\n%surl: %s\nyear: %d\nimdb_rating: %.2f\nmy_rating: %d\ndate_rated: %s\nruntime (min): %d\ngenres:\n  - %s\n\ntags:\n  - %s\n---\n\n",
+	content := fmt.Sprintf("---\n%surl: %s\nyear: %d\nimdb_rating: %.2f\nmy_rating: %d\ndate_rated: %s\nruntime (min): %d\ngenres:\n  - %s\ntags:\n  - %s\n---\n\n",
 		title, movie.URL, movie.Year, movie.IMDbRating, movie.MyRating, movie.DateRated, movie.RuntimeMins, genreList, tagList)
 
 	// Create directory if it doesn't exist
@@ -249,13 +263,32 @@ func writeMoviesToMarkdown(movies []MovieSeen, directory string) error {
 // mapTypeToTag maps a imdb title type to a markdown tag
 func mapTypeToTag(titleType string) string {
 	switch titleType {
-	case "Movie":
-		return "movie"
+	case "Video Game":
+		return "imdb/videogame"
 	case "TV Series":
-		return "tv-series"
+		return "imdb/tv-series"
+	case "TV Special":
+		return "imdb/tv-special"
 	case "TV Mini Series":
-		return "miniseries"
+		return "imdb/miniseries"
+	case "TV Episode":
+		return "imdb/tv-episode"
+	case "TV Movie":
+		return "imdb/tv-movie"
+	case "TV Short":
+		return "imdb/tv-short"
+	case "Movie":
+		return "imdb/movie"
+	case "Video":
+		return "imdb/video"
+	case "Short":
+		return "imdb/short-movie"
+	case "Podcast Series":
+		return "imdb/podcast"
+	case "Podcast Episode":
+		return "imdb/podcast-episode"
 	default:
-		return ""
+		fmt.Printf("Unknown title type '%s'\n", titleType)
+		return "UNKNOWN"
 	}
 }
