@@ -6,6 +6,7 @@ import "strings"
 func sanitizeFilename(filename string) string {
 
 	filename = strings.ReplaceAll(filename, ":", "")
+	filename = strings.ReplaceAll(filename, "/", "_")
 
 	return strings.ReplaceAll(filename, "[^a-zA-Z0-9\\s:]+", "_")
 }
