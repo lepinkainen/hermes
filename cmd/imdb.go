@@ -13,7 +13,9 @@ import (
 	"strconv"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 type MovieSeen struct {
@@ -65,7 +67,7 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Processing imdb export...")
+		log.Info("Processing imdb export...")
 		parse_imdb()
 	},
 }
@@ -117,22 +119,28 @@ func parse_imdb() {
 			continue
 		}
 
+		movieLogger := log.WithFields(log.Fields{
+			"ImdbId": record[0],
+		})
+
+		// Parse the record fields
+
 		imdbRating, err := strconv.ParseFloat(record[7], 64)
 		if err != nil {
-			fmt.Printf("%s: Error parsing imdbRating %s: %v\n", record[0], record[7], err)
+			movieLogger.Warnf("Error parsing imdbRating %s: %v\n", record[7], err)
 			imdbRating = 0.0
 		}
 
 		myRating, err := strconv.Atoi(record[1])
 		if err != nil {
-			fmt.Printf("Error parsing myRating: %v\n", err)
+			movieLogger.Warnf("Error parsing myRating %s: %v\n", record[1], err)
 			myRating = 0
 		}
 
 		runtimeMins, err := strconv.Atoi(record[8])
 		if err != nil {
 			if record[8] != "" {
-				fmt.Printf("%s: Error parsing runtime %s: %v\n", record[0], record[8], err)
+				movieLogger.Warnf("Error parsing runtime %s: %v\n", record[8], err)
 			}
 			runtimeMins = 0
 		}
@@ -140,12 +148,12 @@ func parse_imdb() {
 		year, err := strconv.Atoi(record[9])
 		if err != nil {
 			year = 0
-			fmt.Printf("Error parsing year: %v\n", err)
+			movieLogger.Warnf("Error parsing year %s: %v\n", record[9], err)
 		}
 
 		numVotes, err := strconv.Atoi(record[11])
 		if err != nil {
-			fmt.Printf("Error parsing votes: %v\n", err)
+			movieLogger.Warnf("Error parsing votes %s: %v\n", record[11], err)
 			numVotes = 0
 		}
 
@@ -173,18 +181,18 @@ func parse_imdb() {
 			Directors:     directors,
 		}
 
-		// debug fmt.Printf("%v\n", movie)
+		log.Debugf("%v\n", movie)
 
 		movies = append(movies, movie)
 	}
 
 	writeMovieToJson(movies)
-	err = writeMoviesToMarkdown(movies, "markdown/imdb/")
+	err = writeMoviesToMarkdown(movies, filepath.Join(viper.GetString("MarkdownOutputDir"), "imdb"))
 	if err != nil {
-		fmt.Printf("Error writing markdown: %v", err)
+		log.Errorf("Error writing markdown: %v\n", err)
 	}
 
-	fmt.Printf("Processed %d movies\n", len(movies))
+	log.Infof("Processed %d movies\n", len(movies))
 }
 
 func writeMovieToJson(movies []MovieSeen) {
@@ -233,7 +241,7 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	genreList := strings.Join(movie.Genres, "\n  - ")
 	tagList := strings.Join(tags, "\n  - ")
 
-	content := fmt.Sprintf("---\n%surl: %s\nyear: %d\nimdb_rating: %.2f\nmy_rating: %d\ndate_rated: %s\nruntime (min): %d\ngenres:\n  - %s\ntags:\n  - %s\n---\n\n",
+	content := fmt.Sprintf("---\n%surl: %s\nyear: %d\nimdb_rating: %.2f\nmy_rating: %d\ndate_rated: %s\nruntime: %d\ngenres:\n  - %s\ntags:\n  - %s\n---\n\n",
 		title, movie.URL, movie.Year, movie.IMDbRating, movie.MyRating, movie.DateRated, movie.RuntimeMins, genreList, tagList)
 
 	// Create directory if it doesn't exist
@@ -288,7 +296,7 @@ func mapTypeToTag(titleType string) string {
 	case "Podcast Episode":
 		return "imdb/podcast-episode"
 	default:
-		fmt.Printf("Unknown title type '%s'\n", titleType)
+		log.Warnf("Unknown title type '%s'\n", titleType)
 		return "UNKNOWN"
 	}
 }
