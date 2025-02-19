@@ -24,3 +24,5 @@ markdown/
 coverage/
 build/
 .task/
+
+/dist
