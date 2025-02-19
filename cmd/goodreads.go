@@ -1,14 +1,12 @@
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -74,6 +72,153 @@ func init() {
 // Helper function to split comma-separated strings
 func splitString(str string) []string {
 	return strings.Split(str, ",")
+}
+
+func writeBookToMarkdown(book Book, directory string) error {
+	// Sanitize book title for filename
+	filename := sanitizeFilename(book.Title) + ".md"
+	filePath := filepath.Join(directory, filename)
+
+	var frontmatter strings.Builder
+	frontmatter.WriteString("---\n")
+
+	// Basic metadata
+	frontmatter.WriteString("title: \"" + sanitizeTitle(book.Title) + "\"\n")
+	frontmatter.WriteString("type: book\n")
+	frontmatter.WriteString("goodreads_id: " + strconv.Itoa(book.ID) + "\n")
+
+	if book.YearPublished > 0 {
+		frontmatter.WriteString(fmt.Sprintf("year: %d\n", book.YearPublished))
+	}
+	if book.OriginalPublicationYear > 0 && book.OriginalPublicationYear != book.YearPublished {
+		frontmatter.WriteString(fmt.Sprintf("original_year: %d\n", book.OriginalPublicationYear))
+	}
+
+	// Ratings
+	if book.MyRating > 0 {
+		frontmatter.WriteString(fmt.Sprintf("my_rating: %.1f\n", book.MyRating))
+	}
+	if book.AverageRating > 0 {
+		frontmatter.WriteString(fmt.Sprintf("average_rating: %.1f\n", book.AverageRating))
+	}
+
+	// Dates
+	if book.DateRead != "" {
+		frontmatter.WriteString(fmt.Sprintf("date_read: %s\n", book.DateRead))
+	}
+	if book.DateAdded != "" {
+		frontmatter.WriteString(fmt.Sprintf("date_added: %s\n", book.DateAdded))
+	}
+
+	// Book details
+	if book.NumberOfPages > 0 {
+		frontmatter.WriteString(fmt.Sprintf("pages: %d\n", book.NumberOfPages))
+	}
+	if book.Publisher != "" {
+		frontmatter.WriteString(fmt.Sprintf("publisher: \"%s\"\n", book.Publisher))
+	}
+	if book.Binding != "" {
+		frontmatter.WriteString(fmt.Sprintf("binding: \"%s\"\n", book.Binding))
+	}
+
+	// ISBNs
+	if book.ISBN != "" {
+		frontmatter.WriteString(fmt.Sprintf("isbn: \"%s\"\n", book.ISBN))
+	}
+	if book.ISBN13 != "" {
+		frontmatter.WriteString(fmt.Sprintf("isbn13: \"%s\"\n", book.ISBN13))
+	}
+
+	// Authors as array
+	if len(book.Authors) > 0 {
+		frontmatter.WriteString("authors:\n")
+		for _, author := range book.Authors {
+			if author != "" {
+				frontmatter.WriteString(fmt.Sprintf("  - \"%s\"\n", strings.TrimSpace(author)))
+			}
+		}
+	}
+
+	// Bookshelves as array
+	if len(book.Bookshelves) > 0 {
+		frontmatter.WriteString("bookshelves:\n")
+		for _, shelf := range book.Bookshelves {
+			if shelf != "" {
+				frontmatter.WriteString(fmt.Sprintf("  - %s\n", strings.TrimSpace(shelf)))
+			}
+		}
+	}
+
+	// Tags
+	tags := []string{
+		"goodreads/book",
+	}
+
+	// Add rating tag
+	if book.MyRating > 0 {
+		tags = append(tags, fmt.Sprintf("rating/%.0f", book.MyRating))
+	}
+
+	// Add decade tag if we have a year
+	if book.YearPublished > 0 {
+		decade := (book.YearPublished / 10) * 10
+		tags = append(tags, fmt.Sprintf("year/%ds", decade))
+	}
+
+	// Add shelf tag
+	if book.ExclusiveShelf != "" {
+		tags = append(tags, fmt.Sprintf("shelf/%s", book.ExclusiveShelf))
+	}
+
+	frontmatter.WriteString("tags:\n")
+	for _, tag := range tags {
+		frontmatter.WriteString(fmt.Sprintf("  - %s\n", tag))
+	}
+
+	frontmatter.WriteString("---\n\n")
+
+	// Content section
+	var content strings.Builder
+
+	// Add review if exists
+	if book.MyReview != "" {
+		content.WriteString("## Review\n\n")
+		// Replace HTML line breaks with newlines and clean up multiple newlines
+		review := strings.ReplaceAll(book.MyReview, "<br/>", "\n")
+		review = strings.ReplaceAll(review, "<br>", "\n")
+		// Clean up multiple newlines
+		multipleNewlines := regexp.MustCompile(`\n{3,}`)
+		review = multipleNewlines.ReplaceAllString(review, "\n\n")
+		content.WriteString(review + "\n\n")
+	}
+
+	// Add private notes in a callout if they exist
+	if book.PrivateNotes != "" {
+		content.WriteString(fmt.Sprintf(">[!note]- Private Notes\n> %s\n\n", book.PrivateNotes))
+	}
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(directory, 0755); err != nil {
+		return err
+	}
+
+	// Write content to file
+	return os.WriteFile(filePath, []byte(frontmatter.String()+content.String()), 0644)
+}
+
+func sanitizeTitle(title string) string {
+	return strings.ReplaceAll(title, ":", "")
+}
+
+func sanitizeFilename(filename string) string {
+	// Replace invalid filename characters
+	invalid := regexp.MustCompile(`[<>:"/\\|?*]`)
+	safe := invalid.ReplaceAllString(filename, "-")
+	// Remove multiple dashes
+	multiDash := regexp.MustCompile(`-+`)
+	safe = multiDash.ReplaceAllString(safe, "-")
+	// Trim spaces and dashes from ends
+	return strings.Trim(safe, " -")
 }
 
 func parse_goodreads() {
@@ -176,10 +321,10 @@ func parse_goodreads() {
 			Bookshelves:             splitString(record[17]),
 
 			BookshelvesWithPositions: splitString(record[18]),
-			ExclusiveShelf:           record[19],
-			MyReview:                 record[20],
-			Spoiler:                  record[21],
-			PrivateNotes:             record[22],
+			ExclusiveShelf:           record[18],
+			MyReview:                 record[19],
+			Spoiler:                  record[20],
+			PrivateNotes:             record[21],
 			ReadCount:                readCount,
 			OwnedCopies:              ownedCopies,
 		}
@@ -187,23 +332,19 @@ func parse_goodreads() {
 		books = append(books, book)
 	}
 
-	// Convert the slice of books to JSON
-	jsonData, err := json.Marshal(books)
-	if err != nil {
+	// Create output directory
+	outputDir := "markdown/goodreads"
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	// Open a new file for writing JSON data
-	jsonFile, err := os.Create("goodreads.json") // Replace "books.json" with your desired output filename
-	if err != nil {
-		fmt.Println(err)
-		return
+	// Write individual markdown files
+	for _, book := range books {
+		if err := writeBookToMarkdown(book, outputDir); err != nil {
+			fmt.Printf("Error writing markdown for book %s: %v\n", book.Title, err)
+		}
 	}
-	defer jsonFile.Close()
-
-	// Write the JSON data to the file
-	jsonFile.Write(jsonData)
 
 	fmt.Printf("Processed %d books\n", len(books))
 }

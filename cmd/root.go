@@ -4,7 +4,6 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -37,10 +36,14 @@ func Execute() {
 }
 
 func init() {
+	initLogging()
+
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 	viper.SetDefault("MarkdownOutputDir", "./markdown/")
+
+	log.SetLevel(log.DebugLevel)
 
 	viper.SetConfigName("config") // name of config file (without extension)
 	viper.SetConfigType("yaml")   // REQUIRED if the config file does not have the extension in the name
@@ -51,7 +54,7 @@ func init() {
 			viper.SafeWriteConfig()
 			os.Exit(0)
 		} else {
-			log.Panic(fmt.Errorf("Fatal error config file: %w", err))
+			log.Panicf("fatal error config file: %v", err)
 		}
 	}
 
@@ -60,4 +63,18 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func initLogging() {
+	// Set default log level
+	log.SetLevel(log.InfoLevel)
+
+	// Set up custom formatter
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp:          true,
+		TimestampFormat:        "2006-01-02 15:04:05",
+		DisableLevelTruncation: true,
+		PadLevelText:           true,
+		DisableColors:          false,
+	})
 }

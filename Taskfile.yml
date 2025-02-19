@@ -1,0 +1,74 @@
+version: "3"
+
+vars:
+  FUNCNAME: hermes
+  BUILDDIR: build
+  COVERAGE_DIR: coverage
+  BINARY: "{{.BUILDDIR}}/{{.FUNCNAME}}"
+
+dotenv:
+  - .env
+  - "{{.ENV}}/.env."
+  - "{{.HOME}}/.env"
+
+tasks:
+  default:
+    desc: Default task, runs build
+    cmds:
+      - task: build
+
+  build:
+    desc: Build the Go application
+    deps:
+      - test
+      - clean
+    cmds:
+      - mkdir -p {{.BUILDDIR}}
+      - >
+        go build 
+        -ldflags="-X main.Version={{.GIT_COMMIT}} -w -s" 
+        -o {{.BINARY}}
+    generates:
+      - "{{.BINARY}}"
+    vars:
+      GIT_COMMIT:
+        sh: git rev-parse --short HEAD
+
+  test:
+    desc: Run Go tests with coverage
+    cmds:
+      - mkdir -p {{.COVERAGE_DIR}}
+      - go test -v -race -coverprofile={{.COVERAGE_DIR}}/coverage.out ./...
+      - go tool cover -html={{.COVERAGE_DIR}}/coverage.out -o {{.COVERAGE_DIR}}/coverage.html
+    sources:
+      - ./**/*.go
+    generates:
+      - "{{.COVERAGE_DIR}}/coverage.out"
+      - "{{.COVERAGE_DIR}}/coverage.html"
+
+  lint:
+    desc: Run Go linters
+    cmds:
+      - golangci-lint run ./...
+    sources:
+      - ./**/*.go
+    silent: true
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf {{.BUILDDIR}} {{.COVERAGE_DIR}}
+
+  upgrade-deps:
+    desc: Upgrade all dependencies to their latest versions
+    silent: true
+    cmds:
+      - go get -u ./...
+      - go mod tidy
+      - echo "✅ Dependencies upgraded successfully"
+    sources:
+      - go.mod
+      - go.sum
+    generates:
+      - go.mod
+      - go.sum
