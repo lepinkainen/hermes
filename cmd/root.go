@@ -4,6 +4,7 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -51,7 +52,9 @@ func init() {
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			log.Info("Config file not found, writing default config file...")
-			viper.SafeWriteConfig()
+			if err := viper.SafeWriteConfig(); err != nil {
+				fmt.Printf("Error writing config file: %v\n", err)
+			}
 			os.Exit(0)
 		} else {
 			log.Panicf("fatal error config file: %v", err)

@@ -83,7 +83,7 @@ func writeBookToMarkdown(book Book, directory string) error {
 	frontmatter.WriteString("---\n")
 
 	// Basic metadata
-	frontmatter.WriteString("title: \"" + sanitizeTitle(book.Title) + "\"\n")
+	frontmatter.WriteString("title: \"" + sanitizeGoodreadsTitle(book.Title) + "\"\n")
 	frontmatter.WriteString("type: book\n")
 	frontmatter.WriteString("goodreads_id: " + strconv.Itoa(book.ID) + "\n")
 
@@ -206,7 +206,7 @@ func writeBookToMarkdown(book Book, directory string) error {
 	return os.WriteFile(filePath, []byte(frontmatter.String()+content.String()), 0644)
 }
 
-func sanitizeTitle(title string) string {
+func sanitizeGoodreadsTitle(title string) string {
 	return strings.ReplaceAll(title, ":", "")
 }
 
