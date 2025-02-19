@@ -6,19 +6,12 @@ That JSON can then be further exported to other applications.
 
 ## Sources
 
-- Imdb
+- ✅ Imdb
+  - Exports to individual markdown files with rich Obsidian frontmatter
   - Data enriched from TMDB (coming up)
-- Goodreads
+- ✅Goodreads
+  - Exports to individual markdown files with rich Obsidian frontmatter
   - Fetching covers (coming up)
-- Steam
+- Steam (coning up)
   - Uses Steam API to fetch list of games you own
 - Letterboxd (as soon as their API opens up)
-- Trakt (soon)
-
-## Output
-
-- JSON
-- Markdown
-  - For Obsidian, with front-matter set
-- Trakt
-  - Send Letterboxd and Imdb data to Trakt watch list
