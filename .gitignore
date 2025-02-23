@@ -27,3 +27,4 @@ build/
 
 /dist
 config.yaml
+cache/

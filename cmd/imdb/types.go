@@ -20,6 +20,10 @@ type MovieSeen struct {
 	NumVotes      int      `json:"Num Votes"`
 	ReleaseDate   string   `json:"Release Date"`
 	Directors     []string `json:"Directors"`
+	Plot          string   `json:"Plot"`
+	ContentRated  string   `json:"Content Rated"`
+	Awards        string   `json:"Awards"`
+	PosterURL     string   `json:"Poster URL"`
 }
 
 // MovieWatchlist represents a movie in the watchlist

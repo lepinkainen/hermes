@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 func ParseSteam() error {
@@ -29,7 +32,7 @@ func ParseSteam() error {
 
 		fmt.Printf("Fetching details for: %s\n", game.Name)
 
-		details, err := GetGameDetails(game.AppID)
+		_, details, err := getCachedGame(strconv.Itoa(game.AppID))
 		if err != nil {
 			if strings.Contains(err.Error(), "status code 429") {
 				return fmt.Errorf("rate limit reached. Please try again later (usually after a few minutes)")
@@ -63,4 +66,42 @@ func sanitizeFilename(name string) string {
 	name = strings.ReplaceAll(name, ":", " - ")
 	name = strings.ReplaceAll(name, "/", "-")
 	return name
+}
+
+func fetchGameData(appID string) (*Game, *GameDetails, error) {
+	apiKey := viper.GetString("steam.apikey")
+	if apiKey == "" {
+		return nil, nil, fmt.Errorf("steam.apikey not set in config")
+	}
+
+	appIDInt, _ := strconv.Atoi(appID)
+	details, err := GetGameDetails(appIDInt)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get game details: %w", err)
+	}
+
+	game := &Game{
+		AppID:          details.AppID,
+		Name:           details.Name,
+		DetailsFetched: true,
+	}
+
+	return game, details, nil
+}
+
+func enrichGameData(game *Game) error {
+	// Skip if we already have enriched data
+	if game.DetailsFetched {
+		return nil
+	}
+
+	enriched, _, err := getCachedGame(strconv.Itoa(game.AppID))
+	if err != nil {
+		return fmt.Errorf("failed to enrich game data: %w", err)
+	}
+
+	// Copy enriched data
+	*game = *enriched
+	game.DetailsFetched = true
+	return nil
 }

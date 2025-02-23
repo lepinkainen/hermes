@@ -29,10 +29,15 @@ func parse_imdb() {
 		return
 	}
 
+	log.Infof("Found %d movies\n", len(movies))
+
 	// Write outputs
+	log.Infof("Writing JSON\n")
 	if err := writeMovieToJson(movies, outputJson); err != nil {
 		log.Errorf("Error writing JSON: %v\n", err)
 	}
+
+	log.Infof("Writing markdown\n")
 
 	if err := writeMoviesToMarkdown(movies, filepath.Join(viper.GetString("MarkdownOutputDir"), "imdb")); err != nil {
 		log.Errorf("Error writing markdown: %v\n", err)
@@ -179,4 +184,52 @@ func parseMovieRecord(record []string) (MovieSeen, error) {
 		ReleaseDate:   record[14],
 		Directors:     directors,
 	}, nil
+}
+
+func enrichMovieData(movie *MovieSeen) error {
+	// Skip if we already have enriched data
+	if movie.Plot != "" {
+		return nil
+	}
+
+	omdbMovie, err := getCachedMovie(movie.ImdbId)
+	if err != nil {
+		return fmt.Errorf("failed to enrich movie data: %w", err)
+	}
+
+	// Preserve existing data but add OMDB enrichments
+	movie.Plot = omdbMovie.Plot
+	movie.PosterURL = omdbMovie.PosterURL
+	movie.ContentRated = omdbMovie.ContentRated
+	movie.Awards = omdbMovie.Awards
+
+	// Only update these if they're empty
+	if len(movie.Genres) == 0 {
+		movie.Genres = omdbMovie.Genres
+	}
+	if len(movie.Directors) == 0 {
+		movie.Directors = omdbMovie.Directors
+	}
+	if movie.RuntimeMins == 0 {
+		movie.RuntimeMins = omdbMovie.RuntimeMins
+	}
+
+	return nil
+}
+
+func writeMoviesToMarkdown(movies []MovieSeen, directory string) error {
+	for i := range movies {
+		log.Infof("Processing movie %d of %d (%s)\n", i+1, len(movies), movies[i].Title)
+		// Enrich with OMDB data
+		if err := enrichMovieData(&movies[i]); err != nil {
+			log.Warnf("Failed to enrich movie %s: %v", movies[i].Title, err)
+			// Continue processing even if enrichment fails
+		}
+
+		err := writeMovieToMarkdown(movies[i], directory)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

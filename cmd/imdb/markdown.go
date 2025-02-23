@@ -91,10 +91,35 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 		frontmatter.WriteString(fmt.Sprintf("  - %s\n", tag))
 	}
 
+	// Add content rating if available
+	if movie.ContentRated != "" {
+		frontmatter.WriteString(fmt.Sprintf("content_rating: \"%s\"\n", movie.ContentRated))
+	}
+
+	// Add awards if available
+	if movie.Awards != "" {
+		frontmatter.WriteString(fmt.Sprintf("awards: \"%s\"\n", movie.Awards))
+	}
+
 	frontmatter.WriteString("---\n\n")
 
-	// Add content section
+	// Content section
 	var content strings.Builder
+
+	// Add poster image if available
+	if movie.PosterURL != "" {
+		content.WriteString(fmt.Sprintf("![[%s]]\n\n", movie.PosterURL))
+	}
+
+	// Add plot summary in a callout if available
+	if movie.Plot != "" {
+		content.WriteString(fmt.Sprintf(">[!summary]- Plot\n> %s\n\n", movie.Plot))
+	}
+
+	// Add awards in a callout if available
+	if movie.Awards != "" {
+		content.WriteString(fmt.Sprintf(">[!award]- Awards\n> %s\n\n", movie.Awards))
+	}
 
 	// Add IMDb link as a button (Obsidian feature)
 	content.WriteString(fmt.Sprintf(">[!info]- IMDb\n> [View on IMDb](%s)\n\n", movie.URL))
@@ -110,17 +135,6 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 
 func sanitizeTitle(title string) string {
 	return strings.ReplaceAll(title, ":", "")
-}
-
-// writeMoviesToMarkdown writes a list of movies to markdown files
-func writeMoviesToMarkdown(movies []MovieSeen, directory string) error {
-	for _, movie := range movies {
-		err := writeMovieToMarkdown(movie, directory)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func mapTypeToType(titleType string) string {

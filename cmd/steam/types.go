@@ -1,11 +1,17 @@
 package steam
 
+import (
+	"time"
+)
+
 // Game represents a Steam game with its details
 type Game struct {
-	AppID           int    `json:"appid"`
-	Name            string `json:"name"`
-	PlaytimeForever int    `json:"playtime_forever"` // Total playtime in minutes
-	PlaytimeRecent  int    `json:"playtime_2weeks"`  // Recent playtime in minutes (optional)
+	AppID           int       `json:"appid"`
+	Name            string    `json:"name"`
+	PlaytimeForever int       `json:"playtime_forever"` // Total playtime in minutes
+	PlaytimeRecent  int       `json:"playtime_2weeks"`  // Recent playtime in minutes (optional)
+	LastPlayed      time.Time `json:"last_played"`
+	DetailsFetched  bool      `json:"details_fetched"`
 }
 
 // SteamResponse represents the response structure from Steam API
