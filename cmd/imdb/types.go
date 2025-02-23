@@ -2,9 +2,13 @@ package imdb
 
 // MovieSeen represents a watched movie from IMDB export
 type MovieSeen struct {
+	Position      int      `json:"Position,omitempty"`
 	ImdbId        string   `json:"ImdbId"`
 	MyRating      int      `json:"My Rating"`
 	DateRated     string   `json:"Date Rated"`
+	Created       string   `json:"Created,omitempty"`
+	Modified      string   `json:"Modified,omitempty"`
+	Description   string   `json:"Description,omitempty"`
 	Title         string   `json:"Title"`
 	OriginalTitle string   `json:"Original Title"`
 	URL           string   `json:"URL"`

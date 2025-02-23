@@ -54,7 +54,7 @@ func processCSVFile(filename string) ([]MovieSeen, error) {
 	}
 
 	reader := csv.NewReader(csvFile)
-	reader.FieldsPerRecord = 14
+	reader.FieldsPerRecord = 18
 
 	// Skip header
 	if _, err := reader.Read(); err != nil {
@@ -92,65 +92,91 @@ func processCSVFile(filename string) ([]MovieSeen, error) {
 func parseMovieRecord(record []string) (MovieSeen, error) {
 	// Create logger with context
 	movieLogger := log.WithFields(log.Fields{
-		"ImdbId": record[0],
+		"ImdbId": record[1],
 	})
 
-	// Parse rating
-	rating, err := strconv.Atoi(record[1])
+	// Parse position
+	position, err := strconv.Atoi(record[0])
 	if err != nil {
-		return MovieSeen{}, fmt.Errorf("invalid rating: %v", err)
+		movieLogger.Warnf("Invalid position: %v", err)
+		position = 0
+	}
+
+	// Parse rating (if exists)
+	var rating int
+	if record[16] != "" {
+		rating, err = strconv.Atoi(record[16])
+		if err != nil {
+			return MovieSeen{}, fmt.Errorf("invalid rating: %v", err)
+		}
 	}
 
 	// Parse IMDb rating
-	imdbRating, err := strconv.ParseFloat(record[7], 64)
-	if err != nil {
-		movieLogger.Warnf("Invalid IMDb rating: %v", err)
-		imdbRating = 0
+	var imdbRating float64
+	if record[9] != "" {
+		imdbRating, err = strconv.ParseFloat(record[9], 64)
+		if err != nil {
+			movieLogger.Warnf("Invalid IMDb rating: %v", err)
+		}
 	}
 
 	// Parse runtime
-	runtimeMins, err := strconv.Atoi(record[8])
-	if err != nil {
-		if record[8] != "" {
-			movieLogger.Warnf("Error parsing runtime %s: %v\n", record[8], err)
+	var runtimeMins int
+	if record[10] != "" {
+		runtimeMins, err = strconv.Atoi(record[10])
+		if err != nil {
+			movieLogger.Warnf("Error parsing runtime %s: %v\n", record[10], err)
 		}
-		runtimeMins = 0
 	}
 
 	// Parse year
-	year, err := strconv.Atoi(record[9])
-	if err != nil {
-		movieLogger.Warnf("Invalid year: %v", err)
-		year = 0
+	var year int
+	if record[11] != "" {
+		year, err = strconv.Atoi(record[11])
+		if err != nil {
+			movieLogger.Warnf("Invalid year: %v", err)
+		}
 	}
 
 	// Parse number of votes
-	numVotes, err := strconv.Atoi(record[11])
-	if err != nil {
-		movieLogger.Warnf("Invalid number of votes: %v", err)
-		numVotes = 0
+	var numVotes int
+	if record[13] != "" {
+		numVotes, err = strconv.Atoi(record[13])
+		if err != nil {
+			movieLogger.Warnf("Invalid number of votes: %v", err)
+		}
 	}
 
-	// Split genres into slice
-	genres := strings.Split(record[10], ", ")
+	// Split genres into slice (handle empty case)
+	var genres []string
+	if record[12] != "" {
+		genres = strings.Split(record[12], ", ")
+	}
 
-	// Split directors into slice
-	directors := strings.Split(record[13], ", ")
+	// Split directors into slice (handle empty case)
+	var directors []string
+	if record[15] != "" {
+		directors = strings.Split(record[15], ", ")
+	}
 
 	return MovieSeen{
-		ImdbId:        record[0],
+		Position:      position,
+		ImdbId:        record[1],
 		MyRating:      rating,
-		DateRated:     record[2],
-		Title:         record[3],
-		OriginalTitle: record[4],
-		URL:           record[5],
-		TitleType:     record[6],
+		DateRated:     record[17],
+		Created:       record[2],
+		Modified:      record[3],
+		Description:   record[4],
+		Title:         record[5],
+		OriginalTitle: record[6],
+		URL:           record[7],
+		TitleType:     record[8],
 		IMDbRating:    imdbRating,
 		RuntimeMins:   runtimeMins,
 		Year:          year,
 		Genres:        genres,
 		NumVotes:      numVotes,
-		ReleaseDate:   record[12],
+		ReleaseDate:   record[14],
 		Directors:     directors,
 	}, nil
 }
