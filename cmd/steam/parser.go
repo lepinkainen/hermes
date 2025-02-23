@@ -22,13 +22,13 @@ func ParseSteam() error {
 	}
 
 	for _, game := range games {
-		filePath := getGameFilePath(game.Name, outputDir)
+		//filePath := getGameFilePath(game.Name, outputDir)
 
 		// Check if file already exists
-		if _, err := os.Stat(filePath); err == nil {
-			fmt.Printf("Skipping %s: File already exists\n", game.Name)
-			continue
-		}
+		//if _, err := os.Stat(filePath); err == nil {
+		//	fmt.Printf("Skipping %s: File already exists\n", game.Name)
+		//	continue
+		//}
 
 		fmt.Printf("Fetching details for: %s\n", game.Name)
 

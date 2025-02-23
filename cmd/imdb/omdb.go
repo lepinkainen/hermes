@@ -3,10 +3,12 @@ package imdb
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -37,11 +39,22 @@ type Rating struct {
 	Value  string `json:"Value"`
 }
 
+// Add at the top with other types
+type RateLimitError struct {
+	Message string
+}
+
+func (e *RateLimitError) Error() string {
+	return e.Message
+}
+
 func fetchMovieData(imdbID string) (*MovieSeen, error) {
 	apiKey := viper.GetString("imdb.omdb_api_key")
 	if apiKey == "" {
 		return nil, fmt.Errorf("imdb.omdb_api_key not set in config")
 	}
+
+	log.Infof("Fetching movie data for %s", imdbID)
 
 	url := fmt.Sprintf("http://www.omdbapi.com/?i=%s&apikey=%s", imdbID, apiKey)
 
@@ -51,9 +64,37 @@ func fetchMovieData(imdbID string) (*MovieSeen, error) {
 	}
 	defer resp.Body.Close()
 
+	// Check HTTP status code
+	if resp.StatusCode != http.StatusOK {
+		// Read the response body
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Warnf("Failed to read error response body: %v", err)
+		} else {
+			// Parse error response
+			var errorResp struct {
+				Response string `json:"Response"`
+				Error    string `json:"Error"`
+			}
+			if err := json.Unmarshal(body, &errorResp); err == nil {
+				if errorResp.Error == "Request limit reached!" {
+					return nil, &RateLimitError{Message: "OMDB API request limit reached"}
+				}
+				log.Warnf("OMDB API error: %s", errorResp.Error)
+			}
+			log.Warnf("OMDB API response body: %s", string(body))
+		}
+		return nil, fmt.Errorf("OMDB API returned non-200 status code: %d for ID: %s", resp.StatusCode, imdbID)
+	}
+
 	var omdbMovie OMDbMovie
 	if err := json.NewDecoder(resp.Body).Decode(&omdbMovie); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Check if we got a valid response with actual data
+	if omdbMovie.ImdbID == "" || omdbMovie.Title == "" {
+		return nil, fmt.Errorf("invalid or empty response from OMDB API for ID: %s", imdbID)
 	}
 
 	// Enhanced conversion

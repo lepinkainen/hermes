@@ -31,7 +31,7 @@ func getCachedGame(appID string) (*Game, *GameDetails, error) {
 
 	// Cache the result
 	os.MkdirAll(cacheDir, 0755)
-	data, _ := json.Marshal(details)
+	data, _ := json.MarshalIndent(details, "", "  ")
 	os.WriteFile(cachePath, data, 0644)
 
 	return game, details, nil

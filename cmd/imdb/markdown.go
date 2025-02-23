@@ -108,7 +108,7 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 
 	// Add poster image if available
 	if movie.PosterURL != "" {
-		content.WriteString(fmt.Sprintf("![[%s]]\n\n", movie.PosterURL))
+		content.WriteString(fmt.Sprintf("![][%s]\n\n", movie.PosterURL))
 	}
 
 	// Add plot summary in a callout if available
