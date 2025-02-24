@@ -13,12 +13,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-func parse_imdb() {
+func ParseImdb() error {
 	// Set log level
 	level, err := log.ParseLevel(logLevel)
 	if err != nil {
 		log.Fatalf("Invalid log level '%s': %v", logLevel, err)
-		return
+		return err
 	}
 	log.SetLevel(level)
 
@@ -26,7 +26,7 @@ func parse_imdb() {
 	movies, err := processCSVFile(inputFile)
 	if err != nil {
 		log.Fatalf("Failed to process CSV: %v", err)
-		return
+		return err
 	}
 
 	log.Infof("Found %d movies\n", len(movies))
@@ -35,7 +35,7 @@ func parse_imdb() {
 	log.Infof("Writing JSON\n")
 	if err := writeMovieToJson(movies, outputJson); err != nil {
 		log.Errorf("Error writing JSON: %v\n", err)
-		return
+		return err
 	}
 
 	log.Infof("Writing markdown\n")
@@ -44,10 +44,11 @@ func parse_imdb() {
 			log.Fatal("Stopping import due to rate limit: ", err)
 		}
 		log.Errorf("Error writing markdown: %v\n", err)
-		return
+		return err
 	}
 
 	log.Infof("Processed %d movies\n", len(movies))
+	return nil
 }
 
 func processCSVFile(filename string) ([]MovieSeen, error) {

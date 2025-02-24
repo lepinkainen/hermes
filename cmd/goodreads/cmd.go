@@ -32,7 +32,7 @@ The CSV file can be exported from your Goodreads account settings.`,
 
 		// Still require the values to be present somewhere
 		if csvFile == "" {
-			return cmd.MarkFlagRequired("csvfile")
+			return cmd.MarkFlagRequired("input")
 		}
 		return nil
 	},
@@ -42,7 +42,7 @@ The CSV file can be exported from your Goodreads account settings.`,
 }
 
 func init() {
-	importCmd.Flags().StringVarP(&csvFile, "csvfile", "f", "", "Path to Goodreads library export CSV file (required if not in config)")
+	importCmd.Flags().StringVarP(&csvFile, "input", "f", "", "Path to Goodreads library export CSV file (required if not in config)")
 	importCmd.Flags().StringVarP(&outputDir, "output", "o", "goodreads", "Subdirectory under markdown output directory for Goodreads files")
 }
 
