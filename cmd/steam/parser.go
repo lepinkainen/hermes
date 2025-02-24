@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/spf13/viper"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func ParseSteam() error {
@@ -22,6 +24,8 @@ func ParseSteam() error {
 	}
 
 	for _, game := range games {
+		// TODO: Do we need to check if the file already exists?
+
 		//filePath := getGameFilePath(game.Name, outputDir)
 
 		// Check if file already exists
@@ -30,24 +34,23 @@ func ParseSteam() error {
 		//	continue
 		//}
 
-		fmt.Printf("Fetching details for: %s\n", game.Name)
+		log.Infof("Fetching details for: %s\n", game.Name)
 
 		_, details, err := getCachedGame(strconv.Itoa(game.AppID))
 		if err != nil {
 			if strings.Contains(err.Error(), "status code 429") {
 				return fmt.Errorf("rate limit reached. Please try again later (usually after a few minutes)")
 			}
-			fmt.Printf("Error fetching details for %s: %v\n", game.Name, err)
+			log.Errorf("Error fetching details for %s: %v\n", game.Name, err)
 			continue
 		}
 
 		if err := CreateMarkdownFile(game, details, outputDir); err != nil {
-			fmt.Printf("Error creating markdown for %s: %v\n", game.Name, err)
+			log.Errorf("Error creating markdown for %s: %v\n", game.Name, err)
 			continue
 		}
 
-		fmt.Printf("Created markdown file for: %s\n", game.Name)
-		fmt.Println("---")
+		log.Infof("Created markdown file for: %s\n", game.Name)
 	}
 
 	return nil
