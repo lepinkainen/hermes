@@ -1,8 +1,7 @@
 package imdb
 
 import (
-	"path/filepath"
-
+	"github.com/lepinkainen/hermes/internal/cmdutil"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -15,6 +14,7 @@ var (
 	outputDir   string
 	skipInvalid bool
 	logLevel    string
+	cmdConfig   *cmdutil.BaseCommandConfig
 )
 
 // GetCommand returns the imdb command
@@ -29,13 +29,14 @@ Supports both ratings and watchlist exports.`,
 			inputFile = viper.GetString("imdb.csvfile")
 		}
 
-		if outputDir == "" {
-			outputDir = viper.GetString("goodreads.output")
+		cmdConfig = &cmdutil.BaseCommandConfig{
+			OutputDir: outputDir,
+			ConfigKey: "imdb",
 		}
-
-		// Combine the base markdown directory with the imdb subdirectory
-		baseDir := viper.GetString("markdownoutputdir")
-		outputDir = filepath.Join(baseDir, outputDir)
+		if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
+			return err
+		}
+		outputDir = cmdConfig.OutputDir
 
 		if inputFile == "" {
 			return cmd.MarkFlagRequired("input")
@@ -50,7 +51,7 @@ Supports both ratings and watchlist exports.`,
 
 func init() {
 	importCmd.Flags().StringVarP(&inputFile, "input", "f", "", "Input CSV file path")
-	importCmd.Flags().StringVarP(&outputDir, "output", "o", "imdb", "Subdirectory under markdown output directory for IMDB files")
+	cmdutil.AddOutputFlag(importCmd, &outputDir, "imdb", "Subdirectory under markdown output directory for IMDB files")
 	importCmd.Flags().StringVar(&outputJson, "output-json", "movies.json", "Output JSON file path")
 	importCmd.Flags().BoolVar(&skipInvalid, "skip-invalid", false, "Skip invalid entries instead of failing")
 	importCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")

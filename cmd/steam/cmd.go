@@ -1,8 +1,7 @@
 package steam
 
 import (
-	"path/filepath"
-
+	"github.com/lepinkainen/hermes/internal/cmdutil"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -11,6 +10,7 @@ var (
 	steamID   string
 	apiKey    string
 	outputDir string
+	cmdConfig *cmdutil.BaseCommandConfig
 )
 
 var importCmd = &cobra.Command{
@@ -25,13 +25,15 @@ var importCmd = &cobra.Command{
 		if apiKey == "" {
 			apiKey = viper.GetString("steam.apikey")
 		}
-		if outputDir == "" {
-			outputDir = viper.GetString("steam.output")
-		}
 
-		// Combine the base markdown directory with the steam subdirectory
-		baseDir := viper.GetString("markdownoutputdir")
-		outputDir = filepath.Join(baseDir, outputDir)
+		cmdConfig = &cmdutil.BaseCommandConfig{
+			OutputDir: outputDir,
+			ConfigKey: "steam",
+		}
+		if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
+			return err
+		}
+		outputDir = cmdConfig.OutputDir
 
 		// Still require the values to be present somewhere
 		if steamID == "" {
@@ -50,7 +52,7 @@ var importCmd = &cobra.Command{
 func init() {
 	importCmd.Flags().StringVarP(&steamID, "steamid", "s", "", "Steam ID of the user (required if not in config)")
 	importCmd.Flags().StringVarP(&apiKey, "apikey", "k", "", "Steam API key (required if not in config)")
-	importCmd.Flags().StringVarP(&outputDir, "output", "o", "steam", "Subdirectory under markdown output directory for Steam files")
+	cmdutil.AddOutputFlag(importCmd, &outputDir, "steam", "Subdirectory under markdown output directory for Steam files")
 }
 
 func GetCommand() *cobra.Command {

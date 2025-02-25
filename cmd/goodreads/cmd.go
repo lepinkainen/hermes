@@ -1,8 +1,7 @@
 package goodreads
 
 import (
-	"path/filepath"
-
+	"github.com/lepinkainen/hermes/internal/cmdutil"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -10,6 +9,7 @@ import (
 var (
 	csvFile   string
 	outputDir string
+	cmdConfig *cmdutil.BaseCommandConfig
 )
 
 var importCmd = &cobra.Command{
@@ -22,13 +22,15 @@ The CSV file can be exported from your Goodreads account settings.`,
 		if csvFile == "" {
 			csvFile = viper.GetString("goodreads.csvfile")
 		}
-		if outputDir == "" {
-			outputDir = viper.GetString("goodreads.output")
-		}
 
-		// Combine the base markdown directory with the goodreads subdirectory
-		baseDir := viper.GetString("markdownoutputdir")
-		outputDir = filepath.Join(baseDir, outputDir)
+		cmdConfig = &cmdutil.BaseCommandConfig{
+			OutputDir: outputDir,
+			ConfigKey: "goodreads",
+		}
+		if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
+			return err
+		}
+		outputDir = cmdConfig.OutputDir
 
 		// Still require the values to be present somewhere
 		if csvFile == "" {
@@ -43,7 +45,7 @@ The CSV file can be exported from your Goodreads account settings.`,
 
 func init() {
 	importCmd.Flags().StringVarP(&csvFile, "input", "f", "", "Path to Goodreads library export CSV file (required if not in config)")
-	importCmd.Flags().StringVarP(&outputDir, "output", "o", "goodreads", "Subdirectory under markdown output directory for Goodreads files")
+	cmdutil.AddOutputFlag(importCmd, &outputDir, "goodreads", "Subdirectory under markdown output directory for Goodreads files")
 }
 
 func GetCommand() *cobra.Command {

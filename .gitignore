@@ -28,3 +28,5 @@ build/
 /dist
 config.yaml
 cache/
+goodreads_library_export.csv
+.DS_Store
