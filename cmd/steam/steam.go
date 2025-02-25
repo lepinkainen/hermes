@@ -34,13 +34,17 @@ func GetGameDetails(appID int) (*GameDetails, error) {
 	}
 
 	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
+		return nil, fmt.Errorf("failed to parse JSON response: %w. Body: %s", err, string(body))
 	}
 
 	// Get the data using the appID as string key
 	appData, exists := result[fmt.Sprintf("%d", appID)]
-	if !exists || !appData.Success {
-		return nil, fmt.Errorf("no data available for app ID %d", appID)
+	if !exists {
+		return nil, fmt.Errorf("steam API response missing data for app ID %d (game might be removed or region-locked). Response: %s", appID, string(body))
+	}
+
+	if !appData.Success {
+		return nil, fmt.Errorf("steam API indicated unsuccessful data fetch for app ID %d (game might be unavailable in store). Response: %s", appID, string(body))
 	}
 
 	// Set the AppID in the returned data
