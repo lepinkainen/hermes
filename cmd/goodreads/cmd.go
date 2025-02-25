@@ -7,9 +7,11 @@ import (
 )
 
 var (
-	csvFile   string
-	outputDir string
-	cmdConfig *cmdutil.BaseCommandConfig
+	csvFile    string
+	outputDir  string
+	writeJSON  bool
+	jsonOutput string
+	cmdConfig  *cmdutil.BaseCommandConfig
 )
 
 var importCmd = &cobra.Command{
@@ -24,13 +26,16 @@ The CSV file can be exported from your Goodreads account settings.`,
 		}
 
 		cmdConfig = &cmdutil.BaseCommandConfig{
-			OutputDir: outputDir,
-			ConfigKey: "goodreads",
+			OutputDir:  outputDir,
+			ConfigKey:  "goodreads",
+			WriteJSON:  writeJSON,
+			JSONOutput: jsonOutput,
 		}
 		if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
 			return err
 		}
 		outputDir = cmdConfig.OutputDir
+		jsonOutput = cmdConfig.JSONOutput
 
 		// Still require the values to be present somewhere
 		if csvFile == "" {
@@ -46,6 +51,7 @@ The CSV file can be exported from your Goodreads account settings.`,
 func init() {
 	importCmd.Flags().StringVarP(&csvFile, "input", "f", "", "Path to Goodreads library export CSV file (required if not in config)")
 	cmdutil.AddOutputFlag(importCmd, &outputDir, "goodreads", "Subdirectory under markdown output directory for Goodreads files")
+	cmdutil.AddJSONFlags(importCmd, &writeJSON, &jsonOutput)
 }
 
 func GetCommand() *cobra.Command {

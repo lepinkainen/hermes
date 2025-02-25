@@ -43,6 +43,8 @@ func GetGameDetails(appID int) (*GameDetails, error) {
 		return nil, fmt.Errorf("no data available for app ID %d", appID)
 	}
 
+	// Set the AppID in the returned data
+	appData.Data.AppID = appID
 	return &appData.Data, nil
 }
 

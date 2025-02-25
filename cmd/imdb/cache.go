@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/lepinkainen/hermes/internal/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -24,7 +25,7 @@ func getCachedMovie(imdbID string) (*MovieSeen, error) {
 	movie, err := fetchMovieData(imdbID)
 	if err != nil {
 		// Check if it's a rate limit error
-		if _, isRateLimit := err.(*RateLimitError); isRateLimit {
+		if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
 			log.Warn("OMDB API rate limit reached, stopping further requests")
 			return nil, err
 		}

@@ -21,12 +21,14 @@
 go.work
 go.work.sum
 markdown/
+json/
 coverage/
 build/
 .task/
 
 /dist
 config.yaml
+config.yml
 cache/
 goodreads_library_export.csv
 .DS_Store

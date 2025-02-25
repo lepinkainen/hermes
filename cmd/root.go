@@ -29,6 +29,7 @@ func init() {
 	initLogging()
 
 	viper.SetDefault("MarkdownOutputDir", "./markdown/")
+	viper.SetDefault("JSONOutputDir", "./json/")
 
 	log.SetLevel(log.DebugLevel)
 

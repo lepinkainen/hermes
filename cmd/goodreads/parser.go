@@ -29,6 +29,7 @@ func ParseGoodreads() error {
 	}
 
 	var processedCount int
+	var books []Book
 
 	// Read each record from the CSV file
 	for {
@@ -126,6 +127,9 @@ func ParseGoodreads() error {
 			continue
 		}
 
+		// Add the book to our collection
+		books = append(books, book)
+
 		processedCount++
 		if processedCount%10 == 0 {
 			log.Printf("Processed %d books...\n", processedCount)
@@ -133,6 +137,14 @@ func ParseGoodreads() error {
 	}
 
 	log.Printf("Successfully processed %d books\n", processedCount)
+
+	// Write to JSON if enabled
+	if writeJSON {
+		if err := writeBookToJson(books, jsonOutput); err != nil {
+			log.Errorf("Error writing books to JSON: %v\n", err)
+		}
+	}
+
 	return nil
 }
 

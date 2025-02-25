@@ -9,9 +9,10 @@ import (
 
 // Define package-level variables for flags
 var (
-	inputFile   string
-	outputJson  string
+	csvFile     string
 	outputDir   string
+	writeJSON   bool
+	jsonOutput  string
 	skipInvalid bool
 	logLevel    string
 	cmdConfig   *cmdutil.BaseCommandConfig
@@ -25,20 +26,23 @@ var importCmd = &cobra.Command{
 Supports both ratings and watchlist exports.`,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		// If flags weren't provided, try to get values from config
-		if inputFile == "" {
-			inputFile = viper.GetString("imdb.csvfile")
+		if csvFile == "" {
+			csvFile = viper.GetString("imdb.csvfile")
 		}
 
 		cmdConfig = &cmdutil.BaseCommandConfig{
-			OutputDir: outputDir,
-			ConfigKey: "imdb",
+			OutputDir:  outputDir,
+			ConfigKey:  "imdb",
+			WriteJSON:  writeJSON,
+			JSONOutput: jsonOutput,
 		}
 		if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
 			return err
 		}
 		outputDir = cmdConfig.OutputDir
+		jsonOutput = cmdConfig.JSONOutput
 
-		if inputFile == "" {
+		if csvFile == "" {
 			return cmd.MarkFlagRequired("input")
 		}
 		return nil
@@ -50,9 +54,9 @@ Supports both ratings and watchlist exports.`,
 }
 
 func init() {
-	importCmd.Flags().StringVarP(&inputFile, "input", "f", "", "Input CSV file path")
+	importCmd.Flags().StringVarP(&csvFile, "input", "f", "", "Input CSV file path")
 	cmdutil.AddOutputFlag(importCmd, &outputDir, "imdb", "Subdirectory under markdown output directory for IMDB files")
-	importCmd.Flags().StringVar(&outputJson, "output-json", "movies.json", "Output JSON file path")
+	cmdutil.AddJSONFlags(importCmd, &writeJSON, &jsonOutput)
 	importCmd.Flags().BoolVar(&skipInvalid, "skip-invalid", false, "Skip invalid entries instead of failing")
 	importCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 }

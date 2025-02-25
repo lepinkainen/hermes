@@ -8,18 +8,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
-
-// Add at the top with other types
-type RateLimitError struct {
-	Message string
-}
-
-func (e *RateLimitError) Error() string {
-	return e.Message
-}
 
 func fetchMovieData(imdbID string) (*MovieSeen, error) {
 	apiKey := viper.GetString("imdb.omdb_api_key")
@@ -51,7 +43,7 @@ func fetchMovieData(imdbID string) (*MovieSeen, error) {
 			}
 			if err := json.Unmarshal(body, &errorResp); err == nil {
 				if errorResp.Error == "Request limit reached!" {
-					return nil, &RateLimitError{Message: "OMDB API request limit reached"}
+					return nil, errors.NewRateLimitError("OMDB API request limit reached")
 				}
 				log.Warnf("OMDB API error: %s", errorResp.Error)
 			}

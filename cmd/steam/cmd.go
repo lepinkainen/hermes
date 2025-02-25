@@ -2,15 +2,19 @@ package steam
 
 import (
 	"github.com/lepinkainen/hermes/internal/cmdutil"
+	"github.com/lepinkainen/hermes/internal/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	steamID   string
-	apiKey    string
-	outputDir string
-	cmdConfig *cmdutil.BaseCommandConfig
+	steamID    string
+	apiKey     string
+	outputDir  string
+	writeJSON  bool
+	jsonOutput string
+	cmdConfig  *cmdutil.BaseCommandConfig
 )
 
 var importCmd = &cobra.Command{
@@ -27,13 +31,16 @@ var importCmd = &cobra.Command{
 		}
 
 		cmdConfig = &cmdutil.BaseCommandConfig{
-			OutputDir: outputDir,
-			ConfigKey: "steam",
+			OutputDir:  outputDir,
+			ConfigKey:  "steam",
+			WriteJSON:  writeJSON,
+			JSONOutput: jsonOutput,
 		}
 		if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
 			return err
 		}
 		outputDir = cmdConfig.OutputDir
+		jsonOutput = cmdConfig.JSONOutput
 
 		// Still require the values to be present somewhere
 		if steamID == "" {
@@ -45,7 +52,15 @@ var importCmd = &cobra.Command{
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return ParseSteam()
+		err := ParseSteam()
+		if err != nil {
+			if rateLimitErr, ok := err.(*errors.RateLimitError); ok {
+				log.Error(rateLimitErr.Message)
+				return nil // Return nil to prevent Cobra from showing help text
+			}
+			return err
+		}
+		return nil
 	},
 }
 
@@ -53,6 +68,7 @@ func init() {
 	importCmd.Flags().StringVarP(&steamID, "steamid", "s", "", "Steam ID of the user (required if not in config)")
 	importCmd.Flags().StringVarP(&apiKey, "apikey", "k", "", "Steam API key (required if not in config)")
 	cmdutil.AddOutputFlag(importCmd, &outputDir, "steam", "Subdirectory under markdown output directory for Steam files")
+	cmdutil.AddJSONFlags(importCmd, &writeJSON, &jsonOutput)
 }
 
 func GetCommand() *cobra.Command {

@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 )
 
 func ParseImdb() error {
@@ -23,7 +22,7 @@ func ParseImdb() error {
 	log.SetLevel(level)
 
 	// Open and process CSV file
-	movies, err := processCSVFile(inputFile)
+	movies, err := processCSVFile(csvFile)
 	if err != nil {
 		log.Fatalf("Failed to process CSV: %v", err)
 		return err
@@ -31,20 +30,21 @@ func ParseImdb() error {
 
 	log.Infof("Found %d movies\n", len(movies))
 
-	// Write outputs
-	log.Infof("Writing JSON\n")
-	if err := writeMovieToJson(movies, outputJson); err != nil {
-		log.Errorf("Error writing JSON: %v\n", err)
-		return err
-	}
-
+	// Write markdown files
 	log.Infof("Writing markdown\n")
-	if err := writeMoviesToMarkdown(movies, filepath.Join(viper.GetString("MarkdownOutputDir"), "imdb")); err != nil {
-		if _, isRateLimit := err.(*RateLimitError); isRateLimit {
+	if err := writeMoviesToMarkdown(movies, outputDir); err != nil {
+		if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
 			log.Fatal("Stopping import due to rate limit: ", err)
 		}
 		log.Errorf("Error writing markdown: %v\n", err)
 		return err
+	}
+
+	// Write to JSON if enabled
+	if writeJSON {
+		if err := writeMovieToJson(movies, jsonOutput); err != nil {
+			log.Errorf("Error writing movies to JSON: %v\n", err)
+		}
 	}
 
 	log.Infof("Processed %d movies\n", len(movies))
@@ -186,7 +186,7 @@ func enrichMovieData(movie *MovieSeen) error {
 	omdbMovie, err := getCachedMovie(movie.ImdbId)
 	if err != nil {
 		// Don't wrap rate limit errors
-		if _, isRateLimit := err.(*RateLimitError); isRateLimit {
+		if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
 			return err // Return the RateLimitError directly
 		}
 		return fmt.Errorf("failed to enrich movie data: %w", err)
@@ -219,7 +219,7 @@ func writeMoviesToMarkdown(movies []MovieSeen, directory string) error {
 		// Enrich with OMDB data
 		if err := enrichMovieData(&movies[i]); err != nil {
 			// Check if it's a rate limit error
-			if _, isRateLimit := err.(*RateLimitError); isRateLimit {
+			if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
 				return err
 			}
 			log.Warnf("Failed to enrich movie %s: %v", movies[i].Title, err)
