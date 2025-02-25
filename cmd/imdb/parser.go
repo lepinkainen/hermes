@@ -13,14 +13,6 @@ import (
 )
 
 func ParseImdb() error {
-	// Set log level
-	level, err := log.ParseLevel(logLevel)
-	if err != nil {
-		log.Fatalf("Invalid log level '%s': %v", logLevel, err)
-		return err
-	}
-	log.SetLevel(level)
-
 	// Open and process CSV file
 	movies, err := processCSVFile(csvFile)
 	if err != nil {

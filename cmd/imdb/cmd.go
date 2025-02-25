@@ -14,7 +14,6 @@ var (
 	writeJSON   bool
 	jsonOutput  string
 	skipInvalid bool
-	logLevel    string
 	cmdConfig   *cmdutil.BaseCommandConfig
 )
 
@@ -58,7 +57,6 @@ func init() {
 	cmdutil.AddOutputFlag(importCmd, &outputDir, "imdb", "Subdirectory under markdown output directory for IMDB files")
 	cmdutil.AddJSONFlags(importCmd, &writeJSON, &jsonOutput)
 	importCmd.Flags().BoolVar(&skipInvalid, "skip-invalid", false, "Skip invalid entries instead of failing")
-	importCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 }
 
 func GetCommand() *cobra.Command {
