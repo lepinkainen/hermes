@@ -3,19 +3,17 @@ package imdb
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
+	"github.com/lepinkainen/hermes/internal/fileutil"
 	log "github.com/sirupsen/logrus"
 )
 
 // writeMovieToMarkdown writes movie info to a markdown file
 func writeMovieToMarkdown(movie MovieSeen, directory string) error {
-	// Sanitize movie title for filename
-	filename := sanitizeFilename(movie.Title) + ".md"
-	filePath := filepath.Join(directory, filename)
+	// Get the file path using the common utility
+	filePath := fileutil.GetMarkdownFilePath(movie.Title, directory)
 
 	// Create frontmatter content
 	var frontmatter strings.Builder
@@ -195,15 +193,4 @@ func (m *MovieSeen) Validate() error {
 		return fmt.Errorf("invalid year: %d", m.Year)
 	}
 	return nil
-}
-
-func sanitizeFilename(filename string) string {
-	// Replace invalid filename characters
-	invalid := regexp.MustCompile(`[<>:"/\\|?*]`)
-	safe := invalid.ReplaceAllString(filename, "-")
-	// Remove multiple dashes
-	multiDash := regexp.MustCompile(`-+`)
-	safe = multiDash.ReplaceAllString(safe, "-")
-	// Trim spaces and dashes from ends
-	return strings.Trim(safe, " -")
 }

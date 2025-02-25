@@ -3,9 +3,10 @@ package goodreads
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/lepinkainen/hermes/internal/fileutil"
 )
 
 func writeBookToMarkdown(book Book, directory string) error {
@@ -14,8 +15,7 @@ func writeBookToMarkdown(book Book, directory string) error {
 		return fmt.Errorf("failed to create directory %s: %w", directory, err)
 	}
 
-	filename := sanitizeFilename(book.Title) + ".md"
-	filePath := filepath.Join(directory, filename)
+	filePath := fileutil.GetMarkdownFilePath(book.Title, directory)
 
 	var frontmatter strings.Builder
 	frontmatter.WriteString("---\n")
@@ -170,16 +170,4 @@ func writeBookToMarkdown(book Book, directory string) error {
 // Helper function to sanitize Goodreads title
 func sanitizeGoodreadsTitle(title string) string {
 	return strings.ReplaceAll(title, ":", "")
-}
-
-// Helper function to sanitize filename
-func sanitizeFilename(name string) string {
-	// Replace invalid filename characters
-	invalid := regexp.MustCompile(`[<>:"/\\|?*]`)
-	safe := invalid.ReplaceAllString(name, "-")
-	// Remove multiple dashes
-	multiDash := regexp.MustCompile(`-+`)
-	safe = multiDash.ReplaceAllString(safe, "-")
-	// Trim spaces and dashes from ends
-	return strings.Trim(safe, " -")
 }

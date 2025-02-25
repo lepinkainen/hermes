@@ -3,7 +3,6 @@ package steam
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -27,7 +26,7 @@ func ParseSteam() error {
 	var processedGames []GameDetails
 
 	for _, game := range games {
-		log.Infof("Fetching details for: %s\n", game.Name)
+		log.Debugf("Fetching details for: %s\n", game.Name)
 
 		_, details, err := getCachedGame(strconv.Itoa(game.AppID))
 		if err != nil {
@@ -62,21 +61,6 @@ func ParseSteam() error {
 	}
 
 	return nil
-}
-
-// Helper function to get the expected file path for a game
-func getGameFilePath(gameName string, directory string) string {
-	// Clean the filename first
-	filename := sanitizeFilename(gameName)
-	return filepath.Join(directory, filename+".md")
-}
-
-// Helper function to sanitize filename
-func sanitizeFilename(name string) string {
-	// Replace problematic characters
-	name = strings.ReplaceAll(name, ":", " - ")
-	name = strings.ReplaceAll(name, "/", "-")
-	return name
 }
 
 func fetchGameData(appID string) (*Game, *GameDetails, error) {

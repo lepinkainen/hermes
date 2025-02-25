@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/lepinkainen/hermes/internal/fileutil"
 )
 
 // CreateMarkdownFile generates a markdown file for a Steam game
@@ -14,7 +16,7 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	}
 
 	// Use the common function for file path
-	filename := getGameFilePath(game.Name, directory)
+	filename := fileutil.GetMarkdownFilePath(game.Name, directory)
 
 	// Extract category descriptions
 	categories := make([]string, len(details.Categories))
@@ -54,7 +56,7 @@ cover: %s
 ## Screenshots
 %s
 `,
-		sanitizeFilename(game.Name),
+		fileutil.SanitizeFilename(game.Name),
 		game.PlaytimeForever,
 		strings.Join(details.Developers, ", "),
 		strings.Join(details.Publishers, ", "),
