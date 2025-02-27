@@ -111,16 +111,16 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 
 	// Add plot summary in a callout if available
 	if movie.Plot != "" {
-		content.WriteString(fmt.Sprintf(">[!summary]- Plot\n> %s\n\n", movie.Plot))
+		content.WriteString(fmt.Sprintf("> [!summary]- Plot\n> %s\n\n", movie.Plot))
 	}
 
 	// Add awards in a callout if available
 	if movie.Awards != "" {
-		content.WriteString(fmt.Sprintf(">[!award]- Awards\n> %s\n\n", movie.Awards))
+		content.WriteString(fmt.Sprintf("> [!award]- Awards\n> %s\n\n", movie.Awards))
 	}
 
 	// Add IMDb link as a button (Obsidian feature)
-	content.WriteString(fmt.Sprintf(">[!info]- IMDb\n> [View on IMDb](%s)\n\n", movie.URL))
+	content.WriteString(fmt.Sprintf("> [!info]- IMDb\n> [View on IMDb](%s)\n", movie.URL))
 
 	// Write content to file with overwrite logic
 	written, err := fileutil.WriteFileWithOverwrite(filePath, []byte(frontmatter.String()+content.String()), 0644, config.OverwriteFiles)

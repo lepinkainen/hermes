@@ -163,7 +163,7 @@ func writeBookToMarkdown(book Book, directory string) error {
 
 	// Add private notes in a callout if they exist
 	if book.PrivateNotes != "" {
-		content.WriteString(fmt.Sprintf(">[!note]- Private Notes\n> %s\n\n", book.PrivateNotes))
+		content.WriteString(fmt.Sprintf("> [!note]- Private Notes\n> %s\n", book.PrivateNotes))
 	}
 
 	// Write content to file with overwrite logic

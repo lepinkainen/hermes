@@ -108,13 +108,13 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 
 	// Add description in a callout if available
 	if details.Description != "" {
-		content.WriteString(">[!summary]- Description\n> ")
+		content.WriteString("> [!summary]- Description\n> ")
 		content.WriteString(details.Description)
 		content.WriteString("\n\n")
 	}
 
 	// Add details in a callout
-	content.WriteString(">[!info]- Game Details\n")
+	content.WriteString("> [!info]- Game Details\n>\n")
 	fmt.Fprintf(&content, "> - **Playtime**: %d minutes", game.PlaytimeForever)
 	if hours > 0 {
 		fmt.Fprintf(&content, " (%dh %dm)", hours, mins)
@@ -159,8 +159,13 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	// Add screenshots section
 	if len(details.Screenshots) > 0 {
 		content.WriteString("## Screenshots\n\n")
-		for _, screenshot := range details.Screenshots {
-			fmt.Fprintf(&content, "![](%s)\n\n", screenshot.PathURL)
+		for i, screenshot := range details.Screenshots {
+			if i == len(details.Screenshots)-1 {
+				// Last screenshot, don't add an extra newline
+				fmt.Fprintf(&content, "![](%s)\n", screenshot.PathURL)
+			} else {
+				fmt.Fprintf(&content, "![](%s)\n\n", screenshot.PathURL)
+			}
 		}
 	}
 
