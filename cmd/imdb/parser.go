@@ -206,7 +206,7 @@ func enrichMovieData(movie *MovieSeen) error {
 
 func writeMoviesToMarkdown(movies []MovieSeen, directory string) error {
 	for i := range movies {
-		log.Infof("Processing movie %d of %d (%s)\n", i+1, len(movies), movies[i].Title)
+		log.Infof("Processing: %s\n", movies[i].Title)
 
 		// Enrich with OMDB data
 		if err := enrichMovieData(&movies[i]); err != nil {

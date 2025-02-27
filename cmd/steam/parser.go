@@ -33,7 +33,7 @@ func ParseSteam() error {
 			if strings.Contains(err.Error(), "status code 429") {
 				return errors.NewRateLimitError("Rate limit reached. Please try again later (usually after a few minutes)")
 			}
-			log.Errorf("Error fetching details for %s: %v\n", game.Name, err)
+			log.Warnf("Error fetching details for %s: %v\n", game.Name, err)
 			continue
 		}
 
@@ -50,7 +50,7 @@ func ParseSteam() error {
 		}
 
 		processedGames = append(processedGames, *details)
-		log.Infof("Created markdown file for: %s\n", game.Name)
+		//log.Infof("Created markdown file for: %s\n", game.Name)
 	}
 
 	// Write to JSON if enabled

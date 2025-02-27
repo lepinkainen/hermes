@@ -129,7 +129,7 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	}
 
 	if !written {
-		log.Infof("Skipped existing file: %s", filePath)
+		log.Debugf("Skipped existing file: %s", filePath)
 	}
 
 	return nil

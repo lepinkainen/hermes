@@ -6,7 +6,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/fileutil"
+	log "github.com/sirupsen/logrus"
 )
 
 func writeBookToMarkdown(book Book, directory string) error {
@@ -164,7 +166,17 @@ func writeBookToMarkdown(book Book, directory string) error {
 		content.WriteString(fmt.Sprintf(">[!note]- Private Notes\n> %s\n\n", book.PrivateNotes))
 	}
 
-	return os.WriteFile(filePath, []byte(frontmatter.String()+content.String()), 0644)
+	// Write content to file with overwrite logic
+	written, err := fileutil.WriteFileWithOverwrite(filePath, []byte(frontmatter.String()+content.String()), 0644, config.OverwriteFiles)
+	if err != nil {
+		return err
+	}
+
+	if !written {
+		log.Debugf("Skipped existing file: %s", filePath)
+	}
+
+	return nil
 }
 
 // Helper function to sanitize Goodreads title

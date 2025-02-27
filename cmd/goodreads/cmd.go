@@ -2,6 +2,7 @@ package goodreads
 
 import (
 	"github.com/lepinkainen/hermes/internal/cmdutil"
+	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -11,6 +12,7 @@ var (
 	outputDir  string
 	writeJSON  bool
 	jsonOutput string
+	overwrite  bool
 	cmdConfig  *cmdutil.BaseCommandConfig
 )
 
@@ -30,6 +32,7 @@ The CSV file can be exported from your Goodreads account settings.`,
 			ConfigKey:  "goodreads",
 			WriteJSON:  writeJSON,
 			JSONOutput: jsonOutput,
+			Overwrite:  overwrite,
 		}
 		if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
 			return err
@@ -52,6 +55,9 @@ func init() {
 	importCmd.Flags().StringVarP(&csvFile, "input", "f", "", "Path to Goodreads library export CSV file (required if not in config)")
 	cmdutil.AddOutputFlag(importCmd, &outputDir, "goodreads", "Subdirectory under markdown output directory for Goodreads files")
 	cmdutil.AddJSONFlags(importCmd, &writeJSON, &jsonOutput)
+
+	// Use the global overwrite flag by default
+	overwrite = config.OverwriteFiles
 }
 
 func GetCommand() *cobra.Command {

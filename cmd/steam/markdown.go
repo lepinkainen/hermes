@@ -5,7 +5,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/fileutil"
+	log "github.com/sirupsen/logrus"
 )
 
 // CreateMarkdownFile generates a markdown file for a Steam game
@@ -74,7 +76,17 @@ cover: %s
 		generateScreenshotsSection(details),
 	)
 
-	return os.WriteFile(filename, []byte(content), 0644)
+	// Write content to file with overwrite logic
+	written, err := fileutil.WriteFileWithOverwrite(filename, []byte(content), 0644, config.OverwriteFiles)
+	if err != nil {
+		return err
+	}
+
+	if !written {
+		log.Debugf("Skipped existing file: %s", filename)
+	}
+
+	return nil
 }
 
 // Helper function to generate the metacritic section

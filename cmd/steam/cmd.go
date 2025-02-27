@@ -2,6 +2,7 @@ package steam
 
 import (
 	"github.com/lepinkainen/hermes/internal/cmdutil"
+	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -14,6 +15,7 @@ var (
 	outputDir  string
 	writeJSON  bool
 	jsonOutput string
+	overwrite  bool
 	cmdConfig  *cmdutil.BaseCommandConfig
 )
 
@@ -35,6 +37,7 @@ var importCmd = &cobra.Command{
 			ConfigKey:  "steam",
 			WriteJSON:  writeJSON,
 			JSONOutput: jsonOutput,
+			Overwrite:  overwrite,
 		}
 		if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
 			return err
@@ -69,6 +72,9 @@ func init() {
 	importCmd.Flags().StringVarP(&apiKey, "apikey", "k", "", "Steam API key (required if not in config)")
 	cmdutil.AddOutputFlag(importCmd, &outputDir, "steam", "Subdirectory under markdown output directory for Steam files")
 	cmdutil.AddJSONFlags(importCmd, &writeJSON, &jsonOutput)
+
+	// Use the global overwrite flag by default
+	overwrite = config.OverwriteFiles
 }
 
 func GetCommand() *cobra.Command {
