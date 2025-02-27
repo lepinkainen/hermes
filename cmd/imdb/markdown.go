@@ -2,10 +2,10 @@ package imdb
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/fileutil"
 	log "github.com/sirupsen/logrus"
 )
@@ -122,13 +122,17 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	// Add IMDb link as a button (Obsidian feature)
 	content.WriteString(fmt.Sprintf(">[!info]- IMDb\n> [View on IMDb](%s)\n\n", movie.URL))
 
-	// Create directory if it doesn't exist
-	if err := os.MkdirAll(directory, 0755); err != nil {
+	// Write content to file with overwrite logic
+	written, err := fileutil.WriteFileWithOverwrite(filePath, []byte(frontmatter.String()+content.String()), 0644, config.OverwriteFiles)
+	if err != nil {
 		return err
 	}
 
-	// Write content to file
-	return os.WriteFile(filePath, []byte(frontmatter.String()+content.String()), 0644)
+	if !written {
+		log.Infof("Skipped existing file: %s", filePath)
+	}
+
+	return nil
 }
 
 func sanitizeTitle(title string) string {

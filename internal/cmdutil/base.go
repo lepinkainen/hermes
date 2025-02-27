@@ -16,6 +16,7 @@ type BaseCommandConfig struct {
 	ConfigKey     string
 	JSONOutput    string
 	WriteJSON     bool
+	Overwrite     bool
 }
 
 // SetupOutputDir handles the common output directory setup logic

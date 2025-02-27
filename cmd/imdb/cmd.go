@@ -2,6 +2,7 @@ package imdb
 
 import (
 	"github.com/lepinkainen/hermes/internal/cmdutil"
+	"github.com/lepinkainen/hermes/internal/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -14,6 +15,7 @@ var (
 	writeJSON   bool
 	jsonOutput  string
 	skipInvalid bool
+	overwrite   bool
 	cmdConfig   *cmdutil.BaseCommandConfig
 )
 
@@ -34,6 +36,7 @@ Supports both ratings and watchlist exports.`,
 			ConfigKey:  "imdb",
 			WriteJSON:  writeJSON,
 			JSONOutput: jsonOutput,
+			Overwrite:  overwrite,
 		}
 		if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
 			return err
@@ -57,6 +60,9 @@ func init() {
 	cmdutil.AddOutputFlag(importCmd, &outputDir, "imdb", "Subdirectory under markdown output directory for IMDB files")
 	cmdutil.AddJSONFlags(importCmd, &writeJSON, &jsonOutput)
 	importCmd.Flags().BoolVar(&skipInvalid, "skip-invalid", false, "Skip invalid entries instead of failing")
+
+	// Use the global overwrite flag by default
+	overwrite = config.OverwriteFiles
 }
 
 func GetCommand() *cobra.Command {

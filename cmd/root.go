@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/lepinkainen/hermes/internal/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -15,6 +16,11 @@ var rootCmd = &cobra.Command{
 	Short: "A tool to import data from various sources",
 	Long:  `A tool to import data from various sources into a unified format.`,
 }
+
+// Global flags
+var (
+	overwriteFiles bool
+)
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
@@ -30,6 +36,7 @@ func init() {
 
 	viper.SetDefault("MarkdownOutputDir", "./markdown/")
 	viper.SetDefault("JSONOutputDir", "./json/")
+	viper.SetDefault("OverwriteFiles", false)
 
 	viper.SetConfigName("config") // name of config file (without extension)
 	viper.SetConfigType("yaml")   // REQUIRED if the config file does not have the extension in the name
@@ -46,7 +53,16 @@ func init() {
 		}
 	}
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.hermes.yaml)")
+	// Initialize global config
+	config.InitConfig()
+
+	// Add global flags
+	rootCmd.PersistentFlags().BoolVar(&overwriteFiles, "overwrite", viper.GetBool("OverwriteFiles"), "Overwrite existing markdown files when processing")
+
+	// Update the config when the flag changes
+	cobra.OnInitialize(func() {
+		config.SetOverwriteFiles(overwriteFiles)
+	})
 }
 
 func initLogging() {

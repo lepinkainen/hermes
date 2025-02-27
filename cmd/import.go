@@ -1,10 +1,11 @@
 package cmd
 
 import (
+	"github.com/spf13/cobra"
+
 	"github.com/lepinkainen/hermes/cmd/goodreads"
 	"github.com/lepinkainen/hermes/cmd/imdb"
 	"github.com/lepinkainen/hermes/cmd/steam"
-	"github.com/spf13/cobra"
 )
 
 var importCmd = &cobra.Command{
