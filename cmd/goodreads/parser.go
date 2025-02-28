@@ -153,15 +153,19 @@ func splitString(str string) []string {
 	if str == "" {
 		return nil
 	}
-	return strings.Split(str, ",")
+	var splitStrings = strings.Split(str, ",")
+	for i, s := range splitStrings {
+		splitStrings[i] = strings.TrimSpace(s)
+	}
+	return splitStrings
 }
 
 // Helper function to handle the description field
-func getDescription(desc interface{}) string {
+func getDescription(desc any) string {
 	switch v := desc.(type) {
 	case string:
 		return v
-	case map[string]interface{}:
+	case map[string]any:
 		if value, ok := v["value"].(string); ok {
 			return value
 		}
@@ -170,13 +174,13 @@ func getDescription(desc interface{}) string {
 }
 
 // Helper function to handle subjects
-func getSubjects(subjects []interface{}) []string {
+func getSubjects(subjects []any) []string {
 	result := make([]string, 0)
 	for _, subject := range subjects {
 		switch v := subject.(type) {
 		case string:
 			result = append(result, v)
-		case map[string]interface{}:
+		case map[string]any:
 			if name, ok := v["name"].(string); ok {
 				result = append(result, name)
 			}
@@ -186,13 +190,13 @@ func getSubjects(subjects []interface{}) []string {
 }
 
 // Helper function for subject people
-func getSubjectPeople(subjects []interface{}) []string {
+func getSubjectPeople(subjects []any) []string {
 	result := make([]string, 0)
 	for _, subject := range subjects {
 		switch v := subject.(type) {
 		case string:
 			result = append(result, v)
-		case map[string]interface{}:
+		case map[string]any:
 			if name, ok := v["name"].(string); ok {
 				result = append(result, name)
 			}

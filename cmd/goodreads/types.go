@@ -34,12 +34,12 @@ type Book struct {
 
 // OpenLibraryBook struct represents the response from the OpenLibrary API
 type OpenLibraryBook struct {
-	Description   interface{}   `json:"description"`
-	Covers        []int         `json:"covers"`
-	Subjects      []interface{} `json:"subjects"`
-	SubjectPeople []interface{} `json:"subject_people"`
-	Title         string        `json:"title"`
-	Subtitle      string        `json:"subtitle"`
+	Description   any    `json:"description"`
+	Covers        []int  `json:"covers"`
+	Subjects      []any  `json:"subjects"`
+	SubjectPeople []any  `json:"subject_people"`
+	Title         string `json:"title"`
+	Subtitle      string `json:"subtitle"`
 	Publishers    []struct {
 		Name string `json:"name"`
 	} `json:"publishers"`
@@ -52,7 +52,7 @@ type OpenLibraryBook struct {
 
 // OpenLibraryEdition struct represents the response from the OpenLibrary API
 type OpenLibraryEdition struct {
-	Publishers      []string               `json:"publishers"`
-	Number_of_pages int                    `json:"number_of_pages"`
-	Cover           map[string]interface{} `json:"cover"`
+	Publishers      []string       `json:"publishers"`
+	Number_of_pages int            `json:"number_of_pages"`
+	Cover           map[string]any `json:"cover"`
 }
