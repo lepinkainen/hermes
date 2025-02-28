@@ -16,8 +16,9 @@ func GetMarkdownFilePath(name string, directory string) string {
 // SanitizeFilename cleans a filename by replacing problematic characters
 func SanitizeFilename(name string) string {
 	// Replace problematic characters
-	name = strings.ReplaceAll(name, ":", " - ")
+	name = strings.ReplaceAll(name, ":", " -")
 	name = strings.ReplaceAll(name, "/", "-")
+	name = strings.ReplaceAll(name, "\\", "-")
 	return name
 }
 

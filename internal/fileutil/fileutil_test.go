@@ -23,7 +23,7 @@ func TestSanitizeFilename(t *testing.T) {
 		{
 			name:     "text with colon",
 			input:    "Title: Subtitle",
-			expected: "Title -  Subtitle",
+			expected: "Title - Subtitle",
 		},
 		{
 			name:     "text with slash",
@@ -31,9 +31,14 @@ func TestSanitizeFilename(t *testing.T) {
 			expected: "Title-Subtitle",
 		},
 		{
+			name:     "text with backslash",
+			input:    "Title\\Subtitle",
+			expected: "Title-Subtitle",
+		},
+		{
 			name:     "text with both colon and slash",
 			input:    "Title: Subtitle/Part",
-			expected: "Title -  Subtitle-Part",
+			expected: "Title - Subtitle-Part",
 		},
 	}
 
@@ -62,7 +67,7 @@ func TestGetMarkdownFilePath(t *testing.T) {
 			name:      "title with colon",
 			title:     "Test: Title",
 			directory: "test/dir",
-			expected:  filepath.Join("test/dir", "Test -  Title.md"),
+			expected:  filepath.Join("test/dir", "Test - Title.md"),
 		},
 	}
 
