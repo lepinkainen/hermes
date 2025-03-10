@@ -114,8 +114,11 @@ func writeBookToMarkdown(book Book, directory string) error {
 	// Handle cover URL
 	if book.CoverURL != "" {
 		mb.AddField("cover_url", book.CoverURL)
+		mb.AddImage(book.CoverURL)
 	} else if book.CoverID > 0 {
-		mb.AddField("cover_url", fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", book.CoverID))
+		coverURL := fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", book.CoverID)
+		mb.AddField("cover_url", coverURL)
+		mb.AddImage(coverURL)
 	}
 
 	if book.Subtitle != "" {

@@ -9,7 +9,7 @@ alwaysApply: true
 
 - **Language:** Go only (no Python or other languages)
 - **Build System:** Use Taskfile
-- **Unit Tests:** Write basic unit tests for new functionality
+- **Unit Tests:** Write basic unit tests for new functionality. Always check the tests pass after finishing changes.
 - **CLI Framework:** Cobra and Viper for commands and configuration
 - **Purpose:** See README.md for project definition
 

@@ -36,6 +36,8 @@ subject_people:
   - "Character Two"
 ---
 
+![](https://example.com/cover.jpg)
+
 ## Review
 
 This is my review of the book.
