@@ -98,3 +98,56 @@ func TestFormatDuration(t *testing.T) {
 		})
 	}
 }
+
+func TestAddDate(t *testing.T) {
+	testCases := []struct {
+		name     string
+		dateStr  string
+		expected string
+	}{
+		{
+			name:     "already_iso_format",
+			dateStr:  "2023-01-15",
+			expected: "date: \"2023-01-15\"",
+		},
+		{
+			name:     "mm_dd_yyyy",
+			dateStr:  "01/15/2023",
+			expected: "date: \"2023-01-15\"",
+		},
+		{
+			name:     "dd_mm_yyyy",
+			dateStr:  "15/01/2023",
+			expected: "date: \"2023-01-15\"",
+		},
+		{
+			name:     "month_name",
+			dateStr:  "Jan 15, 2023",
+			expected: "date: \"2023-01-15\"",
+		},
+		{
+			name:     "steam_format",
+			dateStr:  "15 Jan, 2023",
+			expected: "date: \"2023-01-15\"",
+		},
+		{
+			name:     "full_month_name",
+			dateStr:  "January 15, 2023",
+			expected: "date: \"2023-01-15\"",
+		},
+		{
+			name:     "unparseable_format",
+			dateStr:  "Some random text",
+			expected: "date: \"Some random text\"",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mb := NewMarkdownBuilder()
+			mb.AddDate("date", tc.dateStr)
+			result := mb.Build()
+			assert.Contains(t, result, tc.expected)
+		})
+	}
+}

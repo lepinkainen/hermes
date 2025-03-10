@@ -44,10 +44,10 @@ func writeBookToMarkdown(book Book, directory string) error {
 
 	// Dates
 	if book.DateRead != "" {
-		mb.AddField("date_read", book.DateRead)
+		mb.AddDate("date_read", book.DateRead)
 	}
 	if book.DateAdded != "" {
-		mb.AddField("date_added", book.DateAdded)
+		mb.AddDate("date_added", book.DateAdded)
 	}
 
 	// Book details

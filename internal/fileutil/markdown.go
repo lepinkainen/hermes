@@ -3,6 +3,7 @@ package fileutil
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // MarkdownBuilder helps construct markdown documents with frontmatter
@@ -194,6 +195,52 @@ func (mb *MarkdownBuilder) AddExternalLinksCallout(title string, links map[strin
 		fmt.Fprintf(&mb.content, "> [%s](%s)\n", linkTitle, linkURL)
 	}
 	mb.content.WriteString("\n")
+
+	return mb
+}
+
+// AddDate adds a date field to the frontmatter in YYYY-MM-DD format
+func (mb *MarkdownBuilder) AddDate(key string, dateStr string) *MarkdownBuilder {
+	if dateStr == "" {
+		return mb
+	}
+
+	// Try to parse and reformat the date to YYYY-MM-DD
+	// Common date formats to try
+	formats := []string{
+		"2006-01-02",          // YYYY-MM-DD
+		"01/02/2006",          // MM/DD/YYYY
+		"02/01/2006",          // DD/MM/YYYY
+		"Jan 2, 2006",         // Mon D, YYYY
+		"2 Jan, 2006",         // D Mon, YYYY
+		"January 2, 2006",     // Month D, YYYY
+		"2 January, 2006",     // D Month, YYYY
+		"02 Jan 2006",         // DD Mon YYYY
+		"Jan 02, 2006",        // Mon DD, YYYY
+		"2006-01-02 15:04:05", // YYYY-MM-DD HH:MM:SS
+		"2006/01/02",          // YYYY/MM/DD
+		"02-Jan-2006",         // DD-Mon-YYYY
+		time.RFC3339,          // ISO 8601
+	}
+
+	// Try each format
+	var parsedDate time.Time
+	var err error
+	for _, format := range formats {
+		parsedDate, err = time.Parse(format, dateStr)
+		if err == nil {
+			// Successfully parsed
+			break
+		}
+	}
+
+	if err != nil {
+		// Couldn't parse, use as-is
+		fmt.Fprintf(&mb.frontmatter, "%s: \"%s\"\n", key, dateStr)
+	} else {
+		// Successfully parsed, format as YYYY-MM-DD
+		fmt.Fprintf(&mb.frontmatter, "%s: \"%s\"\n", key, parsedDate.Format("2006-01-02"))
+	}
 
 	return mb
 }

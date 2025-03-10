@@ -25,7 +25,7 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 
 	// Add date watched if available
 	if movie.Date != "" {
-		mb.AddField("date_watched", movie.Date)
+		mb.AddDate("date_watched", movie.Date)
 	}
 
 	// Add rating if available

@@ -3,7 +3,7 @@ title: "Test Game"
 type: game
 playtime: 120
 duration: 2h 0m
-release_date: "15 Jan, 2023"
+release_date: "2023-01-15"
 cover: "https://example.com/header.jpg"
 developers:
   - "Developer One"

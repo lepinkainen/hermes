@@ -37,8 +37,8 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	mb.AddField("my_rating", movie.MyRating)
 
 	// Format date in a more readable way
-	if date, err := time.Parse("2006-01-02", movie.DateRated); err == nil {
-		mb.AddField("date_rated", date.Format("2006-01-02"))
+	if movie.DateRated != "" {
+		mb.AddDate("date_rated", movie.DateRated)
 	}
 
 	// Add runtime and duration

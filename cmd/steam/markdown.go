@@ -33,8 +33,8 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 		mb.AddDuration(game.PlaytimeForever)
 	}
 
-	// Add release date
-	mb.AddField("release_date", details.ReleaseDate.Date)
+	// Add release date with standard YYYY-MM-DD format
+	mb.AddDate("release_date", details.ReleaseDate.Date)
 
 	// Add cover image
 	mb.AddField("cover", details.HeaderImage)
