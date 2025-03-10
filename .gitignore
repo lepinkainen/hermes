@@ -32,3 +32,7 @@ config.yml
 cache/
 goodreads_library_export.csv
 .DS_Store
+hermes
+
+*.csv
+*.json
