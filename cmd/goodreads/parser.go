@@ -49,37 +49,37 @@ func ParseGoodreads() error {
 			continue
 		}
 
-		myRating, err := strconv.ParseFloat(record[8], 64)
+		myRating, err := strconv.ParseFloat(record[7], 64)
 		if err != nil {
 			myRating = 0.0
 		}
 
-		averageRating, err := strconv.ParseFloat(record[9], 64)
+		averageRating, err := strconv.ParseFloat(record[8], 64)
 		if err != nil {
 			averageRating = 0.0
 		}
 
-		numberOfPages, err := strconv.Atoi(record[12])
+		numberOfPages, err := strconv.Atoi(record[11])
 		if err != nil {
 			numberOfPages = 0
 		}
 
-		yearPublished, err := strconv.Atoi(record[13])
+		yearPublished, err := strconv.Atoi(record[12])
 		if err != nil {
 			yearPublished = 0
 		}
 
-		originalPublicationYear, err := strconv.Atoi(record[14])
+		originalPublicationYear, err := strconv.Atoi(record[13])
 		if err != nil {
 			originalPublicationYear = 0
 		}
 
-		readCount, err := strconv.Atoi(record[20])
+		readCount, err := strconv.Atoi(record[22])
 		if err != nil {
 			readCount = 0
 		}
 
-		ownedCopies, err := strconv.Atoi(record[21])
+		ownedCopies, err := strconv.Atoi(record[23])
 		if err != nil {
 			ownedCopies = 0
 		}
@@ -97,8 +97,8 @@ func ParseGoodreads() error {
 			ISBN13:                   isbn13,
 			MyRating:                 myRating,
 			AverageRating:            averageRating,
-			Publisher:                record[10],
-			Binding:                  record[11],
+			Publisher:                record[9],
+			Binding:                  record[10],
 			NumberOfPages:            numberOfPages,
 			YearPublished:            yearPublished,
 			OriginalPublicationYear:  originalPublicationYear,
@@ -106,10 +106,10 @@ func ParseGoodreads() error {
 			DateAdded:                record[15],
 			Bookshelves:              splitString(record[16]),
 			BookshelvesWithPositions: splitString(record[17]),
-			ExclusiveShelf:           record[17],
-			MyReview:                 record[18],
-			Spoiler:                  record[19],
-			PrivateNotes:             record[20],
+			ExclusiveShelf:           record[18],
+			MyReview:                 record[19],
+			Spoiler:                  record[20],
+			PrivateNotes:             record[21],
 			ReadCount:                readCount,
 			OwnedCopies:              ownedCopies,
 		}
