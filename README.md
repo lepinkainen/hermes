@@ -11,8 +11,14 @@ Hermes is a tool own your data, it can parse exported data from different source
 - ✅ Steam
   - Uses Steam API to fetch list of games you own (BYO Steam API key)
   - Game data enriched via Steam API
-- Letterboxd (as soon as their API opens up)
+
+## Upcoming features
+
+- Letterboxd using [data export](https://letterboxd.com/user/exportdata/)
+
+## Other
 
 Most API data is cached locally just to be a good API citizen
-  - Initial Steam import might take a while, you need to restart every few hours
-  - OMDB has a 1k/day limit, so bigger lists may take a few days
+
+- Initial Steam import might take a while, you need to restart every few hours
+- OMDB has a 1k/day limit, so bigger lists may take a few days to fully process
