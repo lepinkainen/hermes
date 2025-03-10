@@ -5,6 +5,7 @@ import (
 
 	"github.com/lepinkainen/hermes/cmd/goodreads"
 	"github.com/lepinkainen/hermes/cmd/imdb"
+	"github.com/lepinkainen/hermes/cmd/letterboxd"
 	"github.com/lepinkainen/hermes/cmd/steam"
 )
 
@@ -19,4 +20,5 @@ func init() {
 	importCmd.AddCommand(imdb.GetCommand())
 	importCmd.AddCommand(steam.GetCommand())
 	importCmd.AddCommand(goodreads.GetCommand())
+	importCmd.AddCommand(letterboxd.GetCommand())
 }
