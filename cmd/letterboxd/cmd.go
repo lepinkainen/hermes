@@ -16,6 +16,7 @@ var (
 	jsonOutput  string
 	skipInvalid bool
 	overwrite   bool
+	skipEnrich  bool
 	cmdConfig   *cmdutil.BaseCommandConfig
 )
 
@@ -50,7 +51,9 @@ Supports watched movies exports from Letterboxd.`,
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		log.Info("Processing Letterboxd export...")
+		// Update the overwrite flag from the global config right before running
+		overwrite = config.OverwriteFiles
+		log.Infof("Processing Letterboxd export with overwrite=%v...", overwrite)
 		return ParseLetterboxd()
 	},
 }
@@ -60,6 +63,7 @@ func init() {
 	cmdutil.AddOutputFlag(importCmd, &outputDir, "letterboxd", "Subdirectory under markdown output directory for Letterboxd files")
 	cmdutil.AddJSONFlags(importCmd, &writeJSON, &jsonOutput)
 	importCmd.Flags().BoolVar(&skipInvalid, "skip-invalid", false, "Skip invalid entries instead of failing")
+	importCmd.Flags().BoolVar(&skipEnrich, "skip-enrich", false, "Skip enriching data with OMDB API")
 
 	// Use the global overwrite flag by default
 	overwrite = config.OverwriteFiles

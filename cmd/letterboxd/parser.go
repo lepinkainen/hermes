@@ -8,11 +8,23 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/config"
+	"github.com/lepinkainen/hermes/internal/errors"
 	log "github.com/sirupsen/logrus"
 )
 
 // ParseLetterboxd parses a Letterboxd CSV export file
 func ParseLetterboxd() error {
+	// Double check overwrite flag with global config
+	if overwrite != config.OverwriteFiles {
+		log.Warnf("Overwrite flag mismatch! Local=%v, Global=%v. Using global value.",
+			overwrite, config.OverwriteFiles)
+		overwrite = config.OverwriteFiles
+	}
+
+	// Log the config at startup
+	log.Infof("Starting Letterboxd parser with overwrite=%v", overwrite)
+
 	// Open and process CSV file
 	movies, err := processCSVFile(csvFile)
 	if err != nil {
@@ -131,17 +143,87 @@ func parseMovieRecord(record []string) (Movie, error) {
 
 // writeMoviesToJSON writes the movies to a JSON file
 func writeMoviesToJSON(movies []Movie, jsonOutput string) error {
+	// Enrich with OMDB data if not skipped
+	if !skipEnrich {
+		for i := range movies {
+			if err := enrichMovieData(&movies[i]); err != nil {
+				// Check if it's a rate limit error
+				if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
+					return err
+				}
+				log.Warnf("Failed to enrich movie %s for JSON: %v", movies[i].Name, err)
+				// Continue processing even if enrichment fails for other errors
+			}
+		}
+	}
+
 	return writeJSONFile(movies, jsonOutput)
+}
+
+// enrichMovieData fetches additional data from OMDB API
+func enrichMovieData(movie *Movie) error {
+	// Skip if we already have enriched data
+	if movie.Description != "" {
+		return nil
+	}
+
+	enrichedMovie, err := getCachedMovie(movie.Name, movie.Year)
+	if err != nil {
+		// Don't wrap rate limit errors
+		if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
+			return err // Return the RateLimitError directly
+		}
+		return fmt.Errorf("failed to enrich movie data: %w", err)
+	}
+
+	// Preserve existing data but add OMDB enrichments
+	movie.Description = enrichedMovie.Description
+	movie.PosterURL = enrichedMovie.PosterURL
+
+	// Only update these if they're empty
+	if movie.Director == "" {
+		movie.Director = enrichedMovie.Director
+	}
+	if len(movie.Cast) == 0 {
+		movie.Cast = enrichedMovie.Cast
+	}
+	if len(movie.Genres) == 0 {
+		movie.Genres = enrichedMovie.Genres
+	}
+	if movie.Runtime == 0 {
+		movie.Runtime = enrichedMovie.Runtime
+	}
+	if movie.Rating == 0 {
+		movie.Rating = enrichedMovie.Rating
+	}
+
+	return nil
 }
 
 // writeMoviesToMarkdown writes each movie to a markdown file
 func writeMoviesToMarkdown(movies []Movie, directory string) error {
-	for _, movie := range movies {
-		if err := writeMovieToMarkdown(movie, directory); err != nil {
-			log.Errorf("Failed to write markdown for %s: %v", movie.Name, err)
+	for i := range movies {
+		log.Infof("Processing: %s\n", movies[i].Name)
+
+		// Enrich with OMDB data if not skipped
+		if !skipEnrich {
+			if err := enrichMovieData(&movies[i]); err != nil {
+				// Check if it's a rate limit error
+				if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
+					return err
+				}
+				log.Warnf("Failed to enrich movie %s: %v", movies[i].Name, err)
+				// Continue processing even if enrichment fails for other errors
+			}
+		}
+
+		err := writeMovieToMarkdown(movies[i], directory)
+		if err != nil {
+			log.Errorf("Failed to write markdown for %s: %v", movies[i].Name, err)
 			// Continue with other movies on error
 			continue
 		}
+		log.Debugf("Wrote movie %s to markdown file", movies[i].Name)
 	}
 	return nil
 }
