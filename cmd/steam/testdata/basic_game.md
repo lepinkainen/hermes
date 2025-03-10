@@ -27,10 +27,10 @@ metacritic_url: "https://www.metacritic.com/game/test-game"
 
 ![](https://example.com/header.jpg)
 
-> [!summary]- Description
+>[!summary]- Description
 > This is a test game description.
 
-> [!info]- Game Details
+>[!info]- Game Details
 >
 > - **Playtime**: 120 minutes (2h 0m)
 > - **Developers**: Developer One, Developer Two
@@ -40,6 +40,7 @@ metacritic_url: "https://www.metacritic.com/game/test-game"
 > - **Genres**: Action, Adventure
 > - **Metacritic Score**: 85
 > - **Metacritic URL**: [View on Metacritic](https://www.metacritic.com/game/test-game)
+> 
 
 ## Screenshots
 

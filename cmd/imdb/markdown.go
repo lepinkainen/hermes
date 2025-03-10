@@ -15,63 +15,46 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	// Get the file path using the common utility
 	filePath := fileutil.GetMarkdownFilePath(movie.Title, directory)
 
-	// Create frontmatter content
-	var frontmatter strings.Builder
-
-	frontmatter.WriteString("---\n")
+	// Use the MarkdownBuilder to construct the document
+	mb := fileutil.NewMarkdownBuilder()
 
 	// Handle titles - remove problematic characters and handle original titles
 	movie.Title = sanitizeTitle(movie.Title)
-	frontmatter.WriteString(fmt.Sprintf("title: \"%s\"\n", movie.Title))
+	mb.AddTitle(movie.Title)
+
 	if movie.OriginalTitle != "" && movie.OriginalTitle != movie.Title {
 		movie.OriginalTitle = sanitizeTitle(movie.OriginalTitle)
-		frontmatter.WriteString(fmt.Sprintf("original_title: \"%s\"\n", movie.OriginalTitle))
+		mb.AddField("original_title", movie.OriginalTitle)
 	}
 
 	// Add type-specific metadata
-	frontmatter.WriteString(fmt.Sprintf("type: %s\n", mapTypeToType(movie.TitleType)))
+	mb.AddType(mapTypeToType(movie.TitleType))
 
 	// Basic metadata
-	frontmatter.WriteString(fmt.Sprintf("imdb_id: %s\n", movie.ImdbId))
-	frontmatter.WriteString(fmt.Sprintf("year: %d\n", movie.Year))
-	frontmatter.WriteString(fmt.Sprintf("imdb_rating: %.1f\n", movie.IMDbRating))
-	frontmatter.WriteString(fmt.Sprintf("my_rating: %d\n", movie.MyRating))
+	mb.AddField("imdb_id", movie.ImdbId)
+	mb.AddYear(movie.Year)
+	mb.AddField("imdb_rating", movie.IMDbRating)
+	mb.AddField("my_rating", movie.MyRating)
 
 	// Format date in a more readable way
 	if date, err := time.Parse("2006-01-02", movie.DateRated); err == nil {
-		frontmatter.WriteString(fmt.Sprintf("date_rated: %s\n", date.Format("2006-01-02")))
+		mb.AddField("date_rated", date.Format("2006-01-02"))
 	}
 
+	// Add runtime and duration
 	if movie.RuntimeMins > 0 {
-		frontmatter.WriteString(fmt.Sprintf("runtime_mins: %d\n", movie.RuntimeMins))
-		// Add human-readable duration
-		hours := movie.RuntimeMins / 60
-		mins := movie.RuntimeMins % 60
-		if hours > 0 {
-			frontmatter.WriteString(fmt.Sprintf("duration: %dh %dm\n", hours, mins))
-		} else {
-			frontmatter.WriteString(fmt.Sprintf("duration: %dm\n", mins))
-		}
+		mb.AddField("runtime_mins", movie.RuntimeMins)
+		mb.AddDuration(movie.RuntimeMins)
 	}
 
 	// Add genres as an array
 	if len(movie.Genres) > 0 {
-		frontmatter.WriteString("genres:\n")
-		for _, genre := range movie.Genres {
-			if genre != "" {
-				frontmatter.WriteString(fmt.Sprintf("  - %s\n", strings.TrimSpace(genre)))
-			}
-		}
+		mb.AddStringArray("genres", movie.Genres)
 	}
 
 	// Add directors as an array
 	if len(movie.Directors) > 0 {
-		frontmatter.WriteString("directors:\n")
-		for _, director := range movie.Directors {
-			if director != "" {
-				frontmatter.WriteString(fmt.Sprintf("  - \"%s\"\n", strings.TrimSpace(director)))
-			}
-		}
+		mb.AddStringArray("directors", movie.Directors)
 	}
 
 	// Add Obsidian-specific tags
@@ -84,52 +67,49 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	decade := (movie.Year / 10) * 10
 	tags = append(tags, fmt.Sprintf("year/%ds", decade)) // e.g., #year/1990s
 
-	frontmatter.WriteString("tags:\n")
-	for _, tag := range tags {
-		frontmatter.WriteString(fmt.Sprintf("  - %s\n", tag))
-	}
+	mb.AddTags(tags...)
 
 	// Add content rating if available
 	if movie.ContentRated != "" {
-		frontmatter.WriteString(fmt.Sprintf("content_rating: \"%s\"\n", movie.ContentRated))
+		mb.AddField("content_rating", movie.ContentRated)
 	}
 
 	// Add awards if available
 	if movie.Awards != "" {
-		frontmatter.WriteString(fmt.Sprintf("awards: \"%s\"\n", movie.Awards))
+		mb.AddField("awards", movie.Awards)
 	}
-
-	frontmatter.WriteString("---\n\n")
-
-	// Content section
-	var content strings.Builder
 
 	// Add poster image if available
 	if movie.PosterURL != "" {
-		content.WriteString(fmt.Sprintf("![][%s]\n\n", movie.PosterURL))
+		mb.AddImage(movie.PosterURL)
 	}
 
 	// Add plot summary in a callout if available
 	if movie.Plot != "" {
-		content.WriteString(fmt.Sprintf("> [!summary]- Plot\n> %s\n\n", movie.Plot))
+		mb.AddCallout("summary", "Plot", movie.Plot)
 	}
 
 	// Add awards in a callout if available
 	if movie.Awards != "" {
-		content.WriteString(fmt.Sprintf("> [!award]- Awards\n> %s\n\n", movie.Awards))
+		mb.AddCallout("award", "Awards", movie.Awards)
 	}
 
-	// Add IMDb link as a button (Obsidian feature)
-	content.WriteString(fmt.Sprintf("> [!info]- IMDb\n> [View on IMDb](%s)\n", movie.URL))
+	// Add IMDb link as info callout
+	links := map[string]string{
+		"View on IMDb": movie.URL,
+	}
+	mb.AddExternalLinksCallout("IMDb", links)
 
 	// Write content to file with overwrite logic
-	written, err := fileutil.WriteFileWithOverwrite(filePath, []byte(frontmatter.String()+content.String()), 0644, config.OverwriteFiles)
+	written, err := fileutil.WriteFileWithOverwrite(filePath, []byte(mb.Build()), 0644, config.OverwriteFiles)
 	if err != nil {
 		return err
 	}
 
 	if !written {
 		log.Debugf("Skipped existing file: %s", filePath)
+	} else {
+		log.Infof("Wrote %s", filePath)
 	}
 
 	return nil

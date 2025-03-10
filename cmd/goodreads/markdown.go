@@ -19,74 +19,64 @@ func writeBookToMarkdown(book Book, directory string) error {
 
 	filePath := fileutil.GetMarkdownFilePath(book.Title, directory)
 
-	var frontmatter strings.Builder
-	frontmatter.WriteString("---\n")
+	// Use the MarkdownBuilder to construct the document
+	mb := fileutil.NewMarkdownBuilder()
 
 	// Basic metadata
-	frontmatter.WriteString("title: \"" + sanitizeGoodreadsTitle(book.Title) + "\"\n")
-	frontmatter.WriteString("type: book\n")
-	frontmatter.WriteString("goodreads_id: " + fmt.Sprintf("%d", book.ID) + "\n")
+	mb.AddTitle(sanitizeGoodreadsTitle(book.Title))
+	mb.AddType("book")
+	mb.AddField("goodreads_id", book.ID)
 
 	if book.YearPublished > 0 {
-		frontmatter.WriteString(fmt.Sprintf("year: %d\n", book.YearPublished))
+		mb.AddYear(book.YearPublished)
 	}
 	if book.OriginalPublicationYear > 0 && book.OriginalPublicationYear != book.YearPublished {
-		frontmatter.WriteString(fmt.Sprintf("original_year: %d\n", book.OriginalPublicationYear))
+		mb.AddField("original_year", book.OriginalPublicationYear)
 	}
 
 	// Ratings
 	if book.MyRating > 0 {
-		frontmatter.WriteString(fmt.Sprintf("my_rating: %.1f\n", book.MyRating))
+		mb.AddField("my_rating", book.MyRating)
 	}
 	if book.AverageRating > 0 {
-		frontmatter.WriteString(fmt.Sprintf("average_rating: %.1f\n", book.AverageRating))
+		mb.AddField("average_rating", book.AverageRating)
 	}
 
 	// Dates
 	if book.DateRead != "" {
-		frontmatter.WriteString(fmt.Sprintf("date_read: %s\n", book.DateRead))
+		mb.AddField("date_read", book.DateRead)
 	}
 	if book.DateAdded != "" {
-		frontmatter.WriteString(fmt.Sprintf("date_added: %s\n", book.DateAdded))
+		mb.AddField("date_added", book.DateAdded)
 	}
 
 	// Book details
 	if book.NumberOfPages > 0 {
-		frontmatter.WriteString(fmt.Sprintf("pages: %d\n", book.NumberOfPages))
+		mb.AddField("pages", book.NumberOfPages)
 	}
 	if book.Publisher != "" {
-		frontmatter.WriteString(fmt.Sprintf("publisher: \"%s\"\n", book.Publisher))
+		mb.AddField("publisher", book.Publisher)
 	}
 	if book.Binding != "" {
-		frontmatter.WriteString(fmt.Sprintf("binding: \"%s\"\n", book.Binding))
+		mb.AddField("binding", book.Binding)
 	}
 
 	// ISBNs
 	if book.ISBN != "" {
-		frontmatter.WriteString(fmt.Sprintf("isbn: \"%s\"\n", book.ISBN))
+		mb.AddField("isbn", book.ISBN)
 	}
 	if book.ISBN13 != "" {
-		frontmatter.WriteString(fmt.Sprintf("isbn13: \"%s\"\n", book.ISBN13))
+		mb.AddField("isbn13", book.ISBN13)
 	}
 
 	// Authors as array
 	if len(book.Authors) > 0 {
-		frontmatter.WriteString("authors:\n")
-		for _, author := range book.Authors {
-			if author != "" {
-				frontmatter.WriteString(fmt.Sprintf("  - \"%s\"\n", strings.TrimSpace(author)))
-			}
-		}
+		mb.AddStringArray("authors", book.Authors)
 	}
 
 	// Bookshelves as array
 	if len(book.Bookshelves) > 0 {
-		frontmatter.WriteString("bookshelves:\n")
-		for _, shelf := range book.Bookshelves {
-			if shelf != "" {
-				frontmatter.WriteString(fmt.Sprintf("  - %s\n", strings.TrimSpace(shelf)))
-			}
-		}
+		mb.AddStringArray("bookshelves", book.Bookshelves)
 	}
 
 	// Tags
@@ -110,70 +100,60 @@ func writeBookToMarkdown(book Book, directory string) error {
 		tags = append(tags, fmt.Sprintf("shelf/%s", book.ExclusiveShelf))
 	}
 
-	frontmatter.WriteString("tags:\n")
-	for _, tag := range tags {
-		frontmatter.WriteString(fmt.Sprintf("  - %s\n", tag))
-	}
+	mb.AddTags(tags...)
 
 	// Additional metadata from OpenLibrary
 	if book.Description != "" {
-		frontmatter.WriteString(fmt.Sprintf("description: |\n  %s\n", book.Description))
+		mb.AddField("description", "|\n  "+book.Description)
 	}
 
 	if len(book.Subjects) > 0 {
-		frontmatter.WriteString("subjects:\n")
-		for _, subject := range book.Subjects {
-			frontmatter.WriteString(fmt.Sprintf("  - \"%s\"\n", subject))
-		}
+		mb.AddStringArray("subjects", book.Subjects)
 	}
 
+	// Handle cover URL
 	if book.CoverURL != "" {
-		frontmatter.WriteString(fmt.Sprintf("cover_url: \"%s\"\n", book.CoverURL))
+		mb.AddField("cover_url", book.CoverURL)
 	} else if book.CoverID > 0 {
-		frontmatter.WriteString(fmt.Sprintf("cover_url: \"https://covers.openlibrary.org/b/id/%d-L.jpg\"\n", book.CoverID))
+		mb.AddField("cover_url", fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", book.CoverID))
 	}
 
 	if book.Subtitle != "" {
-		frontmatter.WriteString(fmt.Sprintf("subtitle: \"%s\"\n", book.Subtitle))
+		mb.AddField("subtitle", book.Subtitle)
 	}
 
 	if len(book.SubjectPeople) > 0 {
-		frontmatter.WriteString("subject_people:\n")
-		for _, person := range book.SubjectPeople {
-			frontmatter.WriteString(fmt.Sprintf("  - \"%s\"\n", person))
-		}
+		mb.AddStringArray("subject_people", book.SubjectPeople)
 	}
-
-	frontmatter.WriteString("---\n\n")
-
-	// Content section
-	var content strings.Builder
 
 	// Add review if exists
 	if book.MyReview != "" {
-		content.WriteString("## Review\n\n")
 		// Replace HTML line breaks with newlines and clean up multiple newlines
 		review := strings.ReplaceAll(book.MyReview, "<br/>", "\n")
 		review = strings.ReplaceAll(review, "<br>", "\n")
 		// Clean up multiple newlines
 		multipleNewlines := regexp.MustCompile(`\n{3,}`)
 		review = multipleNewlines.ReplaceAllString(review, "\n\n")
-		content.WriteString(review + "\n\n")
+
+		mb.AddParagraph("## Review")
+		mb.AddParagraph(review)
 	}
 
 	// Add private notes in a callout if they exist
 	if book.PrivateNotes != "" {
-		content.WriteString(fmt.Sprintf("> [!note]- Private Notes\n> %s\n", book.PrivateNotes))
+		mb.AddCallout("note", "Private Notes", book.PrivateNotes)
 	}
 
 	// Write content to file with overwrite logic
-	written, err := fileutil.WriteFileWithOverwrite(filePath, []byte(frontmatter.String()+content.String()), 0644, config.OverwriteFiles)
+	written, err := fileutil.WriteFileWithOverwrite(filePath, []byte(mb.Build()), 0644, config.OverwriteFiles)
 	if err != nil {
 		return err
 	}
 
 	if !written {
 		log.Debugf("Skipped existing file: %s", filePath)
+	} else {
+		log.Infof("Wrote %s", filePath)
 	}
 
 	return nil
