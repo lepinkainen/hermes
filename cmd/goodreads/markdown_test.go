@@ -52,6 +52,48 @@ func TestWriteBookToMarkdown(t *testing.T) {
 			},
 			wantFile: "basic_book.md",
 		},
+		{
+			name: "complex_book",
+			book: Book{
+				ID:                      98765,
+				Title:                   "The Complex Narrative - A Journey Through Time and Space",
+				Authors:                 []string{"Jane Smith PhD", "Dr. Robert Johnson", "Prof. Emily Williams"},
+				YearPublished:           2022,
+				OriginalPublicationYear: 2021,
+				MyRating:                5.0,
+				AverageRating:           4.8,
+				DateRead:                "2023-05-22",
+				DateAdded:               "2023-01-30",
+				NumberOfPages:           842,
+				Publisher:               "Academic Press International",
+				Binding:                 "Hardcover",
+				ISBN:                    "9876543210",
+				ISBN13:                  "9789876543210",
+				Bookshelves:             []string{"science", "philosophy", "favorites", "to-reread", "best-of-2023"},
+				ExclusiveShelf:          "read",
+				MyReview:                "This masterpiece of interdisciplinary research blends quantum physics with philosophical inquiry in ways I've never encountered before.<br/>The middle section on temporal paradoxes was particularly enlightening, especially when paired with the appendix on mathematical proofs.<br/><br/>I found myself returning to the chapters on consciousness repeatedly, each time discovering new insights. Highly recommended for anyone interested in the intersection of science and philosophy.",
+				PrivateNotes:            "Lent to Alex on June 15, 2023. Need to follow up.\nPotential thesis reference material - especially pages 341-362 on quantum entanglement theory.\nCheck the author's lecture series online for supplementary material.",
+				Description:             "A groundbreaking interdisciplinary work that explores the connections between quantum mechanics, consciousness, and philosophical determinism. Drawing from cutting-edge research in physics, neuroscience, and metaphysics, the authors present a unified theory of reality that challenges conventional understanding of time, causality, and human perception. Includes extensive notes, mathematical appendices, and thought experiments designed to illuminate the practical applications of theoretical concepts.",
+				Subjects:                []string{"Quantum Physics", "Philosophy of Science", "Consciousness Studies", "Metaphysics", "Theoretical Physics", "Neuroscience", "Determinism", "Free Will", "Time Perception"},
+				CoverURL:                "https://example.com/complex_book_cover.jpg",
+				Subtitle:                "Exploring the Intersection of Physics, Consciousness, and Metaphysical Determinism",
+				SubjectPeople:           []string{"Albert Einstein", "Niels Bohr", "Werner Heisenberg", "Erwin Schrödinger", "David Bohm"},
+				CoverID:                 0, // Using CoverURL instead
+			},
+			wantFile: "complex_book.md",
+		},
+		{
+			name: "minimal_book",
+			book: Book{
+				ID:             333,
+				Title:          "Minimal Book",
+				Authors:        []string{"Minimalist Author"},
+				YearPublished:  2018,
+				ExclusiveShelf: "to-read",
+				CoverID:        12345, // Using OpenLibrary cover ID instead of URL
+			},
+			wantFile: "minimal_book.md",
+		},
 		// Add more test cases as needed
 	}
 

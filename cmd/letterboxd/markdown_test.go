@@ -42,7 +42,26 @@ func TestWriteMovieToMarkdown(t *testing.T) {
 				Description:   "This is a test movie description.",
 				ImdbID:        "tt1234567",
 			},
-			wantFile: "Test Movie (2021).md",
+			wantFile: "basic_movie.md",
+		},
+		{
+			name: "complex_movie",
+			movie: Movie{
+				Name:          "The Masterpiece of Cinema",
+				Year:          2023,
+				Date:          "2023-08-15",
+				LetterboxdURI: "https://letterboxd.com/cinephile/film/the-masterpiece-of-cinema/",
+				LetterboxdID:  "the-masterpiece-of-cinema",
+				Rating:        5.0,
+				Runtime:       187,
+				Director:      "Visionary Auteur",
+				Genres:        []string{"Drama", "Psychological Thriller", "Art House", "Experimental", "Historical Fiction"},
+				Cast:          []string{"Award-winning Actor", "Breakthrough Performer", "Character Actor Veteran", "Method Acting Master", "Critically Acclaimed Actress"},
+				PosterURL:     "https://example.com/masterpiece_poster.jpg",
+				Description:   "A groundbreaking cinematic achievement that weaves together multiple timelines and perspectives to create a tapestry of human experience. Set against the backdrop of pivotal historical events, the film explores themes of memory, identity, and the nature of reality itself through innovative visual storytelling techniques and transcendent performances.",
+				ImdbID:        "tt8765432",
+			},
+			wantFile: "complex_movie.md",
 		},
 		{
 			name: "minimal_movie",
@@ -52,87 +71,51 @@ func TestWriteMovieToMarkdown(t *testing.T) {
 				LetterboxdURI: "https://letterboxd.com/user/film/minimal-movie/",
 				LetterboxdID:  "minimal-movie",
 			},
-			wantFile: "Minimal Movie (2020).md",
-		},
-		{
-			name: "movie_with_special_chars",
-			movie: Movie{
-				Name:          "Movie: With? Special* Chars!",
-				Year:          2019,
-				LetterboxdURI: "https://letterboxd.com/user/film/movie-with-special-chars/",
-				LetterboxdID:  "movie-with-special-chars",
-			},
-			wantFile: "Movie - With? Special* Chars! (2019).md",
+			wantFile: "minimal_movie.md",
 		},
 	}
 
 	// Run test cases
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Call the function under test
+			// Create golden file path
+			goldenFilePath := filepath.Join("testdata", tc.wantFile)
+
+			// Write movie to markdown in test directory
 			err := writeMovieToMarkdown(tc.movie, testDir)
 			require.NoError(t, err)
 
-			// Check if the file was created
-			filePath := filepath.Join(testDir, tc.wantFile)
-			assert.FileExists(t, filePath)
-
-			// Read the file contents
-			content, err := os.ReadFile(filePath)
+			// Read the generated file
+			expectedFilename := fmt.Sprintf("%s (%d).md", fileutil.SanitizeFilename(tc.movie.Name), tc.movie.Year)
+			generatedFilePath := filepath.Join(testDir, expectedFilename)
+			generated, err := os.ReadFile(generatedFilePath)
 			require.NoError(t, err)
 
-			// Basic validations of file content
-			contentStr := string(content)
-
-			// Check for required frontmatter elements
-			assert.Contains(t, contentStr, "title: \""+fileutil.SanitizeFilename(tc.movie.Name)+"\"")
-			assert.Contains(t, contentStr, "type: movie")
-			assert.Contains(t, contentStr, "year: "+fmt.Sprintf("%d", tc.movie.Year))
-			assert.Contains(t, contentStr, "letterboxd_uri: \""+tc.movie.LetterboxdURI+"\"")
-			assert.Contains(t, contentStr, "letterboxd_id: \""+tc.movie.LetterboxdID+"\"")
-
-			// Check for optional elements based on the test case
-			if tc.movie.Rating > 0 {
-				assert.Contains(t, contentStr, "letterboxd_rating: ")
+			// Check if we need to update golden files (useful during development)
+			if os.Getenv("UPDATE_GOLDEN") == "true" {
+				err = os.MkdirAll(filepath.Dir(goldenFilePath), 0755)
+				require.NoError(t, err)
+				err = os.WriteFile(goldenFilePath, generated, 0644)
+				require.NoError(t, err)
 			}
 
-			if tc.movie.Runtime > 0 {
-				assert.Contains(t, contentStr, "duration: ")
-				assert.Contains(t, contentStr, "runtime_mins: ")
+			// Read the golden file
+			golden, err := os.ReadFile(goldenFilePath)
+			if os.IsNotExist(err) {
+				// If golden file doesn't exist, create it
+				err = os.MkdirAll(filepath.Dir(goldenFilePath), 0755)
+				require.NoError(t, err)
+				err = os.WriteFile(goldenFilePath, generated, 0644)
+				require.NoError(t, err)
+				t.Logf("Created new golden file: %s", goldenFilePath)
+				// Use generated content as golden
+				golden = generated
+			} else {
+				require.NoError(t, err)
 			}
 
-			if tc.movie.Director != "" {
-				assert.Contains(t, contentStr, "directors:")
-				assert.Contains(t, contentStr, "  - \""+tc.movie.Director+"\"")
-			}
-
-			if len(tc.movie.Genres) > 0 {
-				assert.Contains(t, contentStr, "genres:")
-				for _, genre := range tc.movie.Genres {
-					assert.Contains(t, contentStr, "  - \""+genre+"\"")
-				}
-			}
-
-			if tc.movie.ImdbID != "" {
-				assert.Contains(t, contentStr, "imdb_id: \""+tc.movie.ImdbID+"\"")
-				assert.Contains(t, contentStr, "View on IMDb")
-			}
-
-			if tc.movie.PosterURL != "" {
-				assert.Contains(t, contentStr, "cover: \""+tc.movie.PosterURL+"\"")
-				assert.Contains(t, contentStr, "![]("+tc.movie.PosterURL+")")
-			}
-
-			if tc.movie.Description != "" {
-				assert.Contains(t, contentStr, "> "+tc.movie.Description)
-			}
-
-			if len(tc.movie.Cast) > 0 {
-				assert.Contains(t, contentStr, ">[!cast]- Cast")
-				for _, actor := range tc.movie.Cast {
-					assert.Contains(t, contentStr, "- "+actor)
-				}
-			}
+			// Compare generated content with golden file
+			assert.Equal(t, string(golden), string(generated))
 		})
 	}
 }

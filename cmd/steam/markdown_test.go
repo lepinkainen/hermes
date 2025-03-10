@@ -62,6 +62,86 @@ func TestCreateMarkdownFile(t *testing.T) {
 			},
 			wantFile: "basic_game.md",
 		},
+		{
+			name: "complex_game",
+			game: Game{
+				AppID:           987654,
+				Name:            "Epic RPG Deluxe Edition",
+				PlaytimeForever: 3630, // 60.5 hours
+			},
+			details: &GameDetails{
+				ReleaseDate: struct {
+					ComingSoon bool   `json:"coming_soon"`
+					Date       string `json:"date"`
+				}{
+					Date: "10 November, 2022",
+				},
+				HeaderImage: "https://example.com/epic_rpg_header.jpg",
+				Developers:  []string{"Legendary Game Studio", "Fantasy Interactive", "RPG Masters Inc."},
+				Publishers:  []string{"Premium Publisher", "Global Games Distribution"},
+				Categories: []Category{
+					{Description: "Single-player"},
+					{Description: "Multi-player"},
+					{Description: "Co-op"},
+					{Description: "Online Co-op"},
+					{Description: "Steam Achievements"},
+					{Description: "Full Controller Support"},
+					{Description: "Steam Cloud"},
+					{Description: "Steam Workshop"},
+					{Description: "Steam Trading Cards"},
+					{Description: "Captions available"},
+					{Description: "VR Support"},
+				},
+				Genres: []Genre{
+					{Description: "RPG"},
+					{Description: "Open World"},
+					{Description: "Fantasy"},
+					{Description: "Adventure"},
+					{Description: "Action"},
+					{Description: "Story Rich"},
+				},
+				Description: "Embark on an epic journey through a vast open world filled with danger, mystery, and adventure. Create your character, choose your class, and forge your own path through a living, breathing fantasy realm where your choices matter and shape the world around you.\n\nWith hundreds of quests, countless customization options, and a deep, engaging combat system, Epic RPG Deluxe Edition offers over 100 hours of immersive gameplay. Features all previously released DLC content, including the critically acclaimed 'Realm of Shadows' expansion.\n\n• Massive open world with diverse environments\n• Complex character development system with 12 character classes\n• Real-time combat with tactical pause feature\n• Dynamic weather and day/night cycle\n• Over 1,000 unique items and equipment pieces\n• Advanced crafting system\n• Player housing with customization\n• Companion system with relationship development\n• Multiple endings based on player choices",
+				Metacritic: MetacriticData{
+					Score: 94,
+					URL:   "https://www.metacritic.com/game/pc/epic-rpg-deluxe-edition",
+				},
+				Screenshots: []Screenshot{
+					{PathURL: "https://example.com/epic_rpg_screenshot1.jpg"},
+					{PathURL: "https://example.com/epic_rpg_screenshot2.jpg"},
+					{PathURL: "https://example.com/epic_rpg_screenshot3.jpg"},
+					{PathURL: "https://example.com/epic_rpg_screenshot4.jpg"},
+					{PathURL: "https://example.com/epic_rpg_screenshot5.jpg"},
+				},
+			},
+			wantFile: "complex_game.md",
+		},
+		{
+			name: "minimal_game",
+			game: Game{
+				AppID:           55555,
+				Name:            "Indie Puzzle",
+				PlaytimeForever: 30, // 30 minutes
+			},
+			details: &GameDetails{
+				ReleaseDate: struct {
+					ComingSoon bool   `json:"coming_soon"`
+					Date       string `json:"date"`
+				}{
+					Date: "2023-08-01",
+				},
+				HeaderImage: "https://example.com/indie_puzzle_header.jpg",
+				Developers:  []string{"Solo Developer"},
+				Categories: []Category{
+					{Description: "Single-player"},
+				},
+				Genres: []Genre{
+					{Description: "Puzzle"},
+					{Description: "Indie"},
+				},
+				Description: "A minimalist puzzle game.",
+			},
+			wantFile: "minimal_game.md",
+		},
 		// Add more test cases as needed
 	}
 
