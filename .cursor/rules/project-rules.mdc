@@ -9,12 +9,14 @@ alwaysApply: true
 
 - **Language:** Go only (no Python or other languages)
 - **Build System:** Use Taskfile
+- **Unit Tests:** Write basic unit tests for new functionality
 - **CLI Framework:** Cobra and Viper for commands and configuration
 - **Purpose:** See README.md for project definition
 
 ## Code Structure
 
 - All import processors go under the `cmd/` directory
+- The internal/ directory contains common utility functions, use it when possible. Add to it when necessary.
 - Each processor has its own subdirectory and Go package
 
 ## Implementation Requirements
