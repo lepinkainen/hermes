@@ -1,5 +1,5 @@
 ---
-title: "Epic RPG Deluxe Edition"
+title: "Epic RPG - Deluxe Edition"
 type: game
 playtime: 3630
 duration: 60h 30m
@@ -37,7 +37,7 @@ metacritic_score: 94
 metacritic_url: "https://www.metacritic.com/game/pc/epic-rpg-deluxe-edition"
 ---
 
-# Epic RPG Deluxe Edition
+# Epic RPG: Deluxe Edition
 
 ![](https://example.com/epic_rpg_header.jpg)
 

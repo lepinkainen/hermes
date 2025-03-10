@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/lepinkainen/hermes/internal/config"
+	"github.com/lepinkainen/hermes/internal/fileutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,7 +50,7 @@ func TestWriteMovieToMarkdown(t *testing.T) {
 			name: "complex_movie",
 			movie: MovieSeen{
 				ImdbId:        "tt9876543",
-				Title:         "The Cinematic Masterpiece - Director's Extended Cut",
+				Title:         "The Cinematic Masterpiece: Director's Extended Cut",
 				OriginalTitle: "La Chef-d'œuvre Cinématographique",
 				TitleType:     "Movie",
 				Year:          2022,
@@ -100,7 +101,7 @@ func TestWriteMovieToMarkdown(t *testing.T) {
 			require.NoError(t, err)
 
 			// Read the generated file
-			generatedFilePath := filepath.Join(testDir, sanitizeTitle(tc.movie.Title)+".md")
+			generatedFilePath := filepath.Join(testDir, fileutil.SanitizeFilename(tc.movie.Title)+".md")
 			generated, err := os.ReadFile(generatedFilePath)
 			require.NoError(t, err)
 

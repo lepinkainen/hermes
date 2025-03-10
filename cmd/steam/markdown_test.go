@@ -66,7 +66,7 @@ func TestCreateMarkdownFile(t *testing.T) {
 			name: "complex_game",
 			game: Game{
 				AppID:           987654,
-				Name:            "Epic RPG Deluxe Edition",
+				Name:            "Epic RPG: Deluxe Edition",
 				PlaytimeForever: 3630, // 60.5 hours
 			},
 			details: &GameDetails{

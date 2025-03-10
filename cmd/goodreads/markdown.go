@@ -23,7 +23,7 @@ func writeBookToMarkdown(book Book, directory string) error {
 	mb := fileutil.NewMarkdownBuilder()
 
 	// Basic metadata
-	mb.AddTitle(sanitizeGoodreadsTitle(book.Title))
+	mb.AddTitle(fileutil.SanitizeFilename(book.Title))
 	mb.AddType("book")
 	mb.AddField("goodreads_id", book.ID)
 
@@ -160,9 +160,4 @@ func writeBookToMarkdown(book Book, directory string) error {
 	}
 
 	return nil
-}
-
-// Helper function to sanitize Goodreads title
-func sanitizeGoodreadsTitle(title string) string {
-	return strings.ReplaceAll(title, ":", "")
 }

@@ -1,5 +1,5 @@
 ---
-title: "The Masterpiece of Cinema"
+title: "The Masterpiece of Cinema - A Director's Vision"
 type: movie
 year: 2023
 date_watched: "2023-08-15"

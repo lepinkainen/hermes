@@ -47,7 +47,7 @@ func TestWriteMovieToMarkdown(t *testing.T) {
 		{
 			name: "complex_movie",
 			movie: Movie{
-				Name:          "The Masterpiece of Cinema",
+				Name:          "The Masterpiece of Cinema: A Director's Vision",
 				Year:          2023,
 				Date:          "2023-08-15",
 				LetterboxdURI: "https://letterboxd.com/cinephile/film/the-masterpiece-of-cinema/",

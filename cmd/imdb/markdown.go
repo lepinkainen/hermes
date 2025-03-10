@@ -19,11 +19,11 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	mb := fileutil.NewMarkdownBuilder()
 
 	// Handle titles - remove problematic characters and handle original titles
-	movie.Title = sanitizeTitle(movie.Title)
+	movie.Title = fileutil.SanitizeFilename(movie.Title)
 	mb.AddTitle(movie.Title)
 
 	if movie.OriginalTitle != "" && movie.OriginalTitle != movie.Title {
-		movie.OriginalTitle = sanitizeTitle(movie.OriginalTitle)
+		movie.OriginalTitle = fileutil.SanitizeFilename(movie.OriginalTitle)
 		mb.AddField("original_title", movie.OriginalTitle)
 	}
 
@@ -113,10 +113,6 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	}
 
 	return nil
-}
-
-func sanitizeTitle(title string) string {
-	return strings.ReplaceAll(title, ":", "")
 }
 
 func mapTypeToType(titleType string) string {

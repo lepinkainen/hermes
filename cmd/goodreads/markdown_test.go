@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/lepinkainen/hermes/internal/config"
+	"github.com/lepinkainen/hermes/internal/fileutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -56,7 +57,7 @@ func TestWriteBookToMarkdown(t *testing.T) {
 			name: "complex_book",
 			book: Book{
 				ID:                      98765,
-				Title:                   "The Complex Narrative - A Journey Through Time and Space",
+				Title:                   "The Complex Narrative: A Journey Through Time and Space",
 				Authors:                 []string{"Jane Smith PhD", "Dr. Robert Johnson", "Prof. Emily Williams"},
 				YearPublished:           2022,
 				OriginalPublicationYear: 2021,
@@ -107,7 +108,7 @@ func TestWriteBookToMarkdown(t *testing.T) {
 			require.NoError(t, err)
 
 			// Read the generated file
-			generatedFilePath := filepath.Join(testDir, sanitizeGoodreadsTitle(tc.book.Title)+".md")
+			generatedFilePath := filepath.Join(testDir, fileutil.SanitizeFilename(tc.book.Title)+".md")
 			generated, err := os.ReadFile(generatedFilePath)
 			require.NoError(t, err)
 
