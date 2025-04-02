@@ -12,7 +12,13 @@ import (
 )
 
 func ParseGoodreads() error {
-	// Open the CSV file
+	// First, count the total number of books in the CSV file
+	totalBooks, err := countBooksInCSV(csvFile)
+	if err != nil {
+		return fmt.Errorf("failed to count books in CSV: %w", err)
+	}
+
+	// Open the CSV file again for processing
 	csvFile, err := os.Open(csvFile) // Using the global csvFile variable from cmd.go
 	if err != nil {
 		return fmt.Errorf("failed to open CSV file: %w", err)
@@ -132,11 +138,12 @@ func ParseGoodreads() error {
 
 		processedCount++
 		if processedCount%10 == 0 {
-			log.Printf("Processed %d books...\n", processedCount)
+			log.Infof("Processed %d of %d books (%.1f%%)...",
+				processedCount, totalBooks, float64(processedCount)/float64(totalBooks)*100)
 		}
 	}
 
-	log.Printf("Successfully processed %d books\n", processedCount)
+	log.Infof("Successfully processed %d of %d books (100%%)", processedCount, totalBooks)
 
 	// Write to JSON if enabled
 	if writeJSON {
@@ -146,6 +153,38 @@ func ParseGoodreads() error {
 	}
 
 	return nil
+}
+
+// countBooksInCSV counts the total number of books in the CSV file
+func countBooksInCSV(filePath string) (int, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to open CSV file: %w", err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+
+	// Skip header row
+	_, err = reader.Read()
+	if err != nil {
+		return 0, fmt.Errorf("failed to read CSV header: %w", err)
+	}
+
+	count := 0
+	for {
+		_, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			// Just skip invalid records when counting
+			continue
+		}
+		count++
+	}
+
+	return count, nil
 }
 
 // Helper function to split comma-separated strings
