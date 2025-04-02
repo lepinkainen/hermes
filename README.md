@@ -6,15 +6,13 @@ Hermes is a tool own your data, it can parse exported data from different source
 
 - ✅ Imdb "Your ratings" import
   - Data enriched from OMDB
+- ✅ Letterboxd using [data export](https://letterboxd.com/user/exportdata/)
+  - Data enriched from OMDB
 - ✅Goodreads
-  - Fetching covers (coming up)
+  - Data enriched from openlibrary
 - ✅ Steam
   - Uses Steam API to fetch list of games you own (BYO Steam API key)
   - Game data enriched via Steam API
-
-## Upcoming features
-
-- Letterboxd using [data export](https://letterboxd.com/user/exportdata/)
 
 ## Other
 
