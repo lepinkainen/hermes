@@ -2,6 +2,8 @@
 
 Hermes is a tool own your data, it can parse exported data from different sources and collect them in a JSON or Obsidian flavoured markdown format on your own computer
 
+Partially ✨Vibe coded✨ with Cursor, Claude Code and Cline
+
 ## Sources
 
 - ✅ Imdb "Your ratings" import
