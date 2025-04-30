@@ -1,8 +1,34 @@
 # Hermes
 
-Hermes is a tool own your data, it can parse exported data from different sources and collect them in a JSON or Obsidian flavoured markdown format on your own computer
+Hermes is a tool to own your data. It can parse exported data from different sources and collect them in a JSON or Obsidian flavoured markdown format on your own computer.
 
 Partially ✨Vibe coded✨ with Cursor, Claude Code and Cline
+
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+- [Project Overview](docs/01_overview.md)
+- [Installation & Setup](docs/02_installation_setup.md)
+- [Architecture](docs/03_architecture.md)
+- [Configuration](docs/04_configuration.md)
+- [Output Formats](docs/05_output_formats.md)
+- [Caching](docs/06_caching.md)
+- [Logging & Error Handling](docs/07_logging_error_handling.md)
+
+### Importers
+
+- [Goodreads Importer](docs/importers/goodreads.md)
+- [IMDb Importer](docs/importers/imdb.md)
+- [Letterboxd Importer](docs/importers/letterboxd.md)
+- [Steam Importer](docs/importers/steam.md)
+
+### Utilities
+
+- [Command Utilities](docs/utilities/cmdutil.md)
+- [Configuration Utilities](docs/utilities/config.md)
+- [Error Utilities](docs/utilities/errors.md)
+- [File Utilities](docs/utilities/fileutil.md)
 
 ## Sources
 
