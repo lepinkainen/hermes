@@ -2,13 +2,13 @@ package goodreads
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"regexp"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/fileutil"
-	log "github.com/sirupsen/logrus"
 )
 
 func writeBookToMarkdown(book Book, directory string) error {
@@ -154,9 +154,9 @@ func writeBookToMarkdown(book Book, directory string) error {
 	}
 
 	if !written {
-		log.Debugf("Skipped existing file: %s", filePath)
+		slog.Debug("Skipped existing file", "path", filePath)
 	} else {
-		log.Infof("Wrote %s", filePath)
+		slog.Info("Wrote file", "path", filePath)
 	}
 
 	return nil

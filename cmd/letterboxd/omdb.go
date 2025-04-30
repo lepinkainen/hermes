@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -54,7 +54,7 @@ func fetchMovieData(title string, year int) (*Movie, error) {
 		}
 	}
 
-	log.Infof("Fetching OMDB data for %s (%d)", title, year)
+	slog.Info("Fetching OMDB data", "title", title, "year", year)
 
 	// Encode the title for URL
 	escapedTitle := strings.ReplaceAll(title, " ", "+")
@@ -72,7 +72,7 @@ func fetchMovieData(title string, year int) (*Movie, error) {
 		// Read the response body
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Warnf("Failed to read error response body: %v", err)
+			slog.Warn("Failed to read error response body", "error", err)
 		} else {
 			// Parse error response
 			var errorResp struct {
@@ -83,9 +83,9 @@ func fetchMovieData(title string, year int) (*Movie, error) {
 				if errorResp.Error == "Request limit reached!" {
 					return nil, errors.NewRateLimitError("OMDB API request limit reached")
 				}
-				log.Warnf("OMDB API error: %s", errorResp.Error)
+				slog.Warn("OMDB API error", "error", errorResp.Error)
 			}
-			log.Warnf("OMDB API response body: %s", string(body))
+			slog.Warn("OMDB API response body", "body", string(body))
 		}
 		return nil, fmt.Errorf("OMDB API returned non-200 status code: %d for title: %s (%d)", resp.StatusCode, title, year)
 	}
@@ -138,9 +138,9 @@ func fetchMovieData(title string, year int) (*Movie, error) {
 			os.MkdirAll(omdbCacheDir, 0755)
 			imdbData, _ := json.MarshalIndent(imdbMovie, "", "  ")
 			if err := os.WriteFile(omdbCachePath, imdbData, 0644); err != nil {
-				log.Warnf("Failed to save to OMDB cache: %v", err)
+				slog.Warn("Failed to save to OMDB cache", "error", err)
 			} else {
-				log.Infof("Cached %s in OMDB cache as %s", title, omdbMovie.ImdbID)
+				slog.Info("Cached movie in OMDB cache", "title", title, "imdb_id", omdbMovie.ImdbID)
 			}
 		}
 	}

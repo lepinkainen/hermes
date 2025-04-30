@@ -2,14 +2,13 @@ package steam
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/errors"
 	"github.com/spf13/viper"
-
-	log "github.com/sirupsen/logrus"
 )
 
 func ParseSteam() error {
@@ -26,14 +25,14 @@ func ParseSteam() error {
 	var processedGames []GameDetails
 
 	for _, game := range games {
-		log.Debugf("Fetching details for: %s\n", game.Name)
+		slog.Debug("Fetching game details", "game", game.Name)
 
 		_, details, err := getCachedGame(strconv.Itoa(game.AppID))
 		if err != nil {
 			if strings.Contains(err.Error(), "status code 429") {
 				return errors.NewRateLimitError("Rate limit reached. Please try again later (usually after a few minutes)")
 			}
-			log.Warnf("Error fetching details for %s: %v\n", game.Name, err)
+			slog.Warn("Error fetching game details", "game", game.Name, "error", err)
 			continue
 		}
 
@@ -45,18 +44,18 @@ func ParseSteam() error {
 		details.DetailsFetched = true
 
 		if err := CreateMarkdownFile(game, details, outputDir); err != nil {
-			log.Errorf("Error creating markdown for %s: %v\n", game.Name, err)
+			slog.Error("Error creating markdown", "game", game.Name, "error", err)
 			continue
 		}
 
 		processedGames = append(processedGames, *details)
-		//log.Infof("Created markdown file for: %s\n", game.Name)
+		//slog.Info("Created markdown file", "game", game.Name)
 	}
 
 	// Write to JSON if enabled
 	if writeJSON {
 		if err := writeGameToJson(processedGames, jsonOutput); err != nil {
-			log.Errorf("Error writing games to JSON: %v\n", err)
+			slog.Error("Error writing games to JSON", "error", err)
 		}
 	}
 

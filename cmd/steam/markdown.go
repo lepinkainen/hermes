@@ -2,12 +2,12 @@ package steam
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/fileutil"
-	log "github.com/sirupsen/logrus"
 )
 
 // CreateMarkdownFile generates a markdown file for a Steam game
@@ -159,9 +159,9 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	}
 
 	if !written {
-		log.Debugf("Skipped existing file: %s", filename)
+		slog.Debug("Skipped existing file", "file", filename)
 	} else {
-		log.Infof("Wrote %s", filename)
+		slog.Info("Wrote file", "file", filename)
 	}
 
 	return nil

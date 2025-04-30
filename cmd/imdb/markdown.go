@@ -2,12 +2,12 @@ package imdb
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/fileutil"
-	log "github.com/sirupsen/logrus"
 )
 
 // writeMovieToMarkdown writes movie info to a markdown file
@@ -107,9 +107,9 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	}
 
 	if !written {
-		log.Debugf("Skipped existing file: %s", filePath)
+		slog.Debug("Skipped existing file", "path", filePath)
 	} else {
-		log.Infof("Wrote %s", filePath)
+		slog.Info("Wrote file", "path", filePath)
 	}
 
 	return nil
@@ -157,7 +157,7 @@ func mapTypeToTag(titleType string) string {
 	case "Podcast Episode":
 		return "imdb/podcast-episode"
 	default:
-		log.Warnf("Unknown title type '%s'\n", titleType)
+		slog.Warn("Unknown title type", "type", titleType)
 		return "UNKNOWN"
 	}
 }

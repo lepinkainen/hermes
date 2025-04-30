@@ -36,7 +36,7 @@ These directories will be created if they don't exist. Each importer will create
 
 ### Log Level
 
-- `loglevel`: Controls the verbosity of logging. Valid values are:
+- `loglevel`: Controls the verbosity of logging using the standard Go `slog` library. Valid values are:
   - `debug`: Detailed debugging information
   - `info`: General information about progress
   - `warn`: Warning messages

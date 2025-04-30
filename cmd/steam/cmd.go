@@ -1,10 +1,11 @@
 package steam
 
 import (
+	"log/slog"
+
 	"github.com/lepinkainen/hermes/internal/cmdutil"
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -58,7 +59,7 @@ var importCmd = &cobra.Command{
 		err := ParseSteam()
 		if err != nil {
 			if rateLimitErr, ok := err.(*errors.RateLimitError); ok {
-				log.Error(rateLimitErr.Message)
+				slog.Error(rateLimitErr.Message)
 				return nil // Return nil to prevent Cobra from showing help text
 			}
 			return err

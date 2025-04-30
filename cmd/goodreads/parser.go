@@ -4,11 +4,10 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
-
-	log "github.com/sirupsen/logrus"
 )
 
 func ParseGoodreads() error {
@@ -44,14 +43,14 @@ func ParseGoodreads() error {
 			break
 		}
 		if err != nil {
-			log.Printf("Warning: Error reading record: %v\n", err)
+			slog.Warn("Error reading record", "error", err)
 			continue
 		}
 
 		// Convert string values to appropriate types
 		bookID, err := strconv.Atoi(record[0])
 		if err != nil {
-			log.Printf("Warning: Invalid book ID: %v\n", err)
+			slog.Warn("Invalid book ID", "error", err)
 			continue
 		}
 
@@ -123,13 +122,13 @@ func ParseGoodreads() error {
 		// Try to enrich the book with OpenLibrary data
 		if isbn != "" || isbn13 != "" {
 			if err := enrichBookFromOpenLibrary(&book); err != nil {
-				log.Warnf("Could not enrich book data: %v\n", err)
+				slog.Warn("Could not enrich book data", "error", err)
 			}
 		}
 
 		// Write the book to markdown
 		if err := writeBookToMarkdown(book, outputDir); err != nil {
-			log.Errorf("Error writing markdown for book %s: %v\n", book.Title, err)
+			slog.Error("Error writing markdown for book", "title", book.Title, "error", err)
 			continue
 		}
 
@@ -138,17 +137,19 @@ func ParseGoodreads() error {
 
 		processedCount++
 		if processedCount%10 == 0 {
-			log.Infof("Processed %d of %d books (%.1f%%)...",
-				processedCount, totalBooks, float64(processedCount)/float64(totalBooks)*100)
+			slog.Info("Processing books",
+				"processed", processedCount,
+				"total", totalBooks,
+				"percentage", fmt.Sprintf("%.1f%%", float64(processedCount)/float64(totalBooks)*100))
 		}
 	}
 
-	log.Infof("Successfully processed %d of %d books (100%%)", processedCount, totalBooks)
+	slog.Info("Successfully processed all books", "processed", processedCount, "total", totalBooks, "percentage", "100%")
 
 	// Write to JSON if enabled
 	if writeJSON {
 		if err := writeBookToJson(books, jsonOutput); err != nil {
-			log.Errorf("Error writing books to JSON: %v\n", err)
+			slog.Error("Error writing books to JSON", "error", err)
 		}
 	}
 

@@ -4,52 +4,53 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/errors"
-	log "github.com/sirupsen/logrus"
 )
 
 // ParseLetterboxd parses a Letterboxd CSV export file
 func ParseLetterboxd() error {
 	// Double check overwrite flag with global config
 	if overwrite != config.OverwriteFiles {
-		log.Warnf("Overwrite flag mismatch! Local=%v, Global=%v. Using global value.",
-			overwrite, config.OverwriteFiles)
+		slog.Warn("Overwrite flag mismatch! Using global value",
+			"local", overwrite,
+			"global", config.OverwriteFiles)
 		overwrite = config.OverwriteFiles
 	}
 
 	// Log the config at startup
-	log.Infof("Starting Letterboxd parser with overwrite=%v", overwrite)
+	slog.Info("Starting Letterboxd parser", "overwrite", overwrite)
 
 	// Open and process CSV file
 	movies, err := processCSVFile(csvFile)
 	if err != nil {
-		log.Fatalf("Failed to process CSV: %v", err)
+		slog.Error("Failed to process CSV", "error", err)
 		return err
 	}
 
-	log.Infof("Found %d movies\n", len(movies))
+	slog.Info("Found movies", "count", len(movies))
 
 	// Write markdown files
-	log.Infof("Writing markdown\n")
+	slog.Info("Writing markdown")
 	if err := writeMoviesToMarkdown(movies, outputDir); err != nil {
-		log.Errorf("Error writing markdown: %v\n", err)
+		slog.Error("Error writing markdown", "error", err)
 		return err
 	}
 
 	// Write to JSON if enabled
 	if writeJSON {
 		if err := writeMoviesToJSON(movies, jsonOutput); err != nil {
-			log.Errorf("Error writing movies to JSON: %v\n", err)
+			slog.Error("Error writing movies to JSON", "error", err)
 			return err
 		}
 	}
 
-	log.Infof("Processed %d movies\n", len(movies))
+	slog.Info("Processed movies", "count", len(movies))
 	return nil
 }
 
@@ -81,14 +82,14 @@ func processCSVFile(filename string) ([]Movie, error) {
 			break
 		}
 		if err != nil {
-			log.Warnf("Error reading record: %v", err)
+			slog.Warn("Error reading record", "error", err)
 			continue
 		}
 
 		movie, err := parseMovieRecord(record)
 		if err != nil {
 			if skipInvalid {
-				log.Warnf("Skipping invalid movie: %v", err)
+				slog.Warn("Skipping invalid movie", "error", err)
 				continue
 			}
 			return nil, fmt.Errorf("invalid movie: %v", err)
@@ -106,10 +107,8 @@ func parseMovieRecord(record []string) (Movie, error) {
 		return Movie{}, fmt.Errorf("record does not have enough fields: got %d, expected at least 4", len(record))
 	}
 
-	// Create logger with context
-	movieLogger := log.WithFields(log.Fields{
-		"Name": record[1], // Movie name is the second column
-	})
+	// Movie name is the second column
+	movieName := record[1]
 
 	// Extract Letterboxd ID from URI
 	letterboxdID := ""
@@ -122,7 +121,7 @@ func parseMovieRecord(record []string) (Movie, error) {
 	// Parse year
 	year, err := strconv.Atoi(record[2])
 	if err != nil {
-		movieLogger.Warnf("Invalid year: %s", record[2])
+		slog.Warn("Invalid year", "movie", movieName, "year", record[2])
 		if !skipInvalid {
 			return Movie{}, fmt.Errorf("invalid year: %s", record[2])
 		}
@@ -151,7 +150,7 @@ func writeMoviesToJSON(movies []Movie, jsonOutput string) error {
 				if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
 					return err
 				}
-				log.Warnf("Failed to enrich movie %s for JSON: %v", movies[i].Name, err)
+				slog.Warn("Failed to enrich movie for JSON", "movie", movies[i].Name, "error", err)
 				// Continue processing even if enrichment fails for other errors
 			}
 		}
@@ -203,7 +202,7 @@ func enrichMovieData(movie *Movie) error {
 // writeMoviesToMarkdown writes each movie to a markdown file
 func writeMoviesToMarkdown(movies []Movie, directory string) error {
 	for i := range movies {
-		log.Infof("Processing: %s\n", movies[i].Name)
+		slog.Info("Processing movie", "name", movies[i].Name)
 
 		// Enrich with OMDB data if not skipped
 		if !skipEnrich {
@@ -212,18 +211,18 @@ func writeMoviesToMarkdown(movies []Movie, directory string) error {
 				if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
 					return err
 				}
-				log.Warnf("Failed to enrich movie %s: %v", movies[i].Name, err)
+				slog.Warn("Failed to enrich movie", "movie", movies[i].Name, "error", err)
 				// Continue processing even if enrichment fails for other errors
 			}
 		}
 
 		err := writeMovieToMarkdown(movies[i], directory)
 		if err != nil {
-			log.Errorf("Failed to write markdown for %s: %v", movies[i].Name, err)
+			slog.Error("Failed to write markdown", "movie", movies[i].Name, "error", err)
 			// Continue with other movies on error
 			continue
 		}
-		log.Debugf("Wrote movie %s to markdown file", movies[i].Name)
+		slog.Debug("Wrote movie to markdown file", "movie", movies[i].Name)
 	}
 	return nil
 }

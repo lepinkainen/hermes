@@ -2,7 +2,7 @@ package goodreads
 
 import (
 	"encoding/json"
-	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -69,14 +69,14 @@ func getCachedBook(isbn string) (*Book, *OpenLibraryBook, bool, error) {
 	// Cache the result
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
 		// Log error but continue - caching failure shouldn't stop the process
-		fmt.Printf("Warning: Failed to create cache directory: %v\n", err)
+		slog.Warn("Failed to create cache directory", "error", err)
 	} else {
 		data, err := json.MarshalIndent(olBook, "", "  ")
 		if err != nil {
-			fmt.Printf("Warning: Failed to marshal book data: %v\n", err)
+			slog.Warn("Failed to marshal book data", "error", err)
 		} else {
 			if err := os.WriteFile(cachePath, data, 0644); err != nil {
-				fmt.Printf("Warning: Failed to write cache file: %v\n", err)
+				slog.Warn("Failed to write cache file", "error", err)
 			}
 		}
 	}

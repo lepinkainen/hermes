@@ -4,42 +4,43 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/errors"
-	log "github.com/sirupsen/logrus"
 )
 
 func ParseImdb() error {
 	// Open and process CSV file
 	movies, err := processCSVFile(csvFile)
 	if err != nil {
-		log.Fatalf("Failed to process CSV: %v", err)
+		slog.Error("Failed to process CSV", "error", err)
 		return err
 	}
 
-	log.Infof("Found %d movies\n", len(movies))
+	slog.Info("Found movies", "count", len(movies))
 
 	// Write markdown files
-	log.Infof("Writing markdown\n")
+	slog.Info("Writing markdown")
 	if err := writeMoviesToMarkdown(movies, outputDir); err != nil {
 		if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
-			log.Fatal("Stopping import due to rate limit: ", err)
+			slog.Error("Stopping import due to rate limit", "error", err)
+			return err
 		}
-		log.Errorf("Error writing markdown: %v\n", err)
+		slog.Error("Error writing markdown", "error", err)
 		return err
 	}
 
 	// Write to JSON if enabled
 	if writeJSON {
 		if err := writeMovieToJson(movies, jsonOutput); err != nil {
-			log.Errorf("Error writing movies to JSON: %v\n", err)
+			slog.Error("Error writing movies to JSON", "error", err)
 		}
 	}
 
-	log.Infof("Processed %d movies\n", len(movies))
+	slog.Info("Processed movies", "count", len(movies))
 	return nil
 }
 
@@ -71,14 +72,14 @@ func processCSVFile(filename string) ([]MovieSeen, error) {
 			break
 		}
 		if err != nil {
-			log.Warnf("Error reading record: %v", err)
+			slog.Warn("Error reading record", "error", err)
 			continue
 		}
 
 		movie, err := parseMovieRecord(record)
 		if err != nil {
 			if skipInvalid {
-				log.Warnf("Skipping invalid movie: %v", err)
+				slog.Warn("Skipping invalid movie", "error", err)
 				continue
 			}
 			return nil, fmt.Errorf("invalid movie: %v", err)
@@ -92,10 +93,8 @@ func processCSVFile(filename string) ([]MovieSeen, error) {
 
 // parseMovieRecord converts a CSV record into a MovieSeen struct
 func parseMovieRecord(record []string) (MovieSeen, error) {
-	// Create logger with context
-	movieLogger := log.WithFields(log.Fields{
-		"ImdbId": record[0], // Const is now first column
-	})
+	// Create a logger attribute for context
+	imdbID := record[0] // Const is now first column
 
 	// Parse rating
 	rating, err := strconv.Atoi(record[1]) // Your Rating is second column
@@ -108,7 +107,7 @@ func parseMovieRecord(record []string) (MovieSeen, error) {
 	if record[7] != "" && record[7] != "null" {
 		imdbRating, err = strconv.ParseFloat(record[7], 64)
 		if err != nil {
-			movieLogger.Warnf("Invalid IMDb rating: %v", err)
+			slog.Warn("Invalid IMDb rating", "imdb_id", imdbID, "error", err)
 		}
 	}
 
@@ -117,7 +116,7 @@ func parseMovieRecord(record []string) (MovieSeen, error) {
 	if record[8] != "" {
 		runtimeMins, err = strconv.Atoi(record[8])
 		if err != nil {
-			movieLogger.Warnf("Error parsing runtime %s: %v\n", record[8], err)
+			slog.Warn("Error parsing runtime", "imdb_id", imdbID, "runtime", record[8], "error", err)
 		}
 	}
 
@@ -126,7 +125,7 @@ func parseMovieRecord(record []string) (MovieSeen, error) {
 	if record[9] != "" {
 		year, err = strconv.Atoi(record[9])
 		if err != nil {
-			movieLogger.Warnf("Invalid year: %v", err)
+			slog.Warn("Invalid year", "imdb_id", imdbID, "error", err)
 		}
 	}
 
@@ -135,7 +134,7 @@ func parseMovieRecord(record []string) (MovieSeen, error) {
 	if record[11] != "" {
 		numVotes, err = strconv.Atoi(record[11])
 		if err != nil {
-			movieLogger.Warnf("Invalid number of votes: %v", err)
+			slog.Warn("Invalid number of votes", "imdb_id", imdbID, "error", err)
 		}
 	}
 
@@ -206,7 +205,7 @@ func enrichMovieData(movie *MovieSeen) error {
 
 func writeMoviesToMarkdown(movies []MovieSeen, directory string) error {
 	for i := range movies {
-		log.Infof("Processing: %s\n", movies[i].Title)
+		slog.Info("Processing movie", "title", movies[i].Title)
 
 		// Enrich with OMDB data
 		if err := enrichMovieData(&movies[i]); err != nil {
@@ -214,7 +213,7 @@ func writeMoviesToMarkdown(movies []MovieSeen, directory string) error {
 			if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
 				return err
 			}
-			log.Warnf("Failed to enrich movie %s: %v", movies[i].Title, err)
+			slog.Warn("Failed to enrich movie", "title", movies[i].Title, "error", err)
 			// Continue processing even if enrichment fails for other errors
 			continue
 		}
@@ -223,7 +222,7 @@ func writeMoviesToMarkdown(movies []MovieSeen, directory string) error {
 		if err != nil {
 			return err
 		}
-		log.Debugf("Wrote movie %s to markdown file %s", movies[i].Title, directory)
+		slog.Debug("Wrote movie to markdown file", "title", movies[i].Title, "directory", directory)
 	}
 	return nil
 }

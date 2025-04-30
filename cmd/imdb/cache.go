@@ -2,11 +2,11 @@ package imdb
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/lepinkainen/hermes/internal/errors"
-	log "github.com/sirupsen/logrus"
 )
 
 func getCachedMovie(imdbID string) (*MovieSeen, error) {
@@ -26,10 +26,10 @@ func getCachedMovie(imdbID string) (*MovieSeen, error) {
 	if err != nil {
 		// Check if it's a rate limit error
 		if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
-			log.Warn("OMDB API rate limit reached, stopping further requests")
+			slog.Warn("OMDB API rate limit reached, stopping further requests")
 			return nil, err
 		}
-		log.Warnf("Failed to enrich movie: %v", err)
+		slog.Warn("Failed to enrich movie", "error", err)
 		return nil, err
 	}
 

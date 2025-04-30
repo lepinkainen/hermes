@@ -2,10 +2,10 @@ package letterboxd
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/fileutil"
-	log "github.com/sirupsen/logrus"
 )
 
 // writeMovieToMarkdown writes a single movie to a markdown file
@@ -111,9 +111,9 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 	}
 
 	if written {
-		log.Infof("Wrote %s", filePath)
+		slog.Info("Wrote file", "path", filePath)
 	} else {
-		log.Infof("Skipped existing file: %s", filePath)
+		slog.Info("Skipped existing file", "path", filePath)
 	}
 
 	return nil

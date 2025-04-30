@@ -1,9 +1,10 @@
 package imdb
 
 import (
+	"log/slog"
+
 	"github.com/lepinkainen/hermes/internal/cmdutil"
 	"github.com/lepinkainen/hermes/internal/config"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -50,7 +51,7 @@ Supports both ratings and watchlist exports.`,
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		log.Info("Processing imdb export...")
+		slog.Info("Processing imdb export...")
 		return ParseImdb()
 	},
 }

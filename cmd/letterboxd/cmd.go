@@ -1,9 +1,10 @@
 package letterboxd
 
 import (
+	"log/slog"
+
 	"github.com/lepinkainen/hermes/internal/cmdutil"
 	"github.com/lepinkainen/hermes/internal/config"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -53,7 +54,7 @@ Supports watched movies exports from Letterboxd.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Update the overwrite flag from the global config right before running
 		overwrite = config.OverwriteFiles
-		log.Infof("Processing Letterboxd export with overwrite=%v...", overwrite)
+		slog.Info("Processing Letterboxd export", "overwrite", overwrite)
 		return ParseLetterboxd()
 	},
 }

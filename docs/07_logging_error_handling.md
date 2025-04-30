@@ -4,7 +4,7 @@ This document describes the logging and error handling approaches used in Hermes
 
 ## Logging
 
-Hermes uses the [logrus](https://github.com/sirupsen/logrus) library for structured logging. Logging is configured globally in `cmd/root.go` and used consistently throughout the application.
+Hermes uses Go's standard library [slog](https://pkg.go.dev/log/slog) package for structured logging. Logging is configured globally in `cmd/root.go` and used consistently throughout the application.
 
 ### Log Levels
 
@@ -64,30 +64,30 @@ The `--verbose` flag is also available as a shorthand for `--loglevel debug`.
 
 Logs are formatted as text by default, with each line containing:
 
-- Timestamp
 - Log level
+- Timestamp
 - Message
-- Additional fields (if any)
+- Additional key-value attributes
 
 Example log output:
 
 ```
-INFO[2023-04-30T16:30:45+03:00] Starting Goodreads import                   items=142
-INFO[2023-04-30T16:30:46+03:00] Enriching data from OpenLibrary API          book="1984" author="George Orwell"
-WARN[2023-04-30T16:30:47+03:00] Could not find cover image                   book="Obscure Title" isbn=""
-INFO[2023-04-30T16:30:50+03:00] Import completed                             success=140 skipped=2
+INFO   [2025-05-01 00:10:53] Starting Goodreads import items=142
+INFO   [2025-05-01 00:10:54] Enriching data from OpenLibrary API book="1984" author="George Orwell"
+WARN   [2025-05-01 00:10:55] Could not find cover image book="Obscure Title" isbn=""
+INFO   [2025-05-01 00:10:58] Import completed success=140 skipped=2
 ```
 
 ### Contextual Logging
 
-Logrus supports adding context to log entries using fields:
+The `slog` package supports adding context to log entries using key-value attributes:
 
 ```go
-log.WithFields(log.Fields{
-    "book":   book.Title,
-    "author": book.Author,
-    "isbn":   book.ISBN,
-}).Info("Processing book")
+slog.Info("Processing book",
+    "book", book.Title,
+    "author", book.Author,
+    "isbn", book.ISBN,
+)
 ```
 
 This approach is used throughout Hermes to provide contextual information in log messages.
@@ -156,10 +156,10 @@ Significant errors are logged before being returned:
 
 ```go
 if err != nil {
-    log.WithFields(log.Fields{
-        "item": item.ID,
-        "error": err.Error(),
-    }).Error("Failed to process item")
+    slog.Error("Failed to process item",
+        "item", item.ID,
+        "error", err,
+    )
     return err
 }
 ```
@@ -172,10 +172,10 @@ For non-critical errors, Hermes attempts to recover and continue processing:
 for _, item := range items {
     err := processItem(item)
     if err != nil {
-        log.WithFields(log.Fields{
-            "item": item.ID,
-            "error": err.Error(),
-        }).Warn("Skipping item due to error")
+        slog.Warn("Skipping item due to error",
+            "item", item.ID,
+            "error", err,
+        )
         skipped++
         continue
     }
@@ -251,7 +251,7 @@ See docs/02_installation_setup.md for instructions on obtaining a Steam API key.
 When working with Hermes code, follow these best practices for logging and error handling:
 
 1. **Use appropriate log levels** based on the information's importance
-2. **Add context to logs** using logrus fields
+2. **Add context to logs** using slog key-value attributes
 3. **Wrap errors** with context using `fmt.Errorf("context: %w", err)`
 4. **Handle recoverable errors** gracefully, allowing the program to continue
 5. **Log errors** before returning them up the call stack

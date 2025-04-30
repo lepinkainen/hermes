@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -19,7 +19,7 @@ func fetchMovieData(imdbID string) (*MovieSeen, error) {
 		return nil, fmt.Errorf("imdb.omdb_api_key not set in config")
 	}
 
-	log.Infof("Fetching movie data for %s", imdbID)
+	slog.Info("Fetching movie data", "imdb_id", imdbID)
 
 	url := fmt.Sprintf("http://www.omdbapi.com/?i=%s&apikey=%s", imdbID, apiKey)
 
@@ -34,7 +34,7 @@ func fetchMovieData(imdbID string) (*MovieSeen, error) {
 		// Read the response body
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Warnf("Failed to read error response body: %v", err)
+			slog.Warn("Failed to read error response body", "error", err)
 		} else {
 			// Parse error response
 			var errorResp struct {
@@ -45,9 +45,9 @@ func fetchMovieData(imdbID string) (*MovieSeen, error) {
 				if errorResp.Error == "Request limit reached!" {
 					return nil, errors.NewRateLimitError("OMDB API request limit reached")
 				}
-				log.Warnf("OMDB API error: %s", errorResp.Error)
+				slog.Warn("OMDB API error", "error", errorResp.Error)
 			}
-			log.Warnf("OMDB API response body: %s", string(body))
+			slog.Warn("OMDB API response body", "body", string(body))
 		}
 		return nil, fmt.Errorf("OMDB API returned non-200 status code: %d for ID: %s", resp.StatusCode, imdbID)
 	}
