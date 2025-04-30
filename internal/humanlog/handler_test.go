@@ -239,6 +239,21 @@ func TestHandler_AttributeFormatting(t *testing.T) {
 			attr:     slog.Any("key", errors.New("test error")),
 			expected: `key="test error"`,
 		},
+		{
+			name:     "String with special characters",
+			attr:     slog.String("key", "value{with}braces"),
+			expected: `key="value{with}braces"`,
+		},
+		{
+			name:     "String that looks like Go keyword",
+			attr:     slog.String("key", "nil"),
+			expected: `key="nil"`,
+		},
+		{
+			name:     "String that looks like boolean literal",
+			attr:     slog.String("key", "true"),
+			expected: `key="true"`,
+		},
 	}
 
 	for _, tt := range tests {

@@ -49,12 +49,7 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 	var sb strings.Builder
 
 	// [TIME] LEVEL: Message
-	sb.WriteString("[")
-	sb.WriteString(timeStr)
-	sb.WriteString("] ")
-	sb.WriteString(levelStr)
-	sb.WriteString(" ")
-	sb.WriteString(r.Message)
+	fmt.Fprintf(&sb, "[%s] %s %s", timeStr, levelStr, r.Message)
 
 	// Collect and format attributes
 	var attrs []string
@@ -94,7 +89,7 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 		group := strings.Join(h.groups, ".")
 		for _, attr := range attrs {
 			h2.attrs = append(h2.attrs, slog.Attr{
-				Key:   group + "." + attr.Key,
+				Key:   fmt.Sprintf("%s.%s", group, attr.Key),
 				Value: attr.Value,
 			})
 		}
@@ -142,7 +137,7 @@ func formatLevel(level slog.Level, disableColor bool) string {
 		return levelStr
 	}
 
-	return colorCode + levelStr + colorReset
+	return fmt.Sprintf("%s%s%s", colorCode, levelStr, colorReset)
 }
 
 // formatAttr formats a single attribute as "key=value".
@@ -187,20 +182,32 @@ func formatAttr(attr slog.Attr, disableColor bool) string {
 	}
 }
 
-// needsQuoting returns true if the string contains spaces or special characters.
+// needsQuoting returns true if the string should be quoted in log output.
+// Strings are quoted if they:
+// - Are empty
+// - Contain spaces or control characters
+// - Contain special characters that could interfere with log parsing (=, ", ', `, [, ])
+// - Look like a Go keyword or boolean (true, false, nil)
+// Numbers are not quoted.
 func needsQuoting(s string) bool {
 	if s == "" {
 		return true
 	}
 
-	// Check if it's a valid number
+	// Don't quote valid numbers
 	if _, err := strconv.ParseFloat(s, 64); err == nil {
 		return false
 	}
 
-	// Check for spaces or special characters
+	// Check for Go keywords and literals that might cause confusion
+	switch s {
+	case "true", "false", "nil":
+		return true
+	}
+
+	// Check for spaces, control characters, or special characters
 	for _, r := range s {
-		if r <= ' ' || r == '=' || r == '"' || r == '\'' || r == '`' || r == '[' || r == ']' {
+		if r <= ' ' || r == '=' || r == '"' || r == '\'' || r == '`' || r == '[' || r == ']' || r == '{' || r == '}' {
 			return true
 		}
 	}
