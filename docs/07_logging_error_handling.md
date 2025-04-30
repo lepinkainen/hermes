@@ -62,21 +62,28 @@ The `--verbose` flag is also available as a shorthand for `--loglevel debug`.
 
 ### Log Format
 
-Logs are formatted as text by default, with each line containing:
+Logs are formatted in a human-readable format, with each line containing:
 
-- Log level
-- Timestamp
+- Timestamp in brackets `[HH:MM:SS]`
+- Log level (optionally colored)
 - Message
-- Additional key-value attributes
+- Additional key-value attributes in brackets (if any)
 
 Example log output:
 
 ```
-INFO   [2025-05-01 00:10:53] Starting Goodreads import items=142
-INFO   [2025-05-01 00:10:54] Enriching data from OpenLibrary API book="1984" author="George Orwell"
-WARN   [2025-05-01 00:10:55] Could not find cover image book="Obscure Title" isbn=""
-INFO   [2025-05-01 00:10:58] Import completed success=140 skipped=2
+[12:10:53] INFO: Starting Goodreads import [items=142]
+[12:10:54] INFO: Enriching data from OpenLibrary API [book="1984" author="George Orwell"]
+[12:10:55] WARN: Could not find cover image [book="Obscure Title" isbn=""]
+[12:10:58] INFO: Import completed [success=140 skipped=2]
 ```
+
+The log format is implemented by the `humanlog` package in `internal/humanlog/`, which provides a custom `slog.Handler` with the following features:
+
+- Human-readable timestamp format
+- Fixed-width, uppercase level names
+- Optional ANSI color for log levels (red for ERROR, yellow for WARN, blue for INFO, gray for DEBUG)
+- Intelligent formatting of attribute values (quoting strings with spaces, etc.)
 
 ### Contextual Logging
 

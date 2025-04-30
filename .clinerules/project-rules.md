@@ -36,7 +36,7 @@
 
 ## Logging
 
-- Use the `logrus` library, configured globally in `cmd/root.go`.
+- Use the `slog` library, configured globally in `cmd/root.go`.
 - Log informational messages about progress (e.g., starting import, items processed) at `InfoLevel`.
 - Use `DebugLevel` for verbose information useful for debugging (e.g., detailed API request/response info, cache hits/misses).
 - Use `WarnLevel` for recoverable issues (e.g., skipping an item due to missing data but continuing the import).
