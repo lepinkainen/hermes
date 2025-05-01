@@ -121,6 +121,16 @@ func TestHandler_Handle(t *testing.T) {
 					t.Errorf("Handler.Handle() output = %v, should contain attribute %v", got, attr)
 				}
 			}
+
+			// Check that the message is padded to the fixed width
+			// This is a simple check to ensure the fixed-width formatting is applied
+			if len(tt.message) < messageWidth {
+				// If the message is shorter than messageWidth, there should be spaces after it
+				expectedPadding := messageWidth - len(tt.message)
+				if !strings.Contains(got, tt.message+strings.Repeat(" ", expectedPadding)) {
+					t.Errorf("Handler.Handle() output = %v, should contain padded message", got)
+				}
+			}
 		})
 	}
 }

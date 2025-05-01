@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+// Constants for formatting
+const (
+	messageWidth = 40 // Fixed width for message field
+)
+
 // ANSI color codes
 const (
 	colorReset  = "\033[0m"
@@ -34,7 +39,9 @@ func (h *Handler) Enabled(_ context.Context, level slog.Level) bool {
 }
 
 // Handle handles the Record.
-// Format: [TIME] LEVEL: Message [key=value key2=value2 ...]
+// Format: [TIME] LEVEL Message(fixed-width-40-chars) key=value key2=value2 ...
+// The message is truncated with ellipsis if it exceeds the fixed width.
+// Attributes are displayed in a separate column after the message field.
 func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -45,11 +52,20 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 	// Format level
 	levelStr := formatLevel(r.Level, h.opts.DisableColor)
 
+	// Format message (truncate and pad to fixed width)
+	message := r.Message
+	if len(message) > messageWidth {
+		// Truncate with ellipsis, ensuring space for "..."
+		message = message[:messageWidth-3] + "..."
+	}
+	// Use Sprintf with %-*s for left-alignment and padding
+	formattedMessage := fmt.Sprintf("%-*s", messageWidth, message)
+
 	// Build the log line
 	var sb strings.Builder
 
-	// [TIME] LEVEL: Message
-	fmt.Fprintf(&sb, "[%s] %s %s", timeStr, levelStr, r.Message)
+	// [TIME] LEVEL Message(fixed-width)
+	fmt.Fprintf(&sb, "[%s] %s %s", timeStr, levelStr, formattedMessage)
 
 	// Collect and format attributes
 	var attrs []string
@@ -67,9 +83,7 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 
 	// Add attributes if any
 	if len(attrs) > 0 {
-		sb.WriteString(" [")
 		sb.WriteString(strings.Join(attrs, " "))
-		sb.WriteString("]")
 	}
 
 	// Add newline and write to output
