@@ -7,9 +7,34 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/datastore"
 	"github.com/lepinkainen/hermes/internal/errors"
 	"github.com/spf13/viper"
 )
+
+// Convert GameDetails to map[string]any for database insertion
+func gameDetailsToMap(details GameDetails) map[string]any {
+	return map[string]any{
+		"appid":            details.AppID,
+		"name":             details.Name,
+		"playtime_forever": details.PlaytimeForever,
+		"playtime_recent":  details.PlaytimeRecent,
+		"last_played":      details.LastPlayed.String(),
+		"details_fetched":  details.DetailsFetched,
+		"description":      details.Description,
+		"short_desc":       details.ShortDesc,
+		"header_image":     details.HeaderImage,
+		"screenshots":      "", // Could serialize as JSON if needed
+		"developers":       strings.Join(details.Developers, ","),
+		"publishers":       strings.Join(details.Publishers, ","),
+		"release_date":     details.ReleaseDate.Date,
+		"coming_soon":      details.ReleaseDate.ComingSoon,
+		"categories":       "", // Could serialize as JSON if needed
+		"genres":           "", // Could serialize as JSON if needed
+		"metacritic_score": details.Metacritic.Score,
+		"metacritic_url":   details.Metacritic.URL,
+	}
+}
 
 func ParseSteam() error {
 	// Ensure output directory exists
@@ -49,7 +74,82 @@ func ParseSteam() error {
 		}
 
 		processedGames = append(processedGames, *details)
-		//slog.Info("Created markdown file", "game", game.Name)
+	}
+
+	// Datasette integration
+	if viper.GetBool("datasette.enabled") {
+		slog.Info("Writing Steam games to Datasette")
+		mode := viper.GetString("datasette.mode")
+
+		if mode == "local" {
+			store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
+			if err := store.Connect(); err != nil {
+				slog.Error("Failed to connect to SQLite database", "error", err)
+				return err
+			}
+			defer store.Close()
+
+			schema := `CREATE TABLE IF NOT EXISTS steam_games (
+				appid INTEGER PRIMARY KEY,
+				name TEXT,
+				playtime_forever INTEGER,
+				playtime_recent INTEGER,
+				last_played TEXT,
+				details_fetched BOOLEAN,
+				description TEXT,
+				short_desc TEXT,
+				header_image TEXT,
+				screenshots TEXT,
+				developers TEXT,
+				publishers TEXT,
+				release_date TEXT,
+				coming_soon BOOLEAN,
+				categories TEXT,
+				genres TEXT,
+				metacritic_score INTEGER,
+				metacritic_url TEXT
+			)`
+
+			if err := store.CreateTable(schema); err != nil {
+				slog.Error("Failed to create table", "error", err)
+				return err
+			}
+
+			records := make([]map[string]any, len(processedGames))
+			for i, details := range processedGames {
+				records[i] = gameDetailsToMap(details)
+			}
+
+			if err := store.BatchInsert("hermes", "steam_games", records); err != nil {
+				slog.Error("Failed to insert records", "error", err)
+				return err
+			}
+			slog.Info("Successfully wrote games to SQLite database", "count", len(processedGames))
+		} else if mode == "remote" {
+			client := datastore.NewDatasetteClient(
+				viper.GetString("datasette.remote_url"),
+				viper.GetString("datasette.api_token"),
+			)
+			if err := client.Connect(); err != nil {
+				slog.Error("Failed to connect to remote Datasette", "error", err)
+				return err
+			}
+			defer client.Close()
+
+			records := make([]map[string]any, len(processedGames))
+			for i, details := range processedGames {
+				records[i] = gameDetailsToMap(details)
+			}
+
+			if err := client.BatchInsert("hermes", "steam_games", records); err != nil {
+				slog.Error("Failed to insert records to remote Datasette", "error", err)
+				return err
+			}
+			slog.Info("Successfully wrote games to remote Datasette", "count", len(processedGames))
+		} else {
+			slog.Error("Invalid Datasette mode", "mode", mode)
+			return fmt.Errorf("invalid Datasette mode: %s", mode)
+		}
 	}
 
 	// Write to JSON if enabled

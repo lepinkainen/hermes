@@ -36,3 +36,4 @@ hermes
 
 *.csv
 *.json
+hermes.db

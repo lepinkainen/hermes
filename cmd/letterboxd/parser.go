@@ -10,8 +10,29 @@ import (
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/config"
+	"github.com/lepinkainen/hermes/internal/datastore"
 	"github.com/lepinkainen/hermes/internal/errors"
+	"github.com/spf13/viper"
 )
+
+// Convert Movie to map[string]any for database insertion
+func movieToMap(movie Movie) map[string]any {
+	return map[string]any{
+		"date":           movie.Date,
+		"name":           movie.Name,
+		"year":           movie.Year,
+		"letterboxd_id":  movie.LetterboxdID,
+		"letterboxd_uri": movie.LetterboxdURI,
+		"imdb_id":        movie.ImdbID,
+		"director":       movie.Director,
+		"cast":           strings.Join(movie.Cast, ","),
+		"genres":         strings.Join(movie.Genres, ","),
+		"runtime":        movie.Runtime,
+		"rating":         movie.Rating,
+		"poster_url":     movie.PosterURL,
+		"description":    movie.Description,
+	}
+}
 
 // ParseLetterboxd parses a Letterboxd CSV export file
 func ParseLetterboxd() error {
@@ -47,6 +68,77 @@ func ParseLetterboxd() error {
 		if err := writeMoviesToJSON(movies, jsonOutput); err != nil {
 			slog.Error("Error writing movies to JSON", "error", err)
 			return err
+		}
+	}
+
+	// Datasette integration
+	if viper.GetBool("datasette.enabled") {
+		slog.Info("Writing Letterboxd movies to Datasette")
+		mode := viper.GetString("datasette.mode")
+
+		if mode == "local" {
+			store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
+			if err := store.Connect(); err != nil {
+				slog.Error("Failed to connect to SQLite database", "error", err)
+				return err
+			}
+			defer store.Close()
+
+			schema := `CREATE TABLE IF NOT EXISTS letterboxd_movies (
+				date TEXT,
+				name TEXT,
+				year INTEGER,
+				letterboxd_id TEXT PRIMARY KEY,
+				letterboxd_uri TEXT,
+				imdb_id TEXT,
+				director TEXT,
+				cast TEXT,
+				genres TEXT,
+				runtime INTEGER,
+				rating REAL,
+				poster_url TEXT,
+				description TEXT
+			)`
+
+			if err := store.CreateTable(schema); err != nil {
+				slog.Error("Failed to create table", "error", err)
+				return err
+			}
+
+			records := make([]map[string]any, len(movies))
+			for i, movie := range movies {
+				records[i] = movieToMap(movie)
+			}
+
+			if err := store.BatchInsert("hermes", "letterboxd_movies", records); err != nil {
+				slog.Error("Failed to insert records", "error", err)
+				return err
+			}
+			slog.Info("Successfully wrote movies to SQLite database", "count", len(movies))
+		} else if mode == "remote" {
+			client := datastore.NewDatasetteClient(
+				viper.GetString("datasette.remote_url"),
+				viper.GetString("datasette.api_token"),
+			)
+			if err := client.Connect(); err != nil {
+				slog.Error("Failed to connect to remote Datasette", "error", err)
+				return err
+			}
+			defer client.Close()
+
+			records := make([]map[string]any, len(movies))
+			for i, movie := range movies {
+				records[i] = movieToMap(movie)
+			}
+
+			if err := client.BatchInsert("hermes", "letterboxd_movies", records); err != nil {
+				slog.Error("Failed to insert records to remote Datasette", "error", err)
+				return err
+			}
+			slog.Info("Successfully wrote movies to remote Datasette", "count", len(movies))
+		} else {
+			slog.Error("Invalid Datasette mode", "mode", mode)
+			return fmt.Errorf("invalid Datasette mode: %s", mode)
 		}
 	}
 

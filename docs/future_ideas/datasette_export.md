@@ -73,8 +73,8 @@ This phase details how to modify an existing importer to use the new datastore f
     - [x] Call `client.BatchInsert("hermes", "imdb_movies", records)`. The database name (`hermes`) is a convention here; it should match the remote setup.
     - [x] Add logging to indicate success or failure of the API call.
 - [x] **Refactor Goodreads Importer for Datasette**
-- [ ] **Refactor Letterboxd Importer for Datasette**
-- [ ] **Refactor Steam Importer for Datasette**
+- [x] **Refactor Letterboxd Importer for Datasette**
+- [x] **Refactor Steam Importer for Datasette**
 
 ## Phase 4: Documentation
 
