@@ -125,11 +125,11 @@ Hermes can export data to a local SQLite database or a remote Datasette instance
 
 ```yaml
 datasette:
-  enabled: false           # Enable Datasette output
-  mode: "local"           # "local" or "remote"
-  dbfile: "./hermes.db"   # Path to SQLite file (for local mode)
-  remote_url: ""          # Remote Datasette URL (for remote mode)
-  api_token: ""           # API token for remote insert (for remote mode)
+  enabled: false # Enable Datasette output
+  mode: "local" # "local" or "remote"
+  dbfile: "./hermes.db" # Path to SQLite file (for local mode)
+  remote_url: "" # Remote Datasette URL (for remote mode)
+  api_token: "" # API token for remote insert (for remote mode)
 ```
 
 ## Command-Line Flags
