@@ -38,9 +38,31 @@ func init() {
 	viper.SetDefault("JSONOutputDir", "./json/")
 	viper.SetDefault("OverwriteFiles", false)
 
+	// Datasette defaults
+	viper.SetDefault("datasette.enabled", false)
+	viper.SetDefault("datasette.mode", "local")
+	viper.SetDefault("datasette.dbfile", "./hermes.db")
+	viper.SetDefault("datasette.remote_url", "")
+	viper.SetDefault("datasette.api_token", "")
+
 	viper.SetConfigName("config") // name of config file (without extension)
 	viper.SetConfigType("yaml")   // REQUIRED if the config file does not have the extension in the name
 	viper.AddConfigPath(".")      // optionally look for config in the working directory
+
+	// Add Datasette flags
+	rootCmd.PersistentFlags().Bool("datasette", false, "Enable Datasette output")
+	rootCmd.PersistentFlags().String("datasette-mode", "local", "Datasette mode (local or remote)")
+	rootCmd.PersistentFlags().String("datasette-dbfile", "./hermes.db", "Path to local SQLite database file")
+	rootCmd.PersistentFlags().String("datasette-url", "", "URL of remote Datasette instance")
+	rootCmd.PersistentFlags().String("datasette-token", "", "API token for remote Datasette instance")
+
+	// Bind Datasette flags to viper
+	viper.BindPFlag("datasette.enabled", rootCmd.PersistentFlags().Lookup("datasette"))
+	viper.BindPFlag("datasette.mode", rootCmd.PersistentFlags().Lookup("datasette-mode"))
+	viper.BindPFlag("datasette.dbfile", rootCmd.PersistentFlags().Lookup("datasette-dbfile"))
+	viper.BindPFlag("datasette.remote_url", rootCmd.PersistentFlags().Lookup("datasette-url"))
+	viper.BindPFlag("datasette.api_token", rootCmd.PersistentFlags().Lookup("datasette-token"))
+
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			slog.Info("Config file not found, writing default config file...")
