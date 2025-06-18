@@ -8,7 +8,44 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/lepinkainen/hermes/internal/datastore"
+	"github.com/spf13/viper"
 )
+
+// Convert Book to map[string]any for database insertion
+func bookToMap(book Book) map[string]any {
+	return map[string]any{
+		"id":                       book.ID,
+		"title":                    book.Title,
+		"authors":                  strings.Join(book.Authors, ","),
+		"isbn":                     book.ISBN,
+		"isbn13":                   book.ISBN13,
+		"my_rating":                 book.MyRating,
+		"average_rating":            book.AverageRating,
+		"publisher":                book.Publisher,
+		"binding":                  book.Binding,
+		"number_of_pages":            book.NumberOfPages,
+		"year_published":            book.YearPublished,
+		"original_publication_year":  book.OriginalPublicationYear,
+		"date_read":                 book.DateRead,
+		"date_added":                book.DateAdded,
+		"bookshelves":              strings.Join(book.Bookshelves, ","),
+		"bookshelves_with_positions": strings.Join(book.BookshelvesWithPositions, ","),
+		"exclusive_shelf":           book.ExclusiveShelf,
+		"my_review":                 book.MyReview,
+		"spoiler":                  book.Spoiler,
+		"private_notes":             book.PrivateNotes,
+		"read_count":                book.ReadCount,
+		"owned_copies":              book.OwnedCopies,
+		"description":              book.Description,
+		"subjects":                 strings.Join(book.Subjects, ","),
+		"cover_id":                 book.CoverID,
+		"cover_url":                book.CoverURL,
+		"subject_people":           strings.Join(book.SubjectPeople, ","),
+		"subtitle":                 book.Subtitle,
+	}
+}
 
 func ParseGoodreads() error {
 	// First, count the total number of books in the CSV file
@@ -150,6 +187,92 @@ func ParseGoodreads() error {
 	if writeJSON {
 		if err := writeBookToJson(books, jsonOutput); err != nil {
 			slog.Error("Error writing books to JSON", "error", err)
+		}
+	}
+
+	// Datasette integration
+	if viper.GetBool("datasette.enabled") {
+		slog.Info("Writing Goodreads books to Datasette")
+		mode := viper.GetString("datasette.mode")
+
+		if mode == "local" {
+			store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
+			if err := store.Connect(); err != nil {
+				slog.Error("Failed to connect to SQLite database", "error", err)
+				return err
+			}
+			defer store.Close()
+
+			schema := `CREATE TABLE IF NOT EXISTS goodreads_books (
+				id INTEGER PRIMARY KEY,
+				title TEXT,
+				authors TEXT,
+				isbn TEXT,
+				isbn13 TEXT,
+				my_rating REAL,
+				average_rating REAL,
+				publisher TEXT,
+				binding TEXT,
+				number_of_pages INTEGER,
+				year_published INTEGER,
+				original_publication_year INTEGER,
+				date_read TEXT,
+				date_added TEXT,
+				bookshelves TEXT,
+				bookshelves_with_positions TEXT,
+				exclusive_shelf TEXT,
+				my_review TEXT,
+				spoiler TEXT,
+				private_notes TEXT,
+				read_count INTEGER,
+				owned_copies INTEGER,
+				description TEXT,
+				subjects TEXT,
+				cover_id INTEGER,
+				cover_url TEXT,
+				subject_people TEXT,
+				subtitle TEXT
+			)`
+
+			if err := store.CreateTable(schema); err != nil {
+				slog.Error("Failed to create table", "error", err)
+				return err
+			}
+
+			records := make([]map[string]any, len(books))
+			for i, book := range books {
+				records[i] = bookToMap(book)
+			}
+
+			if err := store.BatchInsert("hermes", "goodreads_books", records); err != nil {
+				slog.Error("Failed to insert records", "error", err)
+				return err
+			}
+			slog.Info("Successfully wrote books to SQLite database", "count", len(books))
+		} else if mode == "remote" {
+			client := datastore.NewDatasetteClient(
+				viper.GetString("datasette.remote_url"),
+				viper.GetString("datasette.api_token"),
+			)
+			if err := client.Connect(); err != nil {
+				slog.Error("Failed to connect to remote Datasette", "error", err)
+				return err
+			}
+			defer client.Close()
+
+			records := make([]map[string]any, len(books))
+			for i, book := range books {
+				records[i] = bookToMap(book)
+			}
+
+			if err := client.BatchInsert("hermes", "goodreads_books", records); err != nil {
+				slog.Error("Failed to insert records to remote Datasette", "error", err)
+				return err
+			}
+			slog.Info("Successfully wrote books to remote Datasette", "count", len(books))
+		} else {
+			slog.Error("Invalid Datasette mode", "mode", mode)
+			return fmt.Errorf("invalid Datasette mode: %s", mode)
 		}
 	}
 

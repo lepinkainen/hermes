@@ -49,31 +49,32 @@ This phase focuses on creating the foundational packages for interacting with a 
 
 ## Phase 3: Integrate an Importer with Datasette Logic
 
-This phase details how to modify an existing importer to use the new datastore functionality. We will use the **IMDb importer** as the primary example.
+This phase details how to modify an existing importer to use the new datastore functionality. We will use the **IMDb importer** as the primary example.
 
-- [ ] **Modify the Importer's Main Function (`cmd/imdb/parser.go`)**
-  - [ ] At the end of the `ParseImdb` function, after all movies have been processed and enriched, add a new section for Datasette output.
-  - [ ] Add a check for `viper.GetBool("datasette.enabled")`.
-- [ ] **Implement `local` Mode Integration**
-  - [ ] Inside the `if datasette.enabled` block, check if `viper.GetString("datasette.mode")` is `local`.
-  - [ ] If true:
-    - [ ] Instantiate the `SQLiteStore` from `internal/datastore`.
-    - [ ] Connect to the database file specified by `viper.GetString("datasette.dbfile")`.
-    - [ ] Define the SQL schema for an `imdb_movies` table based on the fields in the `imdb.MovieSeen` struct. Ensure data types are correct (e.g., `TEXT`, `INTEGER`, `REAL`). Use the `ImdbId` as the `PRIMARY KEY`.
-    - [ ] Call `store.CreateTable()` with the schema.
-    - [ ] Convert the `[]MovieSeen` slice into a slice of `map[string]any`.
-    - [ ] Call `store.BatchInsert("imdb_movies", records)`.
-    - [ ] Close the database connection.
-    - [ ] Add logging to indicate success or failure.
-- [ ] **Implement `remote` Mode Integration**
-  - [ ] Check if `viper.GetString("datasette.mode")` is `remote`.
-  - [ ] If true:
-    - [ ] Instantiate the `DatasetteClient` from `internal/datastore`.
-    - [ ] Convert the `[]MovieSeen` slice into a slice of `map[string]any`.
-    - [ ] Call `client.BatchInsert("hermes", "imdb_movies", records)`. The database name (`hermes`) is a convention here; it should match the remote setup.
-    - [ ] Add logging to indicate success or failure of the API call.
-- [ ] **Refactor Other Importers**
-  - [ ] Once the pattern is established with the IMDb importer, apply the same logic to `goodreads`, `letterboxd`, and `steam` importers, creating tables like `goodreads_books`, `letterboxd_movies`, and `steam_games`respectively.
+- [x] **Modify the Importer's Main Function (`cmd/imdb/parser.go`)**
+  - [x] At the end of the `ParseImdb` function, after all movies have been processed and enriched, add a new section for Datasette output.
+  - [x] Add a check for `viper.GetBool("datasette.enabled")`.
+- [x] **Implement `local` Mode Integration**
+  - [x] Inside the `if datasette.enabled` block, check if `viper.GetString("datasette.mode")` is `local`.
+  - [x] If true:
+    - [x] Instantiate the `SQLiteStore` from `internal/datastore`.
+    - [x] Connect to the database file specified by `viper.GetString("datasette.dbfile")`.
+    - [x] Define the SQL schema for an `imdb_movies` table based on the fields in the `imdb.MovieSeen` struct. Ensure data types are correct (e.g., `TEXT`, `INTEGER`, `REAL`). Use the `ImdbId` as the `PRIMARY KEY`.
+    - [x] Call `store.CreateTable()` with the schema.
+    - [x] Convert the `[]MovieSeen` slice into a slice of `map[string]any`.
+    - [x] Call `store.BatchInsert("imdb_movies", records)`.
+    - [x] Close the database connection.
+    - [x] Add logging to indicate success or failure.
+- [x] **Implement `remote` Mode Integration**
+  - [x] Check if `viper.GetString("datasette.mode")` is `remote`.
+  - [x] If true:
+    - [x] Instantiate the `DatasetteClient` from `internal/datastore`.
+    - [x] Convert the `[]MovieSeen` slice into a slice of `map[string]any`.
+    - [x] Call `client.BatchInsert("hermes", "imdb_movies", records)`. The database name (`hermes`) is a convention here; it should match the remote setup.
+    - [x] Add logging to indicate success or failure of the API call.
+- [x] **Refactor Goodreads Importer for Datasette**
+- [ ] **Refactor Letterboxd Importer for Datasette**
+- [ ] **Refactor Steam Importer for Datasette**
 
 ## Phase 4: Documentation
 
