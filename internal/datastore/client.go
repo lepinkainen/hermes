@@ -11,9 +11,9 @@ import (
 
 // DatasetteClient implements the Store interface for remote Datasette instances
 type DatasetteClient struct {
-	baseURL   string
-	apiToken  string
-	client    *http.Client
+	baseURL  string
+	apiToken string
+	client   *http.Client
 }
 
 // NewDatasetteClient creates a new DatasetteClient instance
@@ -42,7 +42,7 @@ func (c *DatasetteClient) CreateTable(schema string) error {
 }
 
 // BatchInsert sends records to the Datasette insert API
-func (c *DatasetteClient) BatchInsert(table string, records []map[string]any) error {
+func (c *DatasetteClient) BatchInsert(database string, table string, records []map[string]any) error {
 	if len(records) == 0 {
 		return nil
 	}

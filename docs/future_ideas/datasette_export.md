@@ -31,7 +31,7 @@ This phase focuses on creating the foundational packages for interacting with a 
   - [x] Create a new directory: `internal/datastore`.
   - [x] This package will house the logic for both local and remote data storage.
 - [x] **Implement Local SQLite Logic (`internal/datastore/sqlite.go`)**
-  - [x] Add a Go dependency for a SQLite driver (e.g., `go get modernc.org/sqlite`).
+  - [x] Add a Go dependency for a SQLite driver (e.g., `go get  modernc.org/sqlite`).
   - [x] Define a `Store` interface with methods like `Connect()`, `CreateTable(schema string)`, `BatchInsert(table string, records []map[string]any)`, and `Close()`.
   - [x] Create a `SQLiteStore` struct that implements the `Store` interface.
   - [x] The `Connect` method should open a connection to the SQLite file specified in the configuration.

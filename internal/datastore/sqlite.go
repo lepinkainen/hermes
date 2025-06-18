@@ -10,8 +10,8 @@ import (
 
 // SQLiteStore implements the Store interface for local SQLite storage
 type SQLiteStore struct {
-	db       *sql.DB
-	dbPath   string
+	db     *sql.DB
+	dbPath string
 }
 
 // NewSQLiteStore creates a new SQLiteStore instance
@@ -41,7 +41,7 @@ func (s *SQLiteStore) CreateTable(schema string) error {
 }
 
 // BatchInsert inserts multiple records into the specified table
-func (s *SQLiteStore) BatchInsert(table string, records []map[string]any) error {
+func (s *SQLiteStore) BatchInsert(database string, table string, records []map[string]any) error {
 	if len(records) == 0 {
 		return nil
 	}
@@ -83,7 +83,7 @@ func (s *SQLiteStore) BatchInsert(table string, records []map[string]any) error 
 		for i, col := range columns {
 			values[i] = record[col]
 		}
-		
+
 		if _, err := stmt.Exec(values...); err != nil {
 			return fmt.Errorf("failed to insert record: %w", err)
 		}

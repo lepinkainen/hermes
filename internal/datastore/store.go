@@ -9,7 +9,7 @@ type Store interface {
 	CreateTable(schema string) error
 
 	// BatchInsert inserts multiple records into the specified table
-	BatchInsert(table string, records []map[string]any) error
+	BatchInsert(database string, table string, records []map[string]any) error
 
 	// Close closes the connection to the data store
 	Close() error
