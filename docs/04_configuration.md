@@ -119,6 +119,19 @@ steam:
     json: "./json/games"
 ```
 
+## Datasette Integration
+
+Hermes can export data to a local SQLite database or a remote Datasette instance. Configure this in your `config.yaml`:
+
+```yaml
+datasette:
+  enabled: false           # Enable Datasette output
+  mode: "local"           # "local" or "remote"
+  dbfile: "./hermes.db"   # Path to SQLite file (for local mode)
+  remote_url: ""          # Remote Datasette URL (for remote mode)
+  api_token: ""           # API token for remote insert (for remote mode)
+```
+
 ## Command-Line Flags
 
 Command-line flags override values from the configuration file. Common flags include:
@@ -157,6 +170,14 @@ Command-line flags override values from the configuration file. Common flags inc
 - `--steamid`: Steam user ID
 - `--no-details`: Skip fetching additional game details
 
+#### Datasette
+
+- `--datasette`: Enable Datasette output
+- `--datasette-mode`: Set mode to "local" or "remote"
+- `--datasette-dbfile`: Path to SQLite database file
+- `--datasette-url`: Remote Datasette URL
+- `--datasette-token`: API token for remote insert
+
 ## Environment Variables
 
 Hermes also supports configuration via environment variables. Environment variables take precedence over the configuration file but are overridden by command-line flags.
@@ -177,6 +198,11 @@ Importer-specific environment variables:
 - `HERMES_LETTERBOXD_APIKEY`: OMDB API key
 - `HERMES_STEAM_APIKEY`: Steam API key
 - `HERMES_STEAM_STEAMID`: Steam user ID
+- `HERMES_DATASSETTE_ENABLED`: Enable Datasette output
+- `HERMES_DATASSETTE_MODE`: Datasette mode (local/remote)
+- `HERMES_DATASSETTE_DBFILE`: SQLite database file
+- `HERMES_DATASSETTE_URL`: Remote Datasette URL
+- `HERMES_DATASSETTE_TOKEN`: API token for remote insert
 
 ## Configuration Precedence
 
@@ -221,6 +247,12 @@ steam:
   apikey: "your_steam_api_key"
   steamid: "your_steam_id"
   fetchdetails: true
+
+# Datasette settings
+datasette:
+  enabled: true
+  mode: "local"
+  dbfile: "./hermes.db"
 ```
 
 ## Next Steps

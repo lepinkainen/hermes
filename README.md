@@ -1,8 +1,12 @@
 # Hermes
 
-Hermes is a tool to own your data. It can parse exported data from different sources and collect them in a JSON or Obsidian flavoured markdown format on your own computer.
+Hermes is a tool to own your data. It can parse exported data from different sources and collect them in a JSON, Obsidian flavoured markdown, or SQLite/remote Datasette format on your own computer.
 
 Partially ✨Vibe coded✨ with Cursor, Claude Code and Cline
+
+## Key Features
+- Export to Markdown, JSON, and SQLite
+- Optional remote export to a Datasette instance for querying and sharing
 
 ## Documentation
 

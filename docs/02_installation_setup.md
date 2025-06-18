@@ -115,6 +115,26 @@ After running an import, check the output directories:
 - **Markdown files**: `./markdown/{importer_name}/`
 - **JSON files**: `./json/{importer_name}/`
 
+## Optional: Datasette Setup
+
+Hermes can export your data to a local SQLite database or a remote Datasette instance for advanced querying and sharing.
+
+### Local Datasette
+1. Install [Datasette](https://datasette.io/) (requires Python):
+   ```sh
+   pip install datasette
+   ```
+2. After running an import, serve your database:
+   ```sh
+   datasette serve hermes.db
+   ```
+3. Open the provided URL in your browser to explore your data.
+
+### Remote Datasette
+1. Set up a remote Datasette instance with the [datasette-insert](https://github.com/simonw/datasette-insert) plugin.
+2. Generate an API token for your user.
+3. Configure Hermes with your remote URL and token (see [datasette_integration.md](./datasette_integration.md)).
+
 ## Troubleshooting
 
 ### API Rate Limits
