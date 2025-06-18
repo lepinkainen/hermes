@@ -80,27 +80,27 @@ This phase details how to modify an existing importer to use the new datastore f
 
 Update the project documentation to reflect the new feature.
 
-- [ ] **Create New Documentation File (`docs/datasette_integration.md`)**
-  - [ ] Write a new document explaining the feature.
-  - [ ] Detail how to configure Hermes for both `local` and `remote` Datasette modes.
-  - [ ] Provide instructions for the user on how to install and run Datasette locally to serve the generated `hermes.db` file.
-  - [ ] Provide instructions for setting up a remote Datasette instance with the `datasette-insert` plugin and generating an API token.
-- [ ] **Update Existing Documentation**
-  - [ ] **`README.md`**: Add Datasette to the list of key features.
-  - [ ] **`docs/02_installation_setup.md`**: Add a section on optional Datasette setup.
-  - [ ] **`docs/03_architecture.md`**: Update the architecture diagram and description to include the new `datastore` component and the optional Datasette backend.
-  - [ ] **`docs/04_configuration.md`**: Add details for the new `datasette` section in the `config.yaml` and the new CLI flags.
+- [x] **Create New Documentation File (`docs/datasette_integration.md`)**
+  - [x] Write a new document explaining the feature.
+  - [x] Detail how to configure Hermes for both `local` and `remote` Datasette modes.
+  - [x] Provide instructions for the user on how to install and run Datasette locally to serve the generated `hermes.db` file.
+  - [x] Provide instructions for setting up a remote Datasette instance with the `datasette-insert` plugin and generating an API token.
+- [x] **Update Existing Documentation**
+  - [x] **`README.md`**: Add Datasette to the list of key features.
+  - [x] **`docs/02_installation_setup.md`**: Add a section on optional Datasette setup.
+  - [x] **`docs/03_architecture.md`**: Update the architecture diagram and description to include the new `datastore` component and the optional Datasette backend.
+  - [x] **`docs/04_configuration.md`**: Add details for the new `datasette` section in the `config.yaml` and the new CLI flags.
 
 ## Phase 5: Testing
 
 Add tests to ensure the new functionality is reliable.
 
-- [ ] **Test `internal/datastore/sqlite.go`**
-  - [ ] Write unit tests for the `SQLiteStore`.
-  - [ ] Use an in-memory SQLite database for testing to avoid creating files on disk (e.g., by using the `file::memory:?cache=shared` DSN).
-  - [ ] Test table creation, single inserts, and batch inserts.
-- [ ] **Test `internal/datastore/client.go`**
-  - [ ] Write unit tests for the `DatasetteClient`.
-  - [ ] Use a mock HTTP server (from `net/http/httptest`) to simulate the Datasette API.
-  - [ ] Test successful batch inserts.
-  - [ ] Test API error handling (e.g., for 403 Forbidden, 500 Internal Server Error).
+- [x] **Test `internal/datastore/sqlite.go`**
+  - [x] Write unit tests for the `SQLiteStore`.
+  - [x] Use an in-memory SQLite database for testing to avoid creating files on disk (e.g., by using the `file::memory:?cache=shared` DSN).
+  - [x] Test table creation, single inserts, and batch inserts.
+- [x] **Test `internal/datastore/client.go`**
+  - [x] Write unit tests for the `DatasetteClient`.
+  - [x] Use a mock HTTP server (from `net/http/httptest`) to simulate the Datasette API.
+  - [x] Test successful batch inserts.
+  - [x] Test API error handling (e.g., for 403 Forbidden, 500 Internal Server Error).
