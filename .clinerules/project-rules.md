@@ -1,11 +1,12 @@
 # Hermes Project Rules
 
-## Core Guidelines
+## Tech Stack Reference
 
-- **Language:** Go only (no Python or other languages)
-- **Build System:** Use Taskfile
+See `llm-shared/project_tech_stack.md` for core technology choices, build system configuration, and library preferences.
+
+## Project-Specific Guidelines
+
 - **Unit Tests:** Write basic unit tests for new functionality. Always check the tests pass after finishing changes.
-- **CLI Framework:** Cobra and Viper for commands and configuration
 - **Purpose:** See README.md for project definition
 
 ## Code Structure
@@ -36,7 +37,6 @@
 
 ## Logging
 
-- Use the `slog` library, configured globally in `cmd/root.go`.
 - Log informational messages about progress (e.g., starting import, items processed) at `InfoLevel`.
 - Use `DebugLevel` for verbose information useful for debugging (e.g., detailed API request/response info, cache hits/misses).
 - Use `WarnLevel` for recoverable issues (e.g., skipping an item due to missing data but continuing the import).
@@ -74,11 +74,6 @@
 
 - Use shared utility functions from `internal/` packages (e.g., `cmdutil` for command setup, `fileutil` for file operations).
 - Contribute reusable logic back to these `internal/` packages when appropriate.
-
-## Dependencies
-
-- Prefer the Go standard library where possible.
-- Provide justification when adding new third-party dependencies. Keep dependencies updated.
 
 ## Documentation
 
