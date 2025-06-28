@@ -1,0 +1,94 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+
+builds:
+  - id: hermes
+    binary: hermes
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+      - -X main.GitCommit={{.Commit}}
+      - -X main.BuildDate={{.Date}}
+
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    files:
+      - README.md
+      - LICENSE
+      - docs/**/*
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - '^style:'
+      - Merge pull request
+      - Merge branch
+      - go mod tidy
+
+release:
+  draft: false
+  replace_existing_draft: true
+  target_commitish: '{{ .Commit }}'
+  discussion_category_name: General
+  prerelease: auto
+  mode: replace
+  header: |
+    ## Hermes {{ .Tag }}
+    
+    Thanks for using Hermes! This release includes the following changes:
+  footer: |
+    ## Installation
+    
+    Download the appropriate archive for your operating system and architecture from the assets below.
+    
+    ### Verify the download (optional)
+    You can verify the integrity of downloaded files using the checksums provided in `checksums.txt`.
+
+# Package managers can be added later when needed
+# brews:
+#   - repository:
+#       owner: lepinkainen
+#       name: homebrew-tap
+#     homepage: https://github.com/lepinkainen/hermes
+#     description: "Data import/export tool for various sources (Goodreads, IMDb, etc.)"
+#     license: "MIT"
+#     dependencies:
+#       - name: sqlite
+#     install: |
+#       bin.install "hermes"
+#     test: |
+#       system "#{bin}/hermes", "--version"
