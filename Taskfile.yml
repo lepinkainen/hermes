@@ -21,6 +21,43 @@ tasks:
     desc: Build the Go application
     deps:
       - test
+      - lint
+      - clean
+    cmds:
+      - mkdir -p {{.BUILDDIR}}
+      - >
+        go build 
+        -ldflags="-X main.Version={{.GIT_COMMIT}} -w -s" 
+        -o {{.BINARY}}
+    generates:
+      - "{{.BINARY}}"
+    vars:
+      GIT_COMMIT:
+        sh: git rev-parse --short HEAD
+
+  build-linux:
+    desc: Build the Go application for Linux
+    deps:
+      - test
+      - lint
+      - clean
+    cmds:
+      - mkdir -p {{.BUILDDIR}}
+      - >
+        GOOS=linux GOARCH=amd64 go build 
+        -ldflags="-X main.Version={{.GIT_COMMIT}} -w -s" 
+        -o {{.BUILDDIR}}/{{.FUNCNAME}}-linux
+    generates:
+      - "{{.BUILDDIR}}/{{.FUNCNAME}}-linux"
+    vars:
+      GIT_COMMIT:
+        sh: git rev-parse --short HEAD
+
+  build-ci:
+    desc: Build the Go application for CI
+    deps:
+      - test-ci
+      - lint
       - clean
     cmds:
       - mkdir -p {{.BUILDDIR}}
@@ -45,6 +82,16 @@ tasks:
     generates:
       - "{{.COVERAGE_DIR}}/coverage.out"
       - "{{.COVERAGE_DIR}}/coverage.html"
+
+  test-ci:
+    desc: Run Go tests with coverage for CI
+    cmds:
+      - mkdir -p {{.COVERAGE_DIR}}
+      - go test -tags=ci -cover -v ./...
+    sources:
+      - ./**/*.go
+    generates:
+      - "{{.COVERAGE_DIR}}/coverage.out"
 
   lint:
     desc: Run Go linters
