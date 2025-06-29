@@ -39,9 +39,11 @@ All options can be overridden with CLI flags:
 2. Run any importer (e.g. `hermes imdb import ...`).
 3. The database file (default: `hermes.db`) will be created/updated.
 4. To explore your data, install [Datasette](https://datasette.io/) and run:
+
    ```sh
    datasette serve hermes.db
    ```
+
 5. Open the provided URL in your browser to query and browse your data.
 
 ## Remote Mode Usage
