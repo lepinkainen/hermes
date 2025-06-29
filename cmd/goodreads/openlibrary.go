@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -101,37 +100,6 @@ func fetchEditionData(isbn string) (*OpenLibraryEdition, error) {
 	return &edition, nil
 }
 
-// fetchAuthorData retrieves author information from OpenLibrary
-func fetchAuthorData(authorKey string) (map[string]interface{}, error) {
-	if !strings.HasPrefix(authorKey, "/authors/") {
-		return nil, fmt.Errorf("invalid author key format: %s", authorKey)
-	}
-
-	client := getHTTPClient()
-
-	// Extract the author ID from the key
-	authorID := strings.TrimPrefix(authorKey, "/authors/")
-	url := fmt.Sprintf("https://openlibrary.org/authors/%s.json", authorID)
-
-	resp, err := client.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("author data request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Check if we got a successful response
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("author data request returned status: %s", resp.Status)
-	}
-
-	var authorData map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&authorData); err != nil {
-		return nil, fmt.Errorf("failed to decode author data: %w", err)
-	}
-
-	return authorData, nil
-}
-
 // fetchCoverImage constructs cover image URLs from cover ID
 func fetchCoverImage(coverID int) (string, error) {
 	if coverID <= 0 {
@@ -143,33 +111,3 @@ func fetchCoverImage(coverID int) (string, error) {
 	return fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", coverID), nil
 }
 
-// fetchWorkData retrieves work information from OpenLibrary
-func fetchWorkData(workKey string) (map[string]interface{}, error) {
-	if !strings.HasPrefix(workKey, "/works/") {
-		return nil, fmt.Errorf("invalid work key format: %s", workKey)
-	}
-
-	client := getHTTPClient()
-
-	// Extract the work ID from the key
-	workID := strings.TrimPrefix(workKey, "/works/")
-	url := fmt.Sprintf("https://openlibrary.org/works/%s.json", workID)
-
-	resp, err := client.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("work data request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Check if we got a successful response
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("work data request returned status: %s", resp.Status)
-	}
-
-	var workData map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&workData); err != nil {
-		return nil, fmt.Errorf("failed to decode work data: %w", err)
-	}
-
-	return workData, nil
-}

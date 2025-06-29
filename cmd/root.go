@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -41,7 +42,7 @@ type ImportCmd struct {
 
 // GoodreadsCmd represents the goodreads import command
 type GoodreadsCmd struct {
-	Input      string `short:"f" help:"Path to Goodreads library export CSV file" required:""`
+	Input      string `short:"f" help:"Path to Goodreads library export CSV file"`
 	Output     string `short:"o" help:"Subdirectory under markdown output directory for Goodreads files" default:"goodreads"`
 	JSON       bool   `help:"Write data to JSON format"`
 	JSONOutput string `help:"Path to JSON output file (defaults to json/goodreads.json)"`
@@ -49,7 +50,7 @@ type GoodreadsCmd struct {
 
 // IMDBCmd represents the imdb import command
 type IMDBCmd struct {
-	Input      string `short:"f" help:"Path to IMDB CSV file" required:""`
+	Input      string `short:"f" help:"Path to IMDB CSV file"`
 	Output     string `short:"o" help:"Subdirectory under markdown output directory for IMDB files" default:"imdb"`
 	JSON       bool   `help:"Write data to JSON format"`
 	JSONOutput string `help:"Path to JSON output file (defaults to json/imdb.json)"`
@@ -57,7 +58,7 @@ type IMDBCmd struct {
 
 // LetterboxdCmd represents the letterboxd import command
 type LetterboxdCmd struct {
-	Input      string `short:"f" help:"Path to Letterboxd CSV file" required:""`
+	Input      string `short:"f" help:"Path to Letterboxd CSV file"`
 	Output     string `short:"o" help:"Subdirectory under markdown output directory for Letterboxd files" default:"letterboxd"`
 	JSON       bool   `help:"Write data to JSON format"`
 	JSONOutput string `help:"Path to JSON output file (defaults to json/letterboxd.json)"`
@@ -65,7 +66,7 @@ type LetterboxdCmd struct {
 
 // SteamCmd represents the steam import command
 type SteamCmd struct {
-	SteamID    string `help:"Steam ID to fetch data for" required:""`
+	SteamID    string `help:"Steam ID to fetch data for"`
 	APIKey     string `help:"Steam API key"`
 	Output     string `short:"o" help:"Subdirectory under markdown output directory for Steam files" default:"steam"`
 	JSON       bool   `help:"Write data to JSON format"`
@@ -146,19 +147,71 @@ func updateGlobalConfig(cli *CLI) {
 // Run methods for each command
 
 func (g *GoodreadsCmd) Run() error {
-	return goodreads.ParseGoodreadsWithParams(g.Input, g.Output, g.JSON, g.JSONOutput, false)
+	// Read from config if value not provided via flag
+	input := g.Input
+	if input == "" {
+		input = viper.GetString("goodreads.csvfile")
+	}
+	
+	// Check if required value is still missing
+	if input == "" {
+		return fmt.Errorf("Input CSV file is required (provide via --input flag or goodreads.csvfile in config)")
+	}
+	
+	return goodreads.ParseGoodreadsWithParams(input, g.Output, g.JSON, g.JSONOutput, false)
 }
 
 func (i *IMDBCmd) Run() error {
-	return imdb.ParseImdbWithParams(i.Input, i.Output, i.JSON, i.JSONOutput, false)
+	// Read from config if value not provided via flag
+	input := i.Input
+	if input == "" {
+		input = viper.GetString("imdb.csvfile")
+	}
+	
+	// Check if required value is still missing
+	if input == "" {
+		return fmt.Errorf("Input CSV file is required (provide via --input flag or imdb.csvfile in config)")
+	}
+	
+	return imdb.ParseImdbWithParams(input, i.Output, i.JSON, i.JSONOutput, false)
 }
 
 func (l *LetterboxdCmd) Run() error {
-	return letterboxd.ParseLetterboxdWithParams(l.Input, l.Output, l.JSON, l.JSONOutput, false)
+	// Read from config if value not provided via flag
+	input := l.Input
+	if input == "" {
+		input = viper.GetString("letterboxd.csvfile")
+	}
+	
+	// Check if required value is still missing
+	if input == "" {
+		return fmt.Errorf("Input CSV file is required (provide via --input flag or letterboxd.csvfile in config)")
+	}
+	
+	return letterboxd.ParseLetterboxdWithParams(input, l.Output, l.JSON, l.JSONOutput, false)
 }
 
 func (s *SteamCmd) Run() error {
-	return steam.ParseSteamWithParams(s.SteamID, s.APIKey, s.Output, s.JSON, s.JSONOutput, false)
+	// Read from config if values not provided via flags
+	steamID := s.SteamID
+	if steamID == "" {
+		steamID = viper.GetString("steam.steamid")
+	}
+	
+	apiKey := s.APIKey
+	if apiKey == "" {
+		apiKey = viper.GetString("steam.apikey")
+	}
+	
+	// Check if required values are still missing
+	if steamID == "" {
+		return fmt.Errorf("Steam ID is required (provide via --steamid flag or steam.steamid in config)")
+	}
+	if apiKey == "" {
+		return fmt.Errorf("Steam API key is required (provide via --apikey flag or steam.apikey in config)")
+	}
+	
+	return steam.ParseSteamWithParams(steamID, apiKey, s.Output, s.JSON, s.JSONOutput, false)
 }
 
 func initLogging() {

@@ -190,19 +190,3 @@ func fetchGameData(appID string) (*Game, *GameDetails, error) {
 	return game, details, nil
 }
 
-func enrichGameData(game *Game) error {
-	// Skip if we already have enriched data
-	if game.DetailsFetched {
-		return nil
-	}
-
-	enriched, _, err := getCachedGame(strconv.Itoa(game.AppID))
-	if err != nil {
-		return fmt.Errorf("failed to enrich game data: %w", err)
-	}
-
-	// Copy enriched data
-	*game = *enriched
-	game.DetailsFetched = true
-	return nil
-}

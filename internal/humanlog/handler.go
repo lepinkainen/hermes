@@ -94,7 +94,11 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 
 // WithAttrs returns a new Handler whose attributes consist of h's attributes followed by attrs.
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	h2 := *h
+	h2 := &Handler{
+		opts:   h.opts,
+		groups: make([]string, len(h.groups)),
+	}
+	copy(h2.groups, h.groups)
 	h2.attrs = make([]slog.Attr, 0, len(h.attrs)+len(attrs))
 	h2.attrs = append(h2.attrs, h.attrs...)
 
@@ -111,7 +115,7 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 		h2.attrs = append(h2.attrs, attrs...)
 	}
 
-	return &h2
+	return h2
 }
 
 // WithGroup returns a new Handler with the given group name.
@@ -120,11 +124,15 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 		return h
 	}
 
-	h2 := *h
+	h2 := &Handler{
+		opts:  h.opts,
+		attrs: make([]slog.Attr, len(h.attrs)),
+	}
+	copy(h2.attrs, h.attrs)
 	h2.groups = make([]string, 0, len(h.groups)+1)
 	h2.groups = append(h2.groups, h.groups...)
 	h2.groups = append(h2.groups, name)
-	return &h2
+	return h2
 }
 
 // formatLevel returns a fixed-width, uppercase level string with optional color.

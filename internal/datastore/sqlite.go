@@ -51,7 +51,10 @@ func (s *SQLiteStore) BatchInsert(database string, table string, records []map[s
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback() // Rollback if we don't commit
+	defer func() {
+		// Rollback if we don't commit - ignore errors as they're expected if transaction was committed
+		_ = tx.Rollback()
+	}()
 
 	// Get column names from the first record
 	var columns []string

@@ -34,9 +34,14 @@ func getCachedMovie(imdbID string) (*MovieSeen, error) {
 	}
 
 	// Cache the result
-	os.MkdirAll(cacheDir, 0755)
-	data, _ := json.MarshalIndent(movie, "", "  ")
-	os.WriteFile(cachePath, data, 0644)
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		slog.Warn("Failed to create cache directory", "error", err)
+	} else {
+		data, _ := json.MarshalIndent(movie, "", "  ")
+		if err := os.WriteFile(cachePath, data, 0644); err != nil {
+			slog.Warn("Failed to write cache file", "error", err)
+		}
+	}
 
 	return movie, nil
 }

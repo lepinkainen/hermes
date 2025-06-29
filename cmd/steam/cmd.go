@@ -102,9 +102,12 @@ func ParseSteamWithParams(steamIDParam, apiKeyParam, outputDir string, writeJSON
 		return err
 	}
 	
-	// Update global variables with processed paths
-	outputDir = cmdConfig.OutputDir
-	jsonOutput = cmdConfig.JSONOutput
+	// Update package-level global variables with processed paths for parser usage
+	// Need to work around parameter shadowing by creating local vars with different names
+	globalOutputDir := &outputDir
+	globalJSONOutput := &jsonOutput
+	*globalOutputDir = cmdConfig.OutputDir
+	*globalJSONOutput = cmdConfig.JSONOutput
 	
 	// Call the existing parser
 	return ParseSteam()

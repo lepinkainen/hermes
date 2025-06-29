@@ -84,9 +84,14 @@ func getCachedMovie(title string, year int) (*Movie, error) {
 				}
 
 				// Cache it in our format too
-				os.MkdirAll(letterboxdCacheDir, 0755)
-				movieData, _ := json.MarshalIndent(movie, "", "  ")
-				os.WriteFile(letterboxdCachePath, movieData, 0644)
+				if err := os.MkdirAll(letterboxdCacheDir, 0755); err != nil {
+					slog.Warn("Failed to create cache directory", "error", err)
+				} else {
+					movieData, _ := json.MarshalIndent(movie, "", "  ")
+					if err := os.WriteFile(letterboxdCachePath, movieData, 0644); err != nil {
+						slog.Warn("Failed to write cache file", "error", err)
+					}
+				}
 
 				return movie, nil
 			}
@@ -106,9 +111,14 @@ func getCachedMovie(title string, year int) (*Movie, error) {
 	}
 
 	// Cache the result in letterboxd cache
-	os.MkdirAll(letterboxdCacheDir, 0755)
-	data, _ := json.MarshalIndent(movie, "", "  ")
-	os.WriteFile(letterboxdCachePath, data, 0644)
+	if err := os.MkdirAll(letterboxdCacheDir, 0755); err != nil {
+		slog.Warn("Failed to create cache directory", "error", err)
+	} else {
+		data, _ := json.MarshalIndent(movie, "", "  ")
+		if err := os.WriteFile(letterboxdCachePath, data, 0644); err != nil {
+			slog.Warn("Failed to write cache file", "error", err)
+		}
+	}
 
 	return movie, nil
 }
