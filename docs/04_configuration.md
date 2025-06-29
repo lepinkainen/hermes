@@ -198,11 +198,11 @@ Importer-specific environment variables:
 - `HERMES_LETTERBOXD_APIKEY`: OMDB API key
 - `HERMES_STEAM_APIKEY`: Steam API key
 - `HERMES_STEAM_STEAMID`: Steam user ID
-- `HERMES_DATASSETTE_ENABLED`: Enable Datasette output
-- `HERMES_DATASSETTE_MODE`: Datasette mode (local/remote)
-- `HERMES_DATASSETTE_DBFILE`: SQLite database file
-- `HERMES_DATASSETTE_URL`: Remote Datasette URL
-- `HERMES_DATASSETTE_TOKEN`: API token for remote insert
+- `HERMES_DATASETTE_ENABLED`: Enable Datasette output
+- `HERMES_DATASETTE_MODE`: Datasette mode (local/remote)
+- `HERMES_DATASETTE_DBFILE`: SQLite database file
+- `HERMES_DATASETTE_URL`: Remote Datasette URL
+- `HERMES_DATASETTE_TOKEN`: API token for remote insert
 
 ## Configuration Precedence
 

@@ -128,9 +128,10 @@ Hermes follows standard Go error handling practices:
 
 ## Logging
 
-Logging is implemented using the logrus library:
+Logging is implemented using Go's standard `log/slog` package:
 
 - Configured globally in `cmd/root.go`
+- Custom human-readable formatter in `internal/humanlog`
 - Different log levels are used for different types of messages:
   - `InfoLevel`: Progress information
   - `DebugLevel`: Detailed debugging information
@@ -159,9 +160,9 @@ Hermes includes unit tests for critical components:
 
 Hermes relies on several external dependencies:
 
-- **Cobra**: Command-line interface
+- **Kong**: Command-line interface
 - **Viper**: Configuration management
-- **Logrus**: Structured logging
+- **slog**: Structured logging (Go standard library)
 - **Various API clients**: For data enrichment
 
 ## Next Steps

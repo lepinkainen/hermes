@@ -36,7 +36,7 @@ All options can be overridden with CLI flags:
 ## Local Mode Usage
 
 1. Set `mode: "local"` in config or use `--datasette-mode local`.
-2. Run any importer (e.g. `hermes imdb import ...`).
+2. Run any importer (e.g. `hermes import imdb ...`).
 3. The database file (default: `hermes.db`) will be created/updated.
 4. To explore your data, install [Datasette](https://datasette.io/) and run:
 
