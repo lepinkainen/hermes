@@ -31,7 +31,9 @@ func TestDatasetteClient_BatchInsert_APIError(t *testing.T) {
 	// Mock server that returns 403 Forbidden with JSON error
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]any{"error": "forbidden"})
+		if err := json.NewEncoder(w).Encode(map[string]any{"error": "forbidden"}); err != nil {
+			t.Errorf("Failed to encode error response: %v", err)
+		}
 	}))
 	defer ts.Close()
 

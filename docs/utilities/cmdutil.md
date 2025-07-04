@@ -1,6 +1,8 @@
 # Command Utilities
 
-This document describes the command utility functions in Hermes, which provide common operations for setting up and managing Cobra commands.
+This document describes the command utility functions in Hermes, which provide common operations for setting up and managing commands.
+
+**Note**: While Hermes has transitioned to Kong for its primary CLI, some legacy Cobra-based command utilities may still exist in individual command packages for backwards compatibility.
 
 ## Overview
 
@@ -11,7 +13,7 @@ The `cmdutil` package provides utilities for:
 3. Adding standardized flags to commands
 4. Handling shared command logic
 
-These utilities ensure consistent behavior across all Hermes importers and reduce code duplication.
+These utilities ensure consistent behavior across all Hermes importers and reduce code duplication. Note that these utilities primarily support legacy Cobra-based command implementations that exist alongside the primary Kong CLI.
 
 ## Command Setup
 

@@ -94,15 +94,15 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 		mb.AddCallout("cast", "Cast", castContent.String())
 	}
 
-	// Add external links callout
-	links := make(map[string]string)
-	links["View on Letterboxd"] = movie.LetterboxdURI
-
+	// Add external links callout with deterministic ordering
+	var linksContent strings.Builder
+	fmt.Fprintf(&linksContent, "[View on Letterboxd](%s)", movie.LetterboxdURI)
+	
 	if movie.ImdbID != "" {
-		links["View on IMDb"] = fmt.Sprintf("https://www.imdb.com/title/%s", movie.ImdbID)
+		fmt.Fprintf(&linksContent, "\n[View on IMDb](%s)", fmt.Sprintf("https://www.imdb.com/title/%s", movie.ImdbID))
 	}
 
-	mb.AddExternalLinksCallout("Letterboxd", links)
+	mb.AddCallout("info", "Letterboxd", linksContent.String())
 
 	// Write the content to file with the common utility that respects overwrite settings
 	written, err := fileutil.WriteFileWithOverwrite(filePath, []byte(mb.Build()), 0644, overwrite)

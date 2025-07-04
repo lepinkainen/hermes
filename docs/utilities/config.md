@@ -99,6 +99,7 @@ This function allows changing the overwrite behavior at runtime, which is useful
 Example usage:
 
 ```go
+// Legacy Cobra pattern (for reference)
 func init() {
     rootCmd.PersistentFlags().BoolVar(&overwriteFlag, "overwrite", false, "Overwrite existing files")
 }
@@ -139,10 +140,12 @@ export HERMES_OVERWRITEFILES=true
 
 ## Usage Examples
 
-### Basic Configuration Setup
+### Basic Configuration Setup (Legacy Cobra Pattern)
+
+**Note**: This example shows the legacy Cobra configuration pattern. Current implementation uses Kong.
 
 ```go
-// In cmd/root.go
+// Legacy Cobra pattern in cmd/root.go
 func init() {
     cobra.OnInitialize(initConfig)
 
@@ -191,9 +194,10 @@ func initConfig() {
 }
 ```
 
-### Accessing Configuration in Commands
+### Accessing Configuration in Commands (Legacy Pattern)
 
 ```go
+// Legacy Cobra command pattern
 func importGoodreads(cmd *cobra.Command, args []string) error {
     // Get the output directory from the configuration
     outputDir := viper.GetString("MarkdownOutputDir")

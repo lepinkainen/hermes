@@ -33,7 +33,12 @@ cache/
 goodreads_library_export.csv
 .DS_Store
 hermes
+hermes-*
 
 *.csv
 *.json
 hermes.db
+goodreads/
+imdb/
+letterboxd/
+steam/

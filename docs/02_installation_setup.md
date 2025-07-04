@@ -4,7 +4,7 @@ This guide will help you install and configure Hermes to import your data from v
 
 ## Prerequisites
 
-- **Go** (version 1.18 or later)
+- **Go** (version 1.24 or later)
 - **Git** for cloning the repository
 - **API keys** for certain data sources (e.g., OMDB, Steam)
 
@@ -15,7 +15,7 @@ This guide will help you install and configure Hermes to import your data from v
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/hermes.git
+   git clone <repository_url>
    cd hermes
    ```
 
@@ -87,16 +87,16 @@ To import data from a supported source:
 
 ```bash
 # Import Goodreads data
-./hermes goodreads --csvfile path/to/goodreads_export.csv
+./hermes import goodreads --csvfile path/to/goodreads_export.csv
 
 # Import IMDb ratings
-./hermes imdb --csvfile path/to/imdb_ratings.csv --apikey your_omdb_api_key
+./hermes import imdb --csvfile path/to/imdb_ratings.csv --apikey your_omdb_api_key
 
 # Import Letterboxd diary
-./hermes letterboxd --csvfile path/to/letterboxd_export.csv --apikey your_omdb_api_key
+./hermes import letterboxd --csvfile path/to/letterboxd_export.csv --apikey your_omdb_api_key
 
 # Import Steam library
-./hermes steam --apikey your_steam_api_key --steamid your_steam_id
+./hermes import steam --apikey your_steam_api_key --steamid your_steam_id
 ```
 
 ### Command-Line Options

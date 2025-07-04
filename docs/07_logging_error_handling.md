@@ -218,10 +218,10 @@ if resp.StatusCode == 429 {
 
 ### Command Error Handling
 
-Cobra commands use the `RunE` function signature, which returns an error:
+Kong commands use the `Run` method on command structs, which returns an error:
 
 ```go
-RunE: func(cmd *cobra.Command, args []string) error {
+func (cmd *ImportCommand) Run() error {
     // Command implementation
     if err := doSomething(); err != nil {
         return err
@@ -230,7 +230,7 @@ RunE: func(cmd *cobra.Command, args []string) error {
 }
 ```
 
-Cobra handles the error by:
+Kong handles the error by:
 
 1. Printing the error message to stderr
 2. Setting a non-zero exit code

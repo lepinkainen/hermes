@@ -6,7 +6,7 @@ This document provides guidelines for contributing to the Hermes project. Whethe
 
 ### Prerequisites
 
-- **Go** (version 1.18 or later)
+- **Go** (version 1.24 or later)
 - **Git** for version control
 - **Task** for running build tasks
 
@@ -15,12 +15,12 @@ This document provides guidelines for contributing to the Hermes project. Whethe
 1. Fork the repository on GitHub
 2. Clone your fork locally:
    ```bash
-   git clone https://github.com/yourusername/hermes.git
+   git clone <your_fork_url>
    cd hermes
    ```
 3. Add the original repository as an upstream remote:
    ```bash
-   git remote add upstream https://github.com/originalowner/hermes.git
+   git remote add upstream <upstream_repo_url>
    ```
 4. Install dependencies:
    ```bash
@@ -77,7 +77,7 @@ To add a new data source importer to Hermes, follow these steps:
 
 2. Create the following files in your importer directory:
 
-   - `cmd.go`: Command registration with Cobra
+   - `cmd.go`: Command implementation (legacy Cobra commands may exist alongside Kong)
    - `parser.go`: Data parsing logic
    - `types.go`: Data models
    - `api.go` or similar: External API integration (if applicable)
@@ -86,15 +86,17 @@ To add a new data source importer to Hermes, follow these steps:
    - `markdown.go`: Markdown output formatter
    - `testdata/`: Directory for test files
 
-3. Register your importer command in `cmd/import.go`
+3. Add your importer to the Kong CLI structure in `cmd/root.go`
 
 4. Add documentation for your importer in `docs/importers/yourimporter.md`
 
 5. Update the README.md to include your new importer in the list of supported sources
 
-### Example: Minimal Importer Command
+### Example: Legacy Cobra Importer Command
 
-Here's a minimal example of a new importer command:
+**Note**: This example shows the legacy Cobra command pattern. New development should integrate with the Kong CLI structure in `cmd/root.go`.
+
+Here's a minimal example of a legacy importer command:
 
 ```go
 // cmd/yourimporter/cmd.go
@@ -143,7 +145,7 @@ func NewCommand() *cobra.Command {
 
 ### Logging
 
-- Use the logrus library for logging
+- Use Go's standard `log/slog` library for logging
 - Choose the appropriate log level for your messages
 - Add context to log messages using fields
 - See [Logging & Error Handling](07_logging_error_handling.md) for more details

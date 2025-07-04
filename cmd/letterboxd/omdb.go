@@ -135,7 +135,9 @@ func fetchMovieData(title string, year int) (*Movie, error) {
 			}
 
 			// Save to OMDB cache
-			os.MkdirAll(omdbCacheDir, 0755)
+			if err := os.MkdirAll(omdbCacheDir, 0755); err != nil {
+				slog.Warn("Failed to create OMDB cache directory", "error", err)
+			}
 			imdbData, _ := json.MarshalIndent(imdbMovie, "", "  ")
 			if err := os.WriteFile(omdbCachePath, imdbData, 0644); err != nil {
 				slog.Warn("Failed to save to OMDB cache", "error", err)

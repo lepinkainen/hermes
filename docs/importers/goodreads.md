@@ -44,7 +44,7 @@ The importer enriches the basic Goodreads data with additional information from 
 ### Command-Line Usage
 
 ```bash
-./hermes goodreads --input path/to/goodreads_export.csv
+./hermes import goodreads --input path/to/goodreads_export.csv
 ```
 
 ### Configuration

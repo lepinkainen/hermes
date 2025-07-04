@@ -61,7 +61,7 @@ cmd/{source}/
 
 1. Create new package under `cmd/{source}/`
 2. Implement the standard structure (cmd.go, parser.go, types.go, etc.)
-3. Register in `cmd/import.go`
+3. Register in `cmd/root.go` using Kong's command structure
 4. Follow existing patterns for API integration, caching, and output formatting
 
 **Common Utilities:**
@@ -81,7 +81,7 @@ cmd/{source}/
 
 **Error Handling:**
 
-- Use standard Go error handling (`errors.New`, `fmt.Errorf`). Return errors up the call stack for handling by Cobra's `RunE`
+- Use standard Go error handling (`errors.New`, `fmt.Errorf`). Return errors up the call stack for handling by Kong's command execution
 - Wrap errors with context: `fmt.Errorf("failed to process item %s: %w", itemID, err)`
 - Use custom error types from `internal/errors/` for specific conditions like API rate limits
 - Log significant errors within command logic but return them to let top level handle exit codes
@@ -119,7 +119,7 @@ cmd/{source}/
 ## Documentation
 
 - Write Go doc comments for all exported functions, types, and constants
-- Keep command help messages (`Short`, `Long` fields in `cobra.Command`) clear and up-to-date
+- Keep command help messages (`Help` field in Kong commands) clear and up-to-date
 - Update `README.md` and relevant files in `docs/` when adding new commands or changing functionality
 
 ## Important Notes
