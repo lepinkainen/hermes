@@ -11,7 +11,7 @@ import (
 	"github.com/lepinkainen/hermes/cmd/letterboxd"
 	"github.com/lepinkainen/hermes/cmd/steam"
 	"github.com/lepinkainen/hermes/internal/config"
-	"github.com/lepinkainen/hermes/internal/humanlog"
+	"github.com/lepinkainen/humanlog"
 	"github.com/spf13/viper"
 )
 
@@ -21,10 +21,10 @@ type CLI struct {
 	Overwrite bool `help:"Overwrite existing markdown files when processing"`
 
 	// Datasette flags
-	Datasette     bool   `help:"Enable Datasette output"`
-	DatasetteMode string `help:"Datasette mode (local or remote)" default:"local" enum:"local,remote"`
-	DatasetteDB   string `help:"Path to local SQLite database file" default:"./hermes.db"`
-	DatasetteURL  string `help:"URL of remote Datasette instance"`
+	Datasette      bool   `help:"Enable Datasette output"`
+	DatasetteMode  string `help:"Datasette mode (local or remote)" default:"local" enum:"local,remote"`
+	DatasetteDB    string `help:"Path to local SQLite database file" default:"./hermes.db"`
+	DatasetteURL   string `help:"URL of remote Datasette instance"`
 	DatasetteToken string `help:"API token for remote Datasette instance"`
 
 	Import ImportCmd `cmd:"" help:"Import data from various sources"`
@@ -135,7 +135,7 @@ func initConfig() {
 func updateGlobalConfig(cli *CLI) {
 	// Update config based on CLI flags
 	config.SetOverwriteFiles(cli.Overwrite)
-	
+
 	// Update datasette config
 	viper.Set("datasette.enabled", cli.Datasette)
 	viper.Set("datasette.mode", cli.DatasetteMode)
@@ -152,12 +152,12 @@ func (g *GoodreadsCmd) Run() error {
 	if input == "" {
 		input = viper.GetString("goodreads.csvfile")
 	}
-	
+
 	// Check if required value is still missing
 	if input == "" {
 		return fmt.Errorf("Input CSV file is required (provide via --input flag or goodreads.csvfile in config)")
 	}
-	
+
 	return goodreads.ParseGoodreadsWithParams(input, g.Output, g.JSON, g.JSONOutput, false)
 }
 
@@ -167,12 +167,12 @@ func (i *IMDBCmd) Run() error {
 	if input == "" {
 		input = viper.GetString("imdb.csvfile")
 	}
-	
+
 	// Check if required value is still missing
 	if input == "" {
 		return fmt.Errorf("Input CSV file is required (provide via --input flag or imdb.csvfile in config)")
 	}
-	
+
 	return imdb.ParseImdbWithParams(input, i.Output, i.JSON, i.JSONOutput, false)
 }
 
@@ -182,12 +182,12 @@ func (l *LetterboxdCmd) Run() error {
 	if input == "" {
 		input = viper.GetString("letterboxd.csvfile")
 	}
-	
+
 	// Check if required value is still missing
 	if input == "" {
 		return fmt.Errorf("Input CSV file is required (provide via --input flag or letterboxd.csvfile in config)")
 	}
-	
+
 	return letterboxd.ParseLetterboxdWithParams(input, l.Output, l.JSON, l.JSONOutput, false)
 }
 
@@ -197,12 +197,12 @@ func (s *SteamCmd) Run() error {
 	if steamID == "" {
 		steamID = viper.GetString("steam.steamid")
 	}
-	
+
 	apiKey := s.APIKey
 	if apiKey == "" {
 		apiKey = viper.GetString("steam.apikey")
 	}
-	
+
 	// Check if required values are still missing
 	if steamID == "" {
 		return fmt.Errorf("Steam ID is required (provide via --steamid flag or steam.steamid in config)")
@@ -210,16 +210,14 @@ func (s *SteamCmd) Run() error {
 	if apiKey == "" {
 		return fmt.Errorf("Steam API key is required (provide via --apikey flag or steam.apikey in config)")
 	}
-	
+
 	return steam.ParseSteamWithParams(steamID, apiKey, s.Output, s.JSON, s.JSONOutput, false)
 }
 
 func initLogging() {
 	// Create a human-readable handler for logging
 	handler := humanlog.NewHandler(os.Stdout, &humanlog.Options{
-		Level:        slog.LevelInfo,
-		TimeFormat:   "15:04:05",
-		DisableColor: false,
+		Level: slog.LevelInfo,
 	})
 
 	// Set the default logger
