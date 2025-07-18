@@ -131,7 +131,6 @@ Hermes follows standard Go error handling practices:
 Logging is implemented using Go's standard `log/slog` package:
 
 - Configured globally in `cmd/root.go`
-- Custom human-readable formatter in `internal/humanlog`
 - Different log levels are used for different types of messages:
   - `InfoLevel`: Progress information
   - `DebugLevel`: Detailed debugging information

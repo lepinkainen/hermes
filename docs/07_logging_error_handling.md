@@ -78,7 +78,7 @@ Example log output:
 [12:10:58] INFO: Import completed [success=140 skipped=2]
 ```
 
-The log format is implemented by the `humanlog` package in `internal/humanlog/`, which provides a custom `slog.Handler` with the following features:
+The log format is implemented by the `humanlog` package in `http://github.com/lepinkainen/humanlog/`, which provides a custom `slog.Handler` with the following features:
 
 - Human-readable timestamp format
 - Fixed-width, uppercase level names

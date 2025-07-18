@@ -217,9 +217,7 @@ func (s *SteamCmd) Run() error {
 func initLogging() {
 	// Create a human-readable handler for logging
 	handler := humanlog.NewHandler(os.Stdout, &humanlog.Options{
-		Level:        slog.LevelInfo,
-		TimeFormat:   "15:04:05",
-		DisableColor: false,
+		Level: slog.LevelInfo,
 	})
 
 	// Set the default logger

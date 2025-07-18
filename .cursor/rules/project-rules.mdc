@@ -39,7 +39,7 @@
 
 ## Logging & Error Handling
 
-- **Logging:** Use Go's `log/slog` with custom handler (`internal/humanlog`). Levels: Debug, Info, Warn, Error. Log progress, context, and errors. See [docs/07_logging_error_handling.md](../docs/07_logging_error_handling.md).
+- **Logging:** Use Go's `log/slog` with custom handler (`http://github.com/lepinkainen/humanlog`). Levels: Debug, Info, Warn, Error. Log progress, context, and errors. See [docs/07_logging_error_handling.md](../docs/07_logging_error_handling.md).
 - **Errors:** Return errors up the stack, wrap with context (`fmt.Errorf("context: %w", err)`). Use custom types (e.g., `RateLimitError` in `internal/errors/`).
 - **Recoverable errors:** Log and continue (e.g., skip item, warn on API miss).
 
