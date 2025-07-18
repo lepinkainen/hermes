@@ -1,25 +1,86 @@
----
-description: project language and style
-globs: 
-alwaysApply: true
----
-# Hermes Project Rules
+# Hermes Project Rules for AI Agents
 
-## Core Guidelines
+## Project Purpose & Architecture
 
-- **Language:** Go only (no Python or other languages)
-- **Build System:** Use Taskfile
-- **Unit Tests:** Write basic unit tests for new functionality. Always check the tests pass after finishing changes.
-- **CLI Framework:** Cobra and Viper for commands and configuration
-- **Purpose:** See README.md for project definition
+- **Hermes** is a Go CLI tool to import/export data from sources (Goodreads, IMDb, Letterboxd, Steam) into Markdown, JSON, or SQLite/Datasette formats. See [docs/01_overview.md](../docs/01_overview.md) and [docs/03_architecture.md](../docs/03_architecture.md).
+- **Architecture:**
+  - `cmd/` – Each data source importer is a subdir/package (e.g., `cmd/goodreads/`).
+  - `internal/` – Shared utilities: `cmdutil/`, `config/`, `datastore/`, `errors/`, `fileutil/`, `humanlog/`.
+  - `cache/` – API response cache, organized by importer.
+  - `json/`, `markdown/` – Output directories, with subdirs per importer.
+  - `Taskfile.yml` – Build/test/lint automation.
+  - `main.go` – Entry point, runs `cmd.Execute()`.
 
-## Code Structure
+## Developer Workflows
 
-- All import processors go under the `cmd/` directory
-- The internal/ directory contains common utility functions, use it when possible. Add to it when necessary.
-- Each processor has its own subdirectory and Go package
+- **Build:** `task build` (runs tests, lint, then builds to `build/hermes`)
+- **Test:** `task test` (with coverage report in `coverage/`)
+- **Lint:** `task lint` (uses `golangci-lint`)
+- **Upgrade deps:** `task upgrade-deps`
+- **Clean:** `task clean`
+- **Run CLI:** `./hermes --help` or `go run . import goodreads -f file.csv`
+- **CI:** Use `task build-ci` for CI builds/tests.
 
-## Implementation Requirements
+## Code Structure & Patterns
+
+- **Importers:** Each under `cmd/{source}/` with:
+  - `cmd.go` (command setup), `parser.go` (input parsing), `types.go` (models), `{api}.go` (API integration), `cache.go`, `json.go`, `markdown.go`, `testdata/`.
+- **Shared logic:** Use/extend `internal/` packages. Contribute reusable code back.
+- **Datastore:** Use `internal/datastore/` for SQLite (local) or Datasette (remote) output. See [docs/datasette_integration.md](../docs/datasette_integration.md).
+- **Output:** Use `internal/fileutil` for Markdown/JSON writing. Follow frontmatter and file naming conventions ([docs/05_output_formats.md](../docs/05_output_formats.md)).
+- **Caching:** Implemented per-importer in `cache.go`, stores JSON in `cache/{importer}/`. Always check cache before API calls.
+
+## Configuration & Flags
+
+- **Config:** YAML file (`config.yaml`), loaded via Viper. CLI flags > env vars > config file > defaults. See [docs/04_configuration.md](../docs/04_configuration.md).
+- **Global settings:** Output dirs, overwrite flag, loglevel.
+- **Importer settings:** Namespaced under importer key (e.g., `goodreads.csvfile`).
+- **Datasette:** Enable with config or flags for SQLite/remote export.
+
+## Logging & Error Handling
+
+- **Logging:** Use Go's `log/slog` with custom handler (`internal/humanlog`). Levels: Debug, Info, Warn, Error. Log progress, context, and errors. See [docs/07_logging_error_handling.md](../docs/07_logging_error_handling.md).
+- **Errors:** Return errors up the stack, wrap with context (`fmt.Errorf("context: %w", err)`). Use custom types (e.g., `RateLimitError` in `internal/errors/`).
+- **Recoverable errors:** Log and continue (e.g., skip item, warn on API miss).
+
+## Output Conventions
+
+- **Markdown:** YAML frontmatter with all metadata, Obsidian-compatible. Use `MarkdownBuilder` from `internal/fileutil/markdown.go`.
+- **JSON:** One file per item or array per importer. See examples in [docs/05_output_formats.md](../docs/05_output_formats.md).
+- **File naming:** Sanitize titles/IDs, use underscores/hyphens, add `.md`/`.json`.
+
+## Caching
+
+- **Location:** `cache/{importer}/` (e.g., `cache/goodreads/`).
+- **Format:** JSON, filename = cache key (e.g., ISBN, IMDb ID).
+- **Control:** Can disable/clear via flags. TTL and per-importer settings supported.
+
+## Testing
+
+- **Unit tests:** Place in `_test.go` in same package. Use `testdata/` for fixtures. Table-driven tests preferred.
+- **Run:** `task test` or `go test ./...`
+
+## Project Conventions
+
+- **Language:** Go only. Use idiomatic Go style. Run `gofmt -w .`.
+- **CLI:** Use Cobra/Kong for commands, Viper for config.
+- **Dependencies:** Prefer stdlib, justify new deps. Use `modernc.org/sqlite` for SQLite.
+- **Docs:** Update `docs/` and Go doc comments for all exported symbols. Keep CLI help up to date.
+
+## Integration Points
+
+- **APIs:** OMDB (IMDb/Letterboxd), OpenLibrary (Goodreads), Steam API. Respect rate limits, cache responses, handle errors.
+- **Datasette:** Local (SQLite) or remote (API). Use `internal/datastore/` abstraction.
+
+## References
+
+- [docs/01_overview.md](../docs/01_overview.md) – Project overview
+- [docs/03_architecture.md](../docs/03_architecture.md) – Architecture
+- [docs/04_configuration.md](../docs/04_configuration.md) – Configuration
+- [docs/05_output_formats.md](../docs/05_output_formats.md) – Output formats
+- [docs/06_caching.md](../docs/06_caching.md) – Caching
+- [docs/07_logging_error_handling.md](../docs/07_logging_error_handling.md) – Logging & error handling
+- [llm-shared/project_tech_stack.md](../../llm-shared/project_tech_stack.md) – Tech stack
 
 - Maintain consistent Go style and idiomatic patterns
 - Follow the existing architectural patterns
