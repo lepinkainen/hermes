@@ -35,7 +35,7 @@ Hermes is a data import/export tool that converts exports from various sources (
 
 **Standard Importer Structure:**
 
-```
+```plain
 cmd/{source}/
 ├── cmd.go          # Command setup and execution
 ├── parser.go       # Input data parsing
@@ -114,7 +114,6 @@ cmd/{source}/
 - Commands should allow specifying subdirectories for output via flags/config (e.g., `markdown/goodreads/`)
 - Use `internal/fileutil` for writing files, ensuring consistent formatting and handling `overwrite` flag logic
 - Follow existing patterns for Markdown frontmatter and JSON structure for each data type
-
 
 ## Documentation
 

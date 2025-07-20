@@ -36,27 +36,26 @@ hermes/
 
 ### Command-Line Interface (CLI)
 
-Hermes uses the Cobra library to implement its command-line interface:
+Hermes uses the Kong library to implement its command-line interface:
 
 - **Root Command** (`cmd/root.go`): Defines global flags and configuration
-- **Import Command** (`cmd/import.go`): Parent command for all importers
+- **Import Command Structure**: Import commands are organized as nested subcommands in the Kong CLI structure
 - **Importer Commands** (`cmd/{source}/cmd.go`): Source-specific import commands
 
 ### Configuration Management
 
-Configuration is handled using Viper:
+Configuration is handled using Kong's built-in configuration system:
 
-- Reads from `config.yaml` by default
-- Supports environment variables
-- Command-line flags override config file values
+- Command-line flags define all configuration options
 - Global settings are defined in `root.go`
-- Source-specific settings are namespaced (e.g., `goodreads.csvfile`)
+- Source-specific settings are defined in their respective command structures
+- Datasette configuration options are available globally
 
 ### Importer Architecture
 
 Each importer follows a similar structure:
 
-```
+```plain
 cmd/{source}/
 ├── cmd.go          # Command registration and execution
 ├── parser.go       # Data parsing logic
@@ -95,7 +94,7 @@ Hermes supports exporting data to a local SQLite database or a remote Datasette 
 
 The general data flow in Hermes follows these steps:
 
-```
+```plain
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │             │     │             │     │             │     │             │
 │  Input Data │────►│    Parser   │────►│  Enrichment │────►│  Formatter  │
@@ -159,8 +158,7 @@ Hermes includes unit tests for critical components:
 
 Hermes relies on several external dependencies:
 
-- **Kong**: Command-line interface
-- **Viper**: Configuration management
+- **Kong**: Command-line interface and configuration management
 - **slog**: Structured logging (Go standard library)
 - **Various API clients**: For data enrichment
 

@@ -57,7 +57,7 @@ Hermes generates two types of output:
 Hermes is built with:
 
 - **Go** - For performance, simplicity, and cross-platform compatibility
-- **Kong/Viper** - For command-line interface and configuration management
+- **Kong** - For command-line interface and configuration management
 - **Public APIs** - For data enrichment (OMDB, OpenLibrary, Steam)
 - **Local caching** - To respect API rate limits and improve performance
 
