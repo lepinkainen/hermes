@@ -6,7 +6,7 @@ This guide provides essential information for developing in the Hermes codebase.
 
 Hermes is a Go-based CLI tool for importing data from sources like Goodreads, IMDb, and Steam, and exporting it into Markdown, JSON, or SQLite/Datasette formats.
 
-- **Entrypoint**: `main.go` calls `cmd.Execute()` to start the Cobra CLI application.
+- **Entrypoint**: `main.go` calls `cmd.Execute()` to start the Kong CLI application.
 - **Commands (`cmd/`)**: Each data importer is a self-contained package within a subdirectory (e.g., `cmd/goodreads/`, `cmd/steam/`). This is the primary location for adding or modifying importer logic.
 - **Shared Logic (`internal/`)**: Contains reusable packages for common functionality:
     - `config`: Viper-based configuration management.
@@ -31,7 +31,7 @@ The project uses `Taskfile.yml` for task automation.
 - **Adding a New Importer**:
     1. Create a new package under `cmd/`.
     2. Mimic the structure of an existing importer (e.g., `cmd/goodreads`):
-        - `cmd.go`: Cobra command definition.
+        - `cmd.go`: Kong command definition.
         - `parser.go`: Logic for parsing the source data file.
         - `types.go`: Structs for the data models.
         - `api.go` (or similar): Client for external APIs (e.g., OMDB, OpenLibrary).
@@ -48,4 +48,4 @@ The project uses `Taskfile.yml` for task automation.
     - Contribute new, reusable logic back to the `internal/` packages.
 
 - **Dependencies**:
-    - The project uses Go modules. Key libraries include `cobra` for the CLI, `viper` for configuration, and `modernc.org/sqlite` for the database. Add new dependencies to `go.mod` only when necessary.
+    - The project uses Go modules. Key libraries include `kong` for the CLI, `viper` for configuration, and `modernc.org/sqlite` for the database. Add new dependencies to `go.mod` only when necessary.

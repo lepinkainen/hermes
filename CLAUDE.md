@@ -61,7 +61,7 @@ cmd/{source}/
 
 1. Create new package under `cmd/{source}/`
 2. Implement the standard structure (cmd.go, parser.go, types.go, etc.)
-3. Register in `cmd/root.go` using Kong's command structure
+3. Add command struct in `cmd/root.go` using Kong's command structure
 4. Follow existing patterns for API integration, caching, and output formatting
 
 **Common Utilities:**
@@ -120,6 +120,14 @@ cmd/{source}/
 - Write Go doc comments for all exported functions, types, and constants
 - Keep command help messages (`Help` field in Kong commands) clear and up-to-date
 - Update `README.md` and relevant files in `docs/` when adding new commands or changing functionality
+
+## CLI Framework
+
+- Uses Kong for command-line parsing (defined in `cmd/root.go`)
+- Kong struct defines the complete CLI structure with nested commands
+- Each importer is a struct field in the main CLI struct
+- Command execution flows through Kong's context system
+- **Note:** Legacy Cobra code may still exist in individual command packages but should be migrated to Kong structure
 
 ## Important Notes
 

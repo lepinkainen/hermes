@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
@@ -56,15 +55,4 @@ func SetupOutputDir(cfg *BaseCommandConfig) error {
 	}
 
 	return nil
-}
-
-// AddOutputFlag adds the common output directory flag to a command
-func AddOutputFlag(cmd *cobra.Command, outputDir *string, defaultValue, flagDesc string) {
-	cmd.Flags().StringVarP(outputDir, "output", "o", defaultValue, flagDesc)
-}
-
-// AddJSONFlags adds the common JSON output flags to a command
-func AddJSONFlags(cmd *cobra.Command, writeJSON *bool, jsonOutput *string) {
-	cmd.Flags().BoolVar(writeJSON, "json", false, "Write data to JSON format")
-	cmd.Flags().StringVar(jsonOutput, "json-output", "", "Path to JSON output file (defaults to json/<parser>.json)")
 }

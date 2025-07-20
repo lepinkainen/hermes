@@ -38,7 +38,4 @@ hermes-*
 *.csv
 *.json
 hermes.db
-goodreads/
-imdb/
-letterboxd/
-steam/
+exports/

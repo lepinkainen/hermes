@@ -72,50 +72,22 @@ if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
 // Now cmdConfig.OutputDir and cmdConfig.JSONOutput are fully resolved
 ```
 
-## Flag Management
+## Kong Integration
 
-### AddOutputFlag
+> **Note**: The cmdutil package has been updated to work with Kong CLI framework. Legacy Cobra flag management functions have been removed as Kong handles flags declaratively through struct tags.
 
-The `AddOutputFlag` function adds the common output directory flag to a command:
-
-```go
-func AddOutputFlag(cmd *cobra.Command, outputDir *string, defaultValue, flagDesc string)
-```
-
-Parameters:
-
-- `cmd`: The Cobra command to add the flag to
-- `outputDir`: Pointer to the variable that will store the flag value
-- `defaultValue`: Default value for the flag
-- `flagDesc`: Description of the flag for help text
-
-Example usage:
+With Kong, command flags are defined using struct tags in the command definitions in `cmd/root.go`. For example:
 
 ```go
-cmdutil.AddOutputFlag(importCmd, &outputDir, "steam", "Subdirectory under markdown output directory for Steam files")
+type GoodreadsCmd struct {
+    Input      string `short:"f" help:"Path to Goodreads library export CSV file"`
+    Output     string `short:"o" help:"Subdirectory under markdown output directory" default:"goodreads"`
+    JSON       bool   `help:"Write data to JSON format"`
+    JSONOutput string `help:"Path to JSON output file (defaults to json/goodreads.json)"`
+}
 ```
 
-This adds a `--output` (or `-o`) flag to the command that allows users to specify the output directory.
-
-### AddJSONFlags
-
-The `AddJSONFlags` function adds the common JSON output flags to a command:
-
-```go
-func AddJSONFlags(cmd *cobra.Command, writeJSON *bool, jsonOutput *string)
-```
-
-Parameters:
-
-- `cmd`: The Cobra command to add the flags to
-- `writeJSON`: Pointer to the boolean that will store whether to write JSON
-- `jsonOutput`: Pointer to the string that will store the JSON output path
-
-Example usage:
-
-```go
-cmdutil.AddJSONFlags(importCmd, &writeJSON, &jsonOutput)
-```
+The `BaseCommandConfig` struct is still used internally for configuration management and can be populated from Kong command structs.
 
 This adds two flags to the command:
 
@@ -181,8 +153,11 @@ var importCmd = &cobra.Command{
 func init() {
     importCmd.Flags().StringVarP(&steamID, "steamid", "s", "", "Steam ID of the user (required if not in config)")
     importCmd.Flags().StringVarP(&apiKey, "apikey", "k", "", "Steam API key (required if not in config)")
-    cmdutil.AddOutputFlag(importCmd, &outputDir, "steam", "Subdirectory under markdown output directory for Steam files")
-    cmdutil.AddJSONFlags(importCmd, &writeJSON, &jsonOutput)
+    
+    // Legacy Cobra pattern (Kong handles flags declaratively through struct tags)
+    importCmd.Flags().StringVarP(&outputDir, "output", "o", "steam", "Subdirectory under markdown output directory for Steam files")
+    importCmd.Flags().BoolVar(&writeJSON, "json", false, "Write data to JSON format")
+    importCmd.Flags().StringVar(&jsonOutput, "json-output", "", "Path to JSON output file (defaults to json/steam.json)")
 
     // Use the global overwrite flag by default
     overwrite = config.OverwriteFiles
@@ -229,8 +204,6 @@ func ParseSteam() error {
 | Function                                                                              | Description                                        |
 | ------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | `SetupOutputDir(cfg *BaseCommandConfig) error`                                        | Handles the common output directory setup logic    |
-| `AddOutputFlag(cmd *cobra.Command, outputDir *string, defaultValue, flagDesc string)` | Adds the common output directory flag to a command |
-| `AddJSONFlags(cmd *cobra.Command, writeJSON *bool, jsonOutput *string)`               | Adds the common JSON output flags to a command     |
 
 ### BaseCommandConfig Fields
 

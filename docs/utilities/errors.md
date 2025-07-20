@@ -133,7 +133,7 @@ func (c *SteamClient) GetGameDetails(appID string) (*GameDetails, error) {
     // Process response...
 }
 
-// In the command handler
+// In the command handler (legacy Cobra pattern shown for reference)
 func importSteamGames(cmd *cobra.Command, args []string) error {
     client := steam.NewClient()
 
