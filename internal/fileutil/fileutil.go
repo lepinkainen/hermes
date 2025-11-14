@@ -22,7 +22,30 @@ func SanitizeFilename(name string) string {
 	name = strings.ReplaceAll(name, ":", " -")
 	name = strings.ReplaceAll(name, "/", "-")
 	name = strings.ReplaceAll(name, "\\", "-")
+	// Also handle other invalid characters
+	invalid := []string{`<`, `>`, `"`, `|`, `?`, `*`}
+	for _, ch := range invalid {
+		name = strings.ReplaceAll(name, ch, "_")
+	}
+	name = strings.Trim(name, ". ")
+	if len(name) > 200 {
+		return name[:200]
+	}
 	return name
+}
+
+// EnsureDir creates a directory and all necessary parent directories.
+func EnsureDir(path string) error {
+	return os.MkdirAll(path, 0o755)
+}
+
+// RelativeTo returns the relative path from base to target.
+func RelativeTo(base, target string) (string, error) {
+	rel, err := filepath.Rel(base, target)
+	if err != nil {
+		return "", err
+	}
+	return filepath.ToSlash(rel), nil
 }
 
 // FileExists checks if a file exists at the given path
