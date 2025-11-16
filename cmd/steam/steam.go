@@ -16,7 +16,7 @@ func GetGameDetails(appID int) (*GameDetails, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch game details: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -73,7 +73,7 @@ func ImportSteamGames(steamID string, apiKey string) ([]Game, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Steam games: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read the response body
 	body, err := io.ReadAll(resp.Body)

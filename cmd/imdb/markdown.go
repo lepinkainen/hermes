@@ -100,6 +100,36 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	}
 	mb.AddExternalLinksCallout("IMDb", links)
 
+	// Add TMDB data if available
+	if movie.TMDBEnrichment != nil {
+		// Add TMDB metadata to frontmatter
+		if movie.TMDBEnrichment.TMDBID > 0 {
+			mb.AddField("tmdb_id", movie.TMDBEnrichment.TMDBID)
+			mb.AddField("tmdb_type", movie.TMDBEnrichment.TMDBType)
+		}
+
+		// Add TMDB genre tags (merge with existing tags)
+		if len(movie.TMDBEnrichment.GenreTags) > 0 {
+			mb.AddTags(movie.TMDBEnrichment.GenreTags...)
+		}
+
+		// Add total episodes for TV shows
+		if movie.TMDBEnrichment.TotalEpisodes > 0 {
+			mb.AddField("total_episodes", movie.TMDBEnrichment.TotalEpisodes)
+		}
+
+		// Add cover image if downloaded
+		if movie.TMDBEnrichment.CoverPath != "" {
+			mb.AddParagraph("## Cover")
+			mb.AddImage(movie.TMDBEnrichment.CoverPath)
+		}
+
+		// Add TMDB content sections
+		if movie.TMDBEnrichment.ContentMarkdown != "" {
+			mb.AddParagraph(movie.TMDBEnrichment.ContentMarkdown)
+		}
+	}
+
 	// Write content to file with overwrite logic
 	written, err := fileutil.WriteFileWithOverwrite(filePath, []byte(mb.Build()), 0644, config.OverwriteFiles)
 	if err != nil {

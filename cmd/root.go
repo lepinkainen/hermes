@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/alecthomas/kong"
+	"github.com/lepinkainen/hermes/cmd/enhance"
 	"github.com/lepinkainen/hermes/cmd/goodreads"
 	"github.com/lepinkainen/hermes/cmd/imdb"
 	"github.com/lepinkainen/hermes/cmd/letterboxd"
@@ -27,7 +28,8 @@ type CLI struct {
 	DatasetteURL   string `help:"URL of remote Datasette instance"`
 	DatasetteToken string `help:"API token for remote Datasette instance"`
 
-	Import ImportCmd `cmd:"" help:"Import data from various sources"`
+	Import  ImportCmd  `cmd:"" help:"Import data from various sources"`
+	Enhance EnhanceCmd `cmd:"" help:"Enhance existing markdown notes with TMDB data"`
 
 	// Version command could be added here in the future
 }
@@ -54,6 +56,12 @@ type IMDBCmd struct {
 	Output     string `short:"o" help:"Subdirectory under markdown output directory for IMDB files" default:"imdb"`
 	JSON       bool   `help:"Write data to JSON format"`
 	JSONOutput string `help:"Path to JSON output file (defaults to json/imdb.json)"`
+	// TMDB enrichment options
+	TMDBEnabled         bool     `help:"Enable TMDB enrichment" default:"false"`
+	TMDBDownloadCover   bool     `help:"Download cover images from TMDB" default:"false"`
+	TMDBGenerateContent bool     `help:"Generate TMDB content sections" default:"false"`
+	TMDBInteractive     bool     `help:"Show interactive TUI for TMDB selection" default:"false"`
+	TMDBContentSections []string `help:"Specific TMDB content sections to generate (empty = all)"`
 }
 
 // LetterboxdCmd represents the letterboxd import command
@@ -62,6 +70,12 @@ type LetterboxdCmd struct {
 	Output     string `short:"o" help:"Subdirectory under markdown output directory for Letterboxd files" default:"letterboxd"`
 	JSON       bool   `help:"Write data to JSON format"`
 	JSONOutput string `help:"Path to JSON output file (defaults to json/letterboxd.json)"`
+	// TMDB enrichment options
+	TMDBEnabled         bool     `help:"Enable TMDB enrichment" default:"false"`
+	TMDBDownloadCover   bool     `help:"Download cover images from TMDB" default:"false"`
+	TMDBGenerateContent bool     `help:"Generate TMDB content sections" default:"false"`
+	TMDBInteractive     bool     `help:"Show interactive TUI for TMDB selection" default:"false"`
+	TMDBContentSections []string `help:"Specific TMDB content sections to generate (empty = all)"`
 }
 
 // SteamCmd represents the steam import command
@@ -71,6 +85,18 @@ type SteamCmd struct {
 	Output     string `short:"o" help:"Subdirectory under markdown output directory for Steam files" default:"steam"`
 	JSON       bool   `help:"Write data to JSON format"`
 	JSONOutput string `help:"Path to JSON output file (defaults to json/steam.json)"`
+}
+
+// EnhanceCmd represents the enhance command
+type EnhanceCmd struct {
+	InputDir            string   `short:"d" help:"Directory containing markdown files to enhance" required:""`
+	Recursive           bool     `short:"r" help:"Scan subdirectories recursively" default:"false"`
+	DryRun              bool     `help:"Show what would be done without making changes" default:"false"`
+	OverwriteTMDB       bool     `help:"Overwrite existing TMDB content in notes" default:"false"`
+	TMDBDownloadCover   bool     `help:"Download cover images from TMDB" default:"false"`
+	TMDBGenerateContent bool     `help:"Generate TMDB content sections" default:"true"`
+	TMDBInteractive     bool     `help:"Show interactive TUI for TMDB selection" default:"false"`
+	TMDBContentSections []string `help:"Specific TMDB content sections to generate (empty = all)"`
 }
 
 // Execute runs the Kong-based CLI
@@ -110,6 +136,13 @@ func initConfig() {
 	viper.SetDefault("datasette.dbfile", "./hermes.db")
 	viper.SetDefault("datasette.remote_url", "")
 	viper.SetDefault("datasette.api_token", "")
+
+	// Enable environment variable support
+	viper.AutomaticEnv()
+	// Bind specific environment variables to config keys
+	if err := viper.BindEnv("TMDBAPIKey", "TMDB_API_KEY"); err != nil {
+		slog.Error("Failed to bind environment variable", "error", err)
+	}
 
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
@@ -155,7 +188,7 @@ func (g *GoodreadsCmd) Run() error {
 
 	// Check if required value is still missing
 	if input == "" {
-		return fmt.Errorf("Input CSV file is required (provide via --input flag or goodreads.csvfile in config)")
+		return fmt.Errorf("input CSV file is required (provide via --input flag or goodreads.csvfile in config)")
 	}
 
 	return goodreads.ParseGoodreadsWithParams(input, g.Output, g.JSON, g.JSONOutput, false)
@@ -170,10 +203,21 @@ func (i *IMDBCmd) Run() error {
 
 	// Check if required value is still missing
 	if input == "" {
-		return fmt.Errorf("Input CSV file is required (provide via --input flag or imdb.csvfile in config)")
+		return fmt.Errorf("input CSV file is required (provide via --input flag or imdb.csvfile in config)")
 	}
 
-	return imdb.ParseImdbWithParams(input, i.Output, i.JSON, i.JSONOutput, false)
+	return imdb.ParseImdbWithParams(
+		input,
+		i.Output,
+		i.JSON,
+		i.JSONOutput,
+		false, // overwrite
+		i.TMDBEnabled,
+		i.TMDBDownloadCover,
+		i.TMDBGenerateContent,
+		i.TMDBInteractive,
+		i.TMDBContentSections,
+	)
 }
 
 func (l *LetterboxdCmd) Run() error {
@@ -185,10 +229,21 @@ func (l *LetterboxdCmd) Run() error {
 
 	// Check if required value is still missing
 	if input == "" {
-		return fmt.Errorf("Input CSV file is required (provide via --input flag or letterboxd.csvfile in config)")
+		return fmt.Errorf("input CSV file is required (provide via --input flag or letterboxd.csvfile in config)")
 	}
 
-	return letterboxd.ParseLetterboxdWithParams(input, l.Output, l.JSON, l.JSONOutput, false)
+	return letterboxd.ParseLetterboxdWithParams(
+		input,
+		l.Output,
+		l.JSON,
+		l.JSONOutput,
+		false, // overwrite
+		l.TMDBEnabled,
+		l.TMDBDownloadCover,
+		l.TMDBGenerateContent,
+		l.TMDBInteractive,
+		l.TMDBContentSections,
+	)
 }
 
 func (s *SteamCmd) Run() error {
@@ -205,13 +260,28 @@ func (s *SteamCmd) Run() error {
 
 	// Check if required values are still missing
 	if steamID == "" {
-		return fmt.Errorf("Steam ID is required (provide via --steamid flag or steam.steamid in config)")
+		return fmt.Errorf("steam ID is required (provide via --steamid flag or steam.steamid in config)")
 	}
 	if apiKey == "" {
-		return fmt.Errorf("Steam API key is required (provide via --apikey flag or steam.apikey in config)")
+		return fmt.Errorf("steam API key is required (provide via --apikey flag or steam.apikey in config)")
 	}
 
 	return steam.ParseSteamWithParams(steamID, apiKey, s.Output, s.JSON, s.JSONOutput, false)
+}
+
+func (e *EnhanceCmd) Run() error {
+	opts := enhance.Options{
+		InputDir:            e.InputDir,
+		Recursive:           e.Recursive,
+		DryRun:              e.DryRun,
+		Overwrite:           e.OverwriteTMDB,
+		TMDBDownloadCover:   e.TMDBDownloadCover,
+		TMDBGenerateContent: e.TMDBGenerateContent,
+		TMDBInteractive:     e.TMDBInteractive,
+		TMDBContentSections: e.TMDBContentSections,
+	}
+
+	return enhance.EnhanceNotes(opts)
 }
 
 func initLogging() {

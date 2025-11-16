@@ -78,7 +78,7 @@ func (s *SQLiteStore) BatchInsert(database string, table string, records []map[s
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %w", err)
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	// Insert all records
 	for _, record := range records {

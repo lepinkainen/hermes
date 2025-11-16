@@ -1,37 +1,54 @@
 # CLAUDE.md
 
-Refer to llm-shared/project_tech_stack.md for core technology choices, build system configuration, and library preferences.
-
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+**Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for workflow details.
+
+Refer to llm-shared/project_tech_stack.md for core technology choices, build system configuration, and library preferences.
 
 ## Key Commands
 
-- `task` or `task build` - Build the application
-- `task test` - Run tests with coverage
-- `task lint` - Run Go linters (requires golangci-lint)
+- `task` or `task build` - Build the application (runs tests and lint first)
+- `task test` - Run tests with coverage report (generates coverage/coverage.html)
+- `task lint` - Run golangci-lint
 - `task clean` - Clean build artifacts
 - `task upgrade-deps` - Update all dependencies
+- `task build-linux` - Cross-compile for Linux
+- `task test-ci` - Run tests for CI (with ci build tag)
 
 **Running the application:**
 
-- `./hermes --help` - View available commands
-- `./hermes import goodreads --help` - View importer-specific options
-- `go run . import goodreads -f goodreads_library_export.csv` - Run directly
+- `./build/hermes --help` - View available commands
+- `./build/hermes import goodreads --help` - View importer-specific options
+- `./build/hermes enhance --help` - View enhance command options
+- `go run . import goodreads -f goodreads_library_export.csv` - Run directly without building
+- `go run . enhance -d markdown/imdb --tmdb-generate-content` - Enhance existing notes with TMDB data
 
-**Testing:**
+**Development workflow:**
 
-- Tests run automatically before builds
-- Use `go test ./...` for quick test runs
+- Tests must pass before builds (enforced by Taskfile dependencies)
+- Always run `goimports -w .` after modifying Go files
+- Use `go test ./...` for quick test runs during development
 
 ## Architecture Overview
 
-Hermes is a data import/export tool that converts exports from various sources (Goodreads, IMDb, Letterboxd, Steam) into unified formats (JSON, Markdown, SQLite/Datasette).
+Hermes is a data import/export tool that converts exports from various sources (Goodreads, IMDb, Letterboxd, Steam) into unified formats (JSON, Markdown, SQLite/Datasette). It also provides an `enhance` command to enrich existing markdown notes with TMDB data.
 
 **Key Components:**
 
-- `cmd/` - CLI commands
+- `cmd/root.go` - Kong-based CLI structure with nested commands
+- `cmd/{source}/` - Each data source has its own package (goodreads, imdb, letterboxd, steam)
+- `cmd/enhance/` - Enhance existing markdown notes with TMDB data
 - `internal/` - Shared utilities and packages
-- Each data source has its own package under `cmd/{source}/`
+  - `cache/` - API response caching
+  - `cmdutil/` - Command setup helpers
+  - `config/` - Global configuration management
+  - `datastore/` - SQLite/Datasette integration
+  - `enrichment/` - TMDB enrichment functionality
+  - `errors/` - Custom error types
+  - `fileutil/` - File operations, markdown/JSON utilities
+  - `tmdb/` - TMDB API client
+  - `tui/` - Interactive terminal UI for TMDB selection
 
 **Standard Importer Structure:**
 
@@ -44,32 +61,94 @@ cmd/{source}/
 ├── cache.go        # API response caching
 ├── json.go         # JSON output formatting
 ├── markdown.go     # Markdown output formatting
+├── testdata/       # Test fixtures and expected outputs
 └── *_test.go       # Unit tests
 ```
 
+## CLI Framework (Kong)
+
+- Uses Kong for command-line parsing (defined in `cmd/root.go`)
+- CLI structure: `CLI` struct contains global flags and `ImportCmd` with subcommands
+- Each importer command (GoodreadsCmd, IMDBCmd, etc.) implements a `Run() error` method
+- Kong automatically handles help text, usage messages, and error handling
+- Commands read from config file if CLI flags not provided (CLI flags take precedence)
+
+**Adding a new importer command:**
+
+1. Add command struct to `cmd/root.go` (e.g., `type NewSourceCmd struct`)
+2. Add struct field to `ImportCmd` with cmd and help tags
+3. Implement `Run() error` method that calls the importer package
+4. Follow pattern of reading from config with CLI flag override
+
+## Enhance Command
+
+The `enhance` command enriches existing markdown notes with TMDB data without re-importing from original sources.
+
+**Usage:**
+
+```bash
+# Basic usage - enhance all notes in a directory
+./build/hermes enhance -d markdown/imdb
+
+# Recursive scan with TMDB content generation
+./build/hermes enhance -d markdown/letterboxd -r --tmdb-generate-content
+
+# Download cover images and generate content
+./build/hermes enhance -d markdown/imdb --tmdb-download-cover --tmdb-generate-content
+
+# Interactive mode for manual TMDB selection
+./build/hermes enhance -d markdown/letterboxd --tmdb-interactive
+
+# Dry run to see what would be enhanced
+./build/hermes enhance -d markdown/imdb --dry-run
+```
+
+**Key Features:**
+
+- Scans directory for markdown files with YAML frontmatter
+- Extracts title, year, and IMDB ID from existing notes
+- Searches TMDB for matching content
+- Updates frontmatter with TMDB ID, runtime, genres, etc.
+- Optionally downloads cover images
+- Optionally generates TMDB content sections (cast, crew, similar titles, etc.)
+- Supports interactive TUI for selecting from multiple TMDB matches
+- Skips notes that already have TMDB data (unless `--overwrite` flag is used)
+- Dry-run mode to preview changes without modifying files
+
+**Implementation:**
+
+- `cmd/enhance/cmd.go` - Command logic, file discovery, and processing
+- `cmd/enhance/parser.go` - YAML frontmatter parsing and markdown rebuilding
+- Uses `internal/enrichment` for TMDB API integration
+- Leverages existing TMDB client and TUI components
+
 ## Configuration
 
-- Primary config: `config.yml` (YAML format)
+- Primary config: `config.yaml` (YAML format, auto-generated on first run)
 - CLI flags override config file values
-- Global settings (output directories, overwrite flag) defined in `root.go`
+- Global settings in `cmd/root.go`: output directories, overwrite flag, datasette config
 - Command-specific config uses namespaced keys (e.g., `goodreads.csvfile`, `steam.apikey`)
-- Config auto-generated if missing on first run
+- Viper manages config loading with defaults in `initConfig()`
 
 ## Development Patterns
 
 **Adding New Importers:**
 
 1. Create new package under `cmd/{source}/`
-2. Implement the standard structure (cmd.go, parser.go, types.go, etc.)
-3. Add command struct in `cmd/root.go` using Kong's command structure
-4. Follow existing patterns for API integration, caching, and output formatting
+2. Implement standard structure (cmd.go, parser.go, types.go, etc.)
+3. Add command struct and Run() method to `cmd/root.go`
+4. Add struct field to `ImportCmd` in `cmd/root.go`
+5. Follow existing patterns for API integration, caching, and output formatting
+6. Add tests in `testdata/` subdirectory
 
 **Common Utilities:**
 
 - `internal/cmdutil` - Command setup helpers
-- `internal/fileutil` - File operations, markdown/JSON utilities
+- `internal/fileutil` - File operations, markdown/JSON utilities (MarkdownBuilder pattern)
 - `internal/config` - Global configuration management
 - `internal/datastore` - SQLite/Datasette integration
+- `internal/cache` - API response caching
+- `internal/errors` - Custom error types (e.g., RateLimitError)
 
 **API Integration:**
 
@@ -81,59 +160,53 @@ cmd/{source}/
 
 **Error Handling:**
 
-- Use standard Go error handling (`errors.New`, `fmt.Errorf`). Return errors up the call stack for handling by Kong's command execution
+- Use standard Go error handling (`errors.New`, `fmt.Errorf`)
+- Return errors up the call stack for handling by Kong's command execution
 - Wrap errors with context: `fmt.Errorf("failed to process item %s: %w", itemID, err)`
-- Use custom error types from `internal/errors/` for specific conditions like API rate limits
-- Log significant errors within command logic but return them to let top level handle exit codes
+- Use custom error types from `internal/errors/` for specific conditions
+- Log significant errors but return them to let top level handle exit codes
 
 ## Testing Requirements
 
-- Write unit tests for parsing logic, API interaction (using mocks/stubs), and output generation
+- Write unit tests for parsing logic, API interaction, and output generation
 - Test files in same package with `_test.go` suffix
 - Tests must pass before builds (enforced by Taskfile)
-- Use `testdata/` subdirectory within each command package for input fixtures and expected output
-- Employ table-driven tests for validating multiple input cases efficiently
+- Use `testdata/` subdirectory within each command package for fixtures
+- Employ table-driven tests for validating multiple input cases
+- Use `//go:build !ci` to skip tests in CI that require external dependencies
 
 ## Datasette Integration
 
 - Supports both local SQLite and remote Datasette storage
 - `internal/datastore` provides unified interface
-- Configuration under `datasette:` key in config
+- Configuration under `datasette:` key in config (enabled, mode, dbfile, remote_url, api_token)
 - Local mode writes to `hermes.db`, remote mode uses API
+- Enable via `--datasette` flag or config file
 
 ## Logging
 
+- Uses `log/slog` with custom handler from `github.com/lepinkainen/humanlog`
+- Initialized in `cmd/root.go` with `slog.LevelInfo` default
 - `InfoLevel` for progress messages (starting import, items processed)
 - `DebugLevel` for verbose debugging info (API request/response details, cache hits/misses)
-- `WarnLevel` for recoverable issues (skipping items due to missing data but continuing)
-- `ErrorLevel` for significant problems, often just before returning an error
+- `WarnLevel` for recoverable issues (skipping items but continuing)
+- `ErrorLevel` for significant problems before returning an error
 
 ## Output Formats & Handling
 
-- Default output directories (`markdown/`, `json/`) set in `root.go`, configurable via `config.yaml`
-- Commands should allow specifying subdirectories for output via flags/config (e.g., `markdown/goodreads/`)
-- Use `internal/fileutil` for writing files, ensuring consistent formatting and handling `overwrite` flag logic
+- Default output directories (`markdown/`, `json/`) set in `cmd/root.go`, configurable via `config.yaml`
+- Commands allow specifying subdirectories for output via `-o` flag (e.g., `markdown/goodreads/`)
+- Use `internal/fileutil` for writing files (MarkdownBuilder for Markdown, WriteJSON for JSON)
+- Markdown files use YAML frontmatter (Obsidian-compatible)
 - Follow existing patterns for Markdown frontmatter and JSON structure for each data type
-
-## Documentation
-
-- Write Go doc comments for all exported functions, types, and constants
-- Keep command help messages (`Help` field in Kong commands) clear and up-to-date
-- Update `README.md` and relevant files in `docs/` when adding new commands or changing functionality
-
-## CLI Framework
-
-- Uses Kong for command-line parsing (defined in `cmd/root.go`)
-- Kong struct defines the complete CLI structure with nested commands
-- Each importer is a struct field in the main CLI struct
-- Command execution flows through Kong's context system
-- **Note:** Legacy Cobra code may still exist in individual command packages but should be migrated to Kong structure
+- Respect `--overwrite` flag logic
 
 ## Important Notes
 
-- Go-only project (no Python or other languages)
+- Go-only project (Go 1.24+)
 - Follows standard Go project layout and idioms
-- Uses modern Go features (Go 1.24+)
 - Each importer handles its own data enrichment and API integration
-- Maintain consistent Go style and idiomatic patterns
-- Use shared utility functions from `internal/` packages, contribute reusable logic back when appropriate
+- Use `goimports -w .` after making changes (not gofmt)
+- Use shared utility functions from `internal/` packages
+- Build artifacts go to `build/` directory
+- Cache artifacts go to `cache/{source}/` directories

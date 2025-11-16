@@ -59,7 +59,7 @@ func ParseGoodreads() error {
 	if err != nil {
 		return fmt.Errorf("failed to open CSV file: %w", err)
 	}
-	defer csvFile.Close()
+	defer func() { _ = csvFile.Close() }()
 
 	// Create a new CSV reader
 	reader := csv.NewReader(csvFile)
@@ -195,13 +195,14 @@ func ParseGoodreads() error {
 		slog.Info("Writing Goodreads books to Datasette")
 		mode := viper.GetString("datasette.mode")
 
-		if mode == "local" {
+		switch mode {
+		case "local":
 			store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
 			if err := store.Connect(); err != nil {
 				slog.Error("Failed to connect to SQLite database", "error", err)
 				return err
 			}
-			defer store.Close()
+			defer func() { _ = store.Close() }()
 
 			schema := `CREATE TABLE IF NOT EXISTS goodreads_books (
 				id INTEGER PRIMARY KEY,
@@ -249,7 +250,7 @@ func ParseGoodreads() error {
 				return err
 			}
 			slog.Info("Successfully wrote books to SQLite database", "count", len(books))
-		} else if mode == "remote" {
+		case "remote":
 			client := datastore.NewDatasetteClient(
 				viper.GetString("datasette.remote_url"),
 				viper.GetString("datasette.api_token"),
@@ -258,7 +259,7 @@ func ParseGoodreads() error {
 				slog.Error("Failed to connect to remote Datasette", "error", err)
 				return err
 			}
-			defer client.Close()
+			defer func() { _ = client.Close() }()
 
 			records := make([]map[string]any, len(books))
 			for i, book := range books {
@@ -270,7 +271,7 @@ func ParseGoodreads() error {
 				return err
 			}
 			slog.Info("Successfully wrote books to remote Datasette", "count", len(books))
-		} else {
+		default:
 			slog.Error("Invalid Datasette mode", "mode", mode)
 			return fmt.Errorf("invalid Datasette mode: %s", mode)
 		}
@@ -285,7 +286,7 @@ func countBooksInCSV(filePath string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to open CSV file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	reader := csv.NewReader(file)
 

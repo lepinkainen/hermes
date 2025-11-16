@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"strings"
 
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/content"
@@ -174,18 +173,11 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 }
 
 // findTMDBIDByIMDBID attempts to find TMDB ID using IMDB ID via external_ids endpoint.
-func findTMDBIDByIMDBID(ctx context.Context, client *tmdb.Client, imdbID string) (int, string) {
-	// Clean IMDB ID (ensure it starts with tt)
-	if !strings.HasPrefix(imdbID, "tt") {
-		imdbID = "tt" + imdbID
-	}
-
-	// Try movie first
-	details, err := client.GetFullMovieDetails(ctx, 0) // This won't work, need find endpoint
+func findTMDBIDByIMDBID(ctx context.Context, client *tmdb.Client, _ string) (int, string) {
 	// TODO: TMDB doesn't have a direct IMDB ID lookup in the simple API
 	// For now, we'll skip this and rely on search
-	_ = details
-	_ = err
+	_ = ctx
+	_ = client
 
 	return 0, ""
 }

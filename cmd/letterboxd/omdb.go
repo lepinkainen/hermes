@@ -65,7 +65,7 @@ func fetchMovieData(title string, year int) (*Movie, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check HTTP status code
 	if resp.StatusCode != http.StatusOK {

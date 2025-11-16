@@ -34,7 +34,7 @@ func fetchBookData(isbn string) (*Book, *OpenLibraryBook, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("OpenLibrary API request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result map[string]OpenLibraryBook
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -85,7 +85,7 @@ func fetchEditionData(isbn string) (*OpenLibraryEdition, error) {
 	if err != nil {
 		return nil, fmt.Errorf("edition data request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check if we got a successful response
 	if resp.StatusCode != http.StatusOK {
@@ -110,4 +110,3 @@ func fetchCoverImage(coverID int) (string, error) {
 	// We'll return the large size URL
 	return fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", coverID), nil
 }
-

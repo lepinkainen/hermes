@@ -97,12 +97,42 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 	// Add external links callout with deterministic ordering
 	var linksContent strings.Builder
 	fmt.Fprintf(&linksContent, "[View on Letterboxd](%s)", movie.LetterboxdURI)
-	
+
 	if movie.ImdbID != "" {
 		fmt.Fprintf(&linksContent, "\n[View on IMDb](%s)", fmt.Sprintf("https://www.imdb.com/title/%s", movie.ImdbID))
 	}
 
 	mb.AddCallout("info", "Letterboxd", linksContent.String())
+
+	// Add TMDB data if available
+	if movie.TMDBEnrichment != nil {
+		// Add TMDB metadata to frontmatter
+		if movie.TMDBEnrichment.TMDBID > 0 {
+			mb.AddField("tmdb_id", movie.TMDBEnrichment.TMDBID)
+			mb.AddField("tmdb_type", movie.TMDBEnrichment.TMDBType)
+		}
+
+		// Add TMDB genre tags (merge with existing tags)
+		if len(movie.TMDBEnrichment.GenreTags) > 0 {
+			mb.AddTags(movie.TMDBEnrichment.GenreTags...)
+		}
+
+		// Add total episodes for TV shows (shouldn't happen for Letterboxd, but good to have)
+		if movie.TMDBEnrichment.TotalEpisodes > 0 {
+			mb.AddField("total_episodes", movie.TMDBEnrichment.TotalEpisodes)
+		}
+
+		// Add cover image if downloaded
+		if movie.TMDBEnrichment.CoverPath != "" {
+			mb.AddParagraph("## Cover")
+			mb.AddImage(movie.TMDBEnrichment.CoverPath)
+		}
+
+		// Add TMDB content sections
+		if movie.TMDBEnrichment.ContentMarkdown != "" {
+			mb.AddParagraph(movie.TMDBEnrichment.ContentMarkdown)
+		}
+	}
 
 	// Write the content to file with the common utility that respects overwrite settings
 	written, err := fileutil.WriteFileWithOverwrite(filePath, []byte(mb.Build()), 0644, overwrite)

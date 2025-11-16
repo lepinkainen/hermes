@@ -39,3 +39,4 @@ hermes-*
 *.json
 hermes.db
 exports/
+.envrc

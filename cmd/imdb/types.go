@@ -1,5 +1,7 @@
 package imdb
 
+import "github.com/lepinkainen/hermes/internal/enrichment"
+
 // MovieSeen represents a watched movie from IMDB export
 type MovieSeen struct {
 	Position      int      `json:"Position,omitempty"`
@@ -24,6 +26,8 @@ type MovieSeen struct {
 	ContentRated  string   `json:"Content Rated"`
 	Awards        string   `json:"Awards"`
 	PosterURL     string   `json:"Poster URL"`
+	// TMDB enrichment data
+	TMDBEnrichment *enrichment.TMDBEnrichment `json:"tmdb,omitempty"`
 }
 
 // MovieWatchlist represents a movie in the watchlist
