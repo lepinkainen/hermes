@@ -1,15 +1,18 @@
 package imdb
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/datastore"
+	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/errors"
 	"github.com/spf13/viper"
 )
@@ -75,14 +78,15 @@ func ParseImdb() error {
 		slog.Info("Writing to Datasette")
 		mode := viper.GetString("datasette.mode")
 
-		if mode == "local" {
+		switch mode {
+		case "local":
 			// Initialize local SQLite store
 			store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
 			if err := store.Connect(); err != nil {
 				slog.Error("Failed to connect to SQLite database", "error", err)
 				return err
 			}
-			defer store.Close()
+			defer func() { _ = store.Close() }()
 
 			// Create table schema
 			schema := `CREATE TABLE IF NOT EXISTS imdb_movies (
@@ -128,7 +132,7 @@ func ParseImdb() error {
 			}
 			slog.Info("Successfully wrote movies to SQLite database", "count", len(movies))
 
-		} else if mode == "remote" {
+		case "remote":
 			// Initialize remote Datasette client
 			client := datastore.NewDatasetteClient(
 				viper.GetString("datasette.remote_url"),
@@ -138,7 +142,7 @@ func ParseImdb() error {
 				slog.Error("Failed to connect to remote Datasette", "error", err)
 				return err
 			}
-			defer client.Close()
+			defer func() { _ = client.Close() }()
 
 			// Convert movies to maps for insertion
 			records := make([]map[string]any, len(movies))
@@ -152,7 +156,7 @@ func ParseImdb() error {
 				return err
 			}
 			slog.Info("Successfully wrote movies to remote Datasette", "count", len(movies))
-		} else {
+		default:
 			slog.Error("Invalid Datasette mode", "mode", mode)
 			return fmt.Errorf("invalid Datasette mode: %s", mode)
 		}
@@ -167,7 +171,7 @@ func processCSVFile(filename string) ([]MovieSeen, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open CSV file: %v", err)
 	}
-	defer csvFile.Close()
+	defer func() { _ = csvFile.Close() }()
 
 	// File existence check
 	if fi, err := csvFile.Stat(); err != nil || fi.Size() == 0 {
@@ -318,7 +322,40 @@ func enrichMovieData(movie *MovieSeen) error {
 		movie.RuntimeMins = omdbMovie.RuntimeMins
 	}
 
+	// TMDB enrichment (if enabled)
+	if tmdbEnabled {
+		tmdbEnrichment, err := enrichFromTMDB(movie)
+		if err != nil {
+			slog.Warn("Failed to enrich from TMDB", "title", movie.Title, "error", err)
+			// Don't fail the whole import if TMDB enrichment fails
+		} else if tmdbEnrichment != nil {
+			movie.TMDBEnrichment = tmdbEnrichment
+		}
+	}
+
 	return nil
+}
+
+// enrichFromTMDB enriches a movie with TMDB data
+func enrichFromTMDB(movie *MovieSeen) (*enrichment.TMDBEnrichment, error) {
+	// Prepare attachments directory
+	attachmentsDir := filepath.Join(outputDir, "attachments")
+	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create attachments directory: %w", err)
+	}
+
+	opts := enrichment.TMDBEnrichmentOptions{
+		DownloadCover:   tmdbDownloadCover,
+		GenerateContent: tmdbGenerateContent,
+		ContentSections: tmdbContentSections,
+		AttachmentsDir:  attachmentsDir,
+		NoteDir:         outputDir,
+		Interactive:     tmdbInteractive,
+	}
+
+	// Use context.Background() for enrichment
+	ctx := context.Background()
+	return enrichment.EnrichFromTMDB(ctx, movie.Title, movie.Year, movie.ImdbId, 0, opts)
 }
 
 func writeMoviesToMarkdown(movies []MovieSeen, directory string) error {

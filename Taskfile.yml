@@ -54,16 +54,14 @@ tasks:
         sh: git rev-parse --short HEAD
 
   build-ci:
-    desc: Build the Go application for CI
+    desc: Build the Go application for CI (CI workflow handles test/lint separately)
     deps:
-      - test-ci
-      - lint
       - clean
     cmds:
       - mkdir -p {{.BUILDDIR}}
       - >
-        go build 
-        -ldflags="-X main.Version={{.GIT_COMMIT}} -w -s" 
+        go build
+        -ldflags="-X main.Version={{.GIT_COMMIT}} -w -s"
         -o {{.BINARY}}
     generates:
       - "{{.BINARY}}"

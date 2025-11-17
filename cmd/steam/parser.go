@@ -81,13 +81,14 @@ func ParseSteam() error {
 		slog.Info("Writing Steam games to Datasette")
 		mode := viper.GetString("datasette.mode")
 
-		if mode == "local" {
+		switch mode {
+		case "local":
 			store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
 			if err := store.Connect(); err != nil {
 				slog.Error("Failed to connect to SQLite database", "error", err)
 				return err
 			}
-			defer store.Close()
+			defer func() { _ = store.Close() }()
 
 			schema := `CREATE TABLE IF NOT EXISTS steam_games (
 				appid INTEGER PRIMARY KEY,
@@ -125,7 +126,7 @@ func ParseSteam() error {
 				return err
 			}
 			slog.Info("Successfully wrote games to SQLite database", "count", len(processedGames))
-		} else if mode == "remote" {
+		case "remote":
 			client := datastore.NewDatasetteClient(
 				viper.GetString("datasette.remote_url"),
 				viper.GetString("datasette.api_token"),
@@ -134,7 +135,7 @@ func ParseSteam() error {
 				slog.Error("Failed to connect to remote Datasette", "error", err)
 				return err
 			}
-			defer client.Close()
+			defer func() { _ = client.Close() }()
 
 			records := make([]map[string]any, len(processedGames))
 			for i, details := range processedGames {
@@ -146,7 +147,7 @@ func ParseSteam() error {
 				return err
 			}
 			slog.Info("Successfully wrote games to remote Datasette", "count", len(processedGames))
-		} else {
+		default:
 			slog.Error("Invalid Datasette mode", "mode", mode)
 			return fmt.Errorf("invalid Datasette mode: %s", mode)
 		}
@@ -189,4 +190,3 @@ func fetchGameData(appID string) (*Game, *GameDetails, error) {
 
 	return game, details, nil
 }
-

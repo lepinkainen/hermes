@@ -1,5 +1,7 @@
 package letterboxd
 
+import "github.com/lepinkainen/hermes/internal/enrichment"
+
 // Movie represents a movie from Letterboxd export
 type Movie struct {
 	Date          string `json:"Date"`             // Date the movie was watched
@@ -17,4 +19,7 @@ type Movie struct {
 	Rating      float64  `json:"Rating,omitempty"`
 	PosterURL   string   `json:"PosterURL,omitempty"`
 	Description string   `json:"Description,omitempty"`
+
+	// TMDB enrichment data
+	TMDBEnrichment *enrichment.TMDBEnrichment `json:"TMDBEnrichment,omitempty"`
 }

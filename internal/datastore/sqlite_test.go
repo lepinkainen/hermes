@@ -10,7 +10,7 @@ func TestSQLiteStore_CreateTableAndInsert(t *testing.T) {
 	if err := store.Connect(); err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	schema := `CREATE TABLE IF NOT EXISTS test_table (
 		id INTEGER PRIMARY KEY,
@@ -34,7 +34,7 @@ func TestSQLiteStore_CreateTableAndInsert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to query: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var count int
 	for rows.Next() {

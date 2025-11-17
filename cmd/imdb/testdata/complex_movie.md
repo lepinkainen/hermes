@@ -7,9 +7,9 @@ year: 2022
 imdb_rating: 9.8
 my_rating: 10
 date_rated: "2023-06-15"
-runtime_mins: 195
+runtime: 195
 duration: 3h 15m
-genres:
+tags:
   - "Drama"
   - "Science Fiction"
   - "Thriller"

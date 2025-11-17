@@ -83,13 +83,13 @@ func TestFileExists(t *testing.T) {
 	// Create a temporary file
 	tempFile, err := os.CreateTemp("", "test-file-*.txt")
 	require.NoError(t, err)
-	defer os.Remove(tempFile.Name())
-	tempFile.Close()
+	defer func() { _ = os.Remove(tempFile.Name()) }()
+	_ = tempFile.Close()
 
 	// Create a temporary directory
 	tempDir, err := os.MkdirTemp("", "test-dir-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	testCases := []struct {
 		name     string
@@ -125,7 +125,7 @@ func TestWriteFileWithOverwrite(t *testing.T) {
 	// Create a temporary directory
 	tempDir, err := os.MkdirTemp("", "test-write-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	testCases := []struct {
 		name           string

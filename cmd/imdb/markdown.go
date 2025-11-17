@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lepinkainen/hermes/internal/config"
+	"github.com/lepinkainen/hermes/internal/content"
 	"github.com/lepinkainen/hermes/internal/fileutil"
 )
 
@@ -43,13 +44,13 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 
 	// Add runtime and duration
 	if movie.RuntimeMins > 0 {
-		mb.AddField("runtime_mins", movie.RuntimeMins)
+		mb.AddField("runtime", movie.RuntimeMins)
 		mb.AddDuration(movie.RuntimeMins)
 	}
 
 	// Add genres as an array
 	if len(movie.Genres) > 0 {
-		mb.AddStringArray("genres", movie.Genres)
+		mb.AddStringArray("tags", movie.Genres)
 	}
 
 	// Add directors as an array
@@ -99,6 +100,32 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 		"View on IMDb": movie.URL,
 	}
 	mb.AddExternalLinksCallout("IMDb", links)
+
+	// Add TMDB data if available
+	if movie.TMDBEnrichment != nil {
+		// Add TMDB metadata to frontmatter
+		if movie.TMDBEnrichment.TMDBID > 0 {
+			mb.AddField("tmdb_id", movie.TMDBEnrichment.TMDBID)
+			mb.AddField("tmdb_type", movie.TMDBEnrichment.TMDBType)
+		}
+
+		// Add TMDB genre tags (merge with existing tags)
+		if len(movie.TMDBEnrichment.GenreTags) > 0 {
+			mb.AddTags(movie.TMDBEnrichment.GenreTags...)
+		}
+
+		// Add total episodes for TV shows
+		if movie.TMDBEnrichment.TotalEpisodes > 0 {
+			mb.AddField("total_episodes", movie.TMDBEnrichment.TotalEpisodes)
+		}
+
+		// Add TMDB content sections (includes cover embed if downloaded)
+		// Wrap with markers for future updates
+		if movie.TMDBEnrichment.ContentMarkdown != "" {
+			wrappedContent := content.WrapWithMarkers(movie.TMDBEnrichment.ContentMarkdown)
+			mb.AddParagraph(wrappedContent)
+		}
+	}
 
 	// Write content to file with overwrite logic
 	written, err := fileutil.WriteFileWithOverwrite(filePath, []byte(mb.Build()), 0644, config.OverwriteFiles)

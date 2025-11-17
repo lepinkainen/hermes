@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/content"
 	"github.com/lepinkainen/hermes/internal/fileutil"
 )
 
@@ -35,7 +36,7 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 
 	// Add duration if available
 	if movie.Runtime > 0 {
-		mb.AddField("runtime_mins", movie.Runtime)
+		mb.AddField("runtime", movie.Runtime)
 		mb.AddDuration(movie.Runtime)
 	}
 
@@ -46,7 +47,7 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 
 	// Add genres if available
 	if len(movie.Genres) > 0 {
-		mb.AddStringArray("genres", movie.Genres)
+		mb.AddStringArray("tags", movie.Genres)
 	}
 
 	// Add standard tags
@@ -97,12 +98,38 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 	// Add external links callout with deterministic ordering
 	var linksContent strings.Builder
 	fmt.Fprintf(&linksContent, "[View on Letterboxd](%s)", movie.LetterboxdURI)
-	
+
 	if movie.ImdbID != "" {
 		fmt.Fprintf(&linksContent, "\n[View on IMDb](%s)", fmt.Sprintf("https://www.imdb.com/title/%s", movie.ImdbID))
 	}
 
 	mb.AddCallout("info", "Letterboxd", linksContent.String())
+
+	// Add TMDB data if available
+	if movie.TMDBEnrichment != nil {
+		// Add TMDB metadata to frontmatter
+		if movie.TMDBEnrichment.TMDBID > 0 {
+			mb.AddField("tmdb_id", movie.TMDBEnrichment.TMDBID)
+			mb.AddField("tmdb_type", movie.TMDBEnrichment.TMDBType)
+		}
+
+		// Add TMDB genre tags (merge with existing tags)
+		if len(movie.TMDBEnrichment.GenreTags) > 0 {
+			mb.AddTags(movie.TMDBEnrichment.GenreTags...)
+		}
+
+		// Add total episodes for TV shows (shouldn't happen for Letterboxd, but good to have)
+		if movie.TMDBEnrichment.TotalEpisodes > 0 {
+			mb.AddField("total_episodes", movie.TMDBEnrichment.TotalEpisodes)
+		}
+
+		// Add TMDB content sections (includes cover embed if downloaded)
+		// Wrap with markers for future updates
+		if movie.TMDBEnrichment.ContentMarkdown != "" {
+			wrappedContent := content.WrapWithMarkers(movie.TMDBEnrichment.ContentMarkdown)
+			mb.AddParagraph(wrappedContent)
+		}
+	}
 
 	// Write the content to file with the common utility that respects overwrite settings
 	written, err := fileutil.WriteFileWithOverwrite(filePath, []byte(mb.Build()), 0644, overwrite)

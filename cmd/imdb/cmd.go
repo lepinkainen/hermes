@@ -13,22 +13,45 @@ var (
 	skipInvalid bool
 	overwrite   bool
 	cmdConfig   *cmdutil.BaseCommandConfig
+	// TMDB enrichment options
+	tmdbEnabled         bool
+	tmdbDownloadCover   bool
+	tmdbGenerateContent bool
+	tmdbInteractive     bool
+	tmdbContentSections []string
 )
 
 // ParseImdbWithParams allows calling imdb parsing with specific parameters
 // This is used by the Kong-based CLI implementation
-func ParseImdbWithParams(inputFile, outputDir string, writeJSON bool, jsonOutput string, overwrite bool) error {
+func ParseImdbWithParams(
+	inputFile, outputDirParam string,
+	writeJSONFlag bool,
+	jsonOutputPath string,
+	overwriteFlag bool,
+	tmdbEnabledFlag bool,
+	tmdbDownloadCoverFlag bool,
+	tmdbGenerateContentFlag bool,
+	tmdbInteractiveFlag bool,
+	tmdbContentSectionsFlag []string,
+) error {
 	// Set the global variables that ParseImdb expects
 	csvFile = inputFile
 	skipInvalid = false // Default value
 
+	// Set TMDB flags
+	tmdbEnabled = tmdbEnabledFlag
+	tmdbDownloadCover = tmdbDownloadCoverFlag
+	tmdbGenerateContent = tmdbGenerateContentFlag
+	tmdbInteractive = tmdbInteractiveFlag
+	tmdbContentSections = tmdbContentSectionsFlag
+
 	// Set up command config similar to PreRunE logic
 	cmdConfig = &cmdutil.BaseCommandConfig{
-		OutputDir:  outputDir,
+		OutputDir:  outputDirParam,
 		ConfigKey:  "imdb",
-		WriteJSON:  writeJSON,
-		JSONOutput: jsonOutput,
-		Overwrite:  overwrite,
+		WriteJSON:  writeJSONFlag,
+		JSONOutput: jsonOutputPath,
+		Overwrite:  overwriteFlag,
 	}
 
 	if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
@@ -36,11 +59,9 @@ func ParseImdbWithParams(inputFile, outputDir string, writeJSON bool, jsonOutput
 	}
 
 	// Update package-level global variables with processed paths for parser usage
-	// Need to work around parameter shadowing by creating local vars with different names
-	globalOutputDir := &outputDir
-	globalJSONOutput := &jsonOutput
-	*globalOutputDir = cmdConfig.OutputDir
-	*globalJSONOutput = cmdConfig.JSONOutput
+	outputDir = cmdConfig.OutputDir
+	writeJSON = cmdConfig.WriteJSON
+	jsonOutput = cmdConfig.JSONOutput
 
 	// Call the existing parser
 	return ParseImdb()
