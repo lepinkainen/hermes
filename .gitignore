@@ -29,7 +29,7 @@ build/
 /dist
 config.yaml
 config.yml
-cache/
+/cache/
 goodreads_library_export.csv
 .DS_Store
 hermes
