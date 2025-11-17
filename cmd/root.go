@@ -60,7 +60,7 @@ type IMDBCmd struct {
 	TMDBEnabled         bool     `help:"Enable TMDB enrichment" default:"false"`
 	TMDBDownloadCover   bool     `help:"Download cover images from TMDB" default:"false"`
 	TMDBGenerateContent bool     `help:"Generate TMDB content sections" default:"false"`
-	TMDBInteractive     bool     `help:"Show interactive TUI for TMDB selection" default:"false"`
+	TMDBNoInteractive   bool     `help:"Disable interactive TUI for TMDB selection (auto-select first result)" default:"false"`
 	TMDBContentSections []string `help:"Specific TMDB content sections to generate (empty = all)"`
 }
 
@@ -74,7 +74,7 @@ type LetterboxdCmd struct {
 	TMDBEnabled         bool     `help:"Enable TMDB enrichment" default:"false"`
 	TMDBDownloadCover   bool     `help:"Download cover images from TMDB" default:"false"`
 	TMDBGenerateContent bool     `help:"Generate TMDB content sections" default:"false"`
-	TMDBInteractive     bool     `help:"Show interactive TUI for TMDB selection" default:"false"`
+	TMDBNoInteractive   bool     `help:"Disable interactive TUI for TMDB selection (auto-select first result)" default:"false"`
 	TMDBContentSections []string `help:"Specific TMDB content sections to generate (empty = all)"`
 }
 
@@ -93,9 +93,8 @@ type EnhanceCmd struct {
 	Recursive           bool     `short:"r" help:"Scan subdirectories recursively" default:"false"`
 	DryRun              bool     `help:"Show what would be done without making changes" default:"false"`
 	OverwriteTMDB       bool     `help:"Overwrite existing TMDB content in notes" default:"false"`
-	TMDBDownloadCover   bool     `help:"Download cover images from TMDB" default:"false"`
-	TMDBGenerateContent bool     `help:"Generate TMDB content sections" default:"true"`
-	TMDBInteractive     bool     `help:"Show interactive TUI for TMDB selection" default:"false"`
+	Force               bool     `short:"f" help:"Force re-enrichment even when TMDB ID exists in frontmatter" default:"false"`
+	TMDBNoInteractive   bool     `help:"Disable interactive TUI for TMDB selection (auto-select first result)" default:"false"`
 	TMDBContentSections []string `help:"Specific TMDB content sections to generate (empty = all)"`
 }
 
@@ -215,7 +214,7 @@ func (i *IMDBCmd) Run() error {
 		i.TMDBEnabled,
 		i.TMDBDownloadCover,
 		i.TMDBGenerateContent,
-		i.TMDBInteractive,
+		!i.TMDBNoInteractive, // Invert: default is interactive
 		i.TMDBContentSections,
 	)
 }
@@ -241,7 +240,7 @@ func (l *LetterboxdCmd) Run() error {
 		l.TMDBEnabled,
 		l.TMDBDownloadCover,
 		l.TMDBGenerateContent,
-		l.TMDBInteractive,
+		!l.TMDBNoInteractive, // Invert: default is interactive
 		l.TMDBContentSections,
 	)
 }
@@ -275,9 +274,10 @@ func (e *EnhanceCmd) Run() error {
 		Recursive:           e.Recursive,
 		DryRun:              e.DryRun,
 		Overwrite:           e.OverwriteTMDB,
-		TMDBDownloadCover:   e.TMDBDownloadCover,
-		TMDBGenerateContent: e.TMDBGenerateContent,
-		TMDBInteractive:     e.TMDBInteractive,
+		Force:               e.Force,
+		TMDBDownloadCover:   true,                 // Always download covers
+		TMDBGenerateContent: true,                 // Always generate content
+		TMDBInteractive:     !e.TMDBNoInteractive, // Invert: default is interactive
 		TMDBContentSections: e.TMDBContentSections,
 	}
 

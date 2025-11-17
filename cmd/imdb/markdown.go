@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lepinkainen/hermes/internal/config"
+	"github.com/lepinkainen/hermes/internal/content"
 	"github.com/lepinkainen/hermes/internal/fileutil"
 )
 
@@ -43,13 +44,13 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 
 	// Add runtime and duration
 	if movie.RuntimeMins > 0 {
-		mb.AddField("runtime_mins", movie.RuntimeMins)
+		mb.AddField("runtime", movie.RuntimeMins)
 		mb.AddDuration(movie.RuntimeMins)
 	}
 
 	// Add genres as an array
 	if len(movie.Genres) > 0 {
-		mb.AddStringArray("genres", movie.Genres)
+		mb.AddStringArray("tags", movie.Genres)
 	}
 
 	// Add directors as an array
@@ -118,15 +119,11 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 			mb.AddField("total_episodes", movie.TMDBEnrichment.TotalEpisodes)
 		}
 
-		// Add cover image if downloaded
-		if movie.TMDBEnrichment.CoverPath != "" {
-			mb.AddParagraph("## Cover")
-			mb.AddImage(movie.TMDBEnrichment.CoverPath)
-		}
-
-		// Add TMDB content sections
+		// Add TMDB content sections (includes cover embed if downloaded)
+		// Wrap with markers for future updates
 		if movie.TMDBEnrichment.ContentMarkdown != "" {
-			mb.AddParagraph(movie.TMDBEnrichment.ContentMarkdown)
+			wrappedContent := content.WrapWithMarkers(movie.TMDBEnrichment.ContentMarkdown)
+			mb.AddParagraph(wrappedContent)
 		}
 	}
 

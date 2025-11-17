@@ -7,9 +7,9 @@ year: 2020
 imdb_rating: 8.5
 my_rating: 9
 date_rated: "2023-01-15"
-runtime_mins: 120
+runtime: 120
 duration: 2h 0m
-genres:
+tags:
   - "Action"
   - "Adventure"
 directors:

@@ -14,23 +14,27 @@
 ### Quick Start
 
 **Check for ready work:**
+
 ```bash
 bd ready --json
 ```
 
 **Create new issues:**
+
 ```bash
 bd create "Issue title" -t bug|feature|task -p 0-4 --json
 bd create "Issue title" -p 1 --deps discovered-from:bd-123 --json
 ```
 
 **Claim and update:**
+
 ```bash
 bd update bd-42 --status in_progress --json
 bd update bd-42 --priority 1 --json
 ```
 
 **Complete work:**
+
 ```bash
 bd close bd-42 --reason "Completed" --json
 ```
@@ -64,6 +68,7 @@ bd close bd-42 --reason "Completed" --json
 ### Auto-Sync
 
 bd automatically syncs with git:
+
 - Exports to `.beads/issues.jsonl` after changes (5s debounce)
 - Imports from JSONL when newer (e.g., after `git pull`)
 - No manual export/import needed!
@@ -77,6 +82,7 @@ pip install beads-mcp
 ```
 
 Add to MCP config (e.g., `~/.config/claude/config.json`):
+
 ```json
 {
   "beads": {
@@ -91,6 +97,7 @@ Then use `mcp__beads__*` functions instead of CLI commands.
 ### Managing AI-Generated Planning Documents
 
 AI assistants often create planning and design documents during development:
+
 - PLAN.md, IMPLEMENTATION.md, ARCHITECTURE.md
 - DESIGN.md, CODEBASE_SUMMARY.md, INTEGRATION_PLAN.md
 - TESTING_GUIDE.md, TECHNICAL_DESIGN.md, and similar files
@@ -98,18 +105,21 @@ AI assistants often create planning and design documents during development:
 **Best Practice: Use a dedicated directory for these ephemeral files**
 
 **Recommended approach:**
+
 - Create a `history/` directory in the project root
 - Store ALL AI-generated planning/design docs in `history/`
 - Keep the repository root clean and focused on permanent project files
 - Only access `history/` when explicitly asked to review past planning
 
 **Example .gitignore entry (optional):**
+
 ```
 # AI planning documents (ephemeral)
 history/
 ```
 
 **Benefits:**
+
 - ✅ Clean repository root
 - ✅ Clear separation between ephemeral and permanent documentation
 - ✅ Easy to exclude from version control if desired
@@ -131,6 +141,7 @@ history/
 For more details, see README.md and QUICKSTART.md.
 
 ## Project Structure & Module Organization
+
 - `main.go` wires the CLI and dispatches importer subcommands.
 - `cmd/` hosts CLI entrypoints per provider (e.g. `cmd/goodreads`, `cmd/steam`).
 - `internal/` contains shared services: `cache` for local stores, `datastore` for SQLite/JSON writers, `config` for settings.
@@ -138,22 +149,26 @@ For more details, see README.md and QUICKSTART.md.
 - Generated build and coverage artifacts live in `build/` and `coverage/`; sample exports under `exports/` and `json/` support local runs but keep large fixtures out of commits.
 
 ## Build, Test, and Development Commands
+
 - `task build` runs lint, tests, and produces `build/hermes` with the current Git SHA embedded.
 - `task test` executes `go test -race -coverprofile=coverage/coverage.out ./...` and emits `coverage/coverage.html` for review.
 - `task lint` wraps `golangci-lint run ./...`; resolve findings before opening a PR.
 - `go run ./cmd/root.go --help` is a quick sanity check for new flags; swap in a provider folder (e.g. `./cmd/goodreads`) to exercise importer flows.
 
 ## Coding Style & Naming Conventions
+
 - Format Go sources with `gofmt` or goimports integrations; Go defaults to tab-indentation, so avoid manual overrides.
 - Keep package names lowercase and singular; exported identifiers use UpperCamelCase, unexported ones use lowerCamelCase.
 - Prefer context-aware logging through the `humanlog` helpers and centralize config lookups in `internal/config` to keep importer packages lean.
 
 ## Testing Guidelines
+
 - Co-locate `_test.go` files with the code under test; favour table-driven cases and `testify` assertions for clarity.
 - Run `task test` (or `go test ./...` when iterating) before pushing; inspect `coverage/coverage.html` for critical paths such as `internal/datastore` or importer pipelines.
 - Store lightweight fixtures under package-level `testdata/` directories and avoid reusing the large exports shipped at the repo root.
 
 ## Commit & Pull Request Guidelines
+
 - Follow the existing Title-Case, imperative commit style (`Refactor caching`, `Add Steam importer config`) and keep each commit focused.
 - PRs should explain the motivation, list manual verification steps, and link issues; attach screenshots or sample output when behaviour is user-visible.
 - Before requesting review, ensure lint/tests pass, docs in `docs/` reflect the change, and configuration updates reference `config.yml` or `.env` expectations.

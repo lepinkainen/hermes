@@ -28,6 +28,8 @@ type TMDBEnrichmentOptions struct {
 	NoteDir string
 	// Interactive enables TUI for multiple matches
 	Interactive bool
+	// Force forces re-enrichment even when TMDB ID exists
+	Force bool
 }
 
 // TMDBEnrichment holds TMDB enrichment data.
@@ -52,7 +54,8 @@ type TMDBEnrichment struct {
 
 // EnrichFromTMDB enriches a movie/TV show with TMDB data.
 // It searches TMDB, optionally shows TUI for selection, downloads cover, and generates content.
-func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, opts TMDBEnrichmentOptions) (*TMDBEnrichment, error) {
+// If existingTMDBID is provided and Force is false, it skips search and uses the ID directly.
+func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, existingTMDBID int, opts TMDBEnrichmentOptions) (*TMDBEnrichment, error) {
 	if config.TMDBAPIKey == "" {
 		slog.Debug("TMDB API key not configured, skipping TMDB enrichment")
 		return nil, nil
@@ -60,51 +63,72 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 
 	client := tmdb.NewClient(config.TMDBAPIKey)
 
-	// First try to find TMDB ID using IMDB ID if available
 	var tmdbID int
 	var mediaType string
-	if imdbID != "" {
-		tmdbID, mediaType = findTMDBIDByIMDBID(ctx, client, imdbID)
-	}
 
-	// If not found by IMDB ID, search by title
-	if tmdbID == 0 {
-		query := title
-		if year > 0 {
-			query = fmt.Sprintf("%s %d", title, year)
-		}
-
-		results, err := client.SearchMulti(ctx, query, 5)
+	// Use existing TMDB ID if available and not forcing re-enrichment
+	if existingTMDBID != 0 && !opts.Force {
+		slog.Debug("Using stored TMDB ID", "tmdb_id", existingTMDBID, "title", title)
+		tmdbID = existingTMDBID
+		// We don't know the media type yet, will be determined when fetching metadata
+		// For now, try movie first, then TV
+		metadata, err := client.GetMetadataByID(ctx, tmdbID, "movie")
 		if err != nil {
-			return nil, fmt.Errorf("TMDB search failed: %w", err)
-		}
-
-		if len(results) == 0 {
-			slog.Debug("No TMDB results found", "title", title)
-			return nil, nil
-		}
-
-		// If multiple results and interactive mode, show TUI
-		var selectedResult tmdb.SearchResult
-		if len(results) == 1 {
-			selectedResult = results[0]
-		} else if opts.Interactive {
-			selection, err := tui.Select(title, results)
+			// Try TV if movie fails
+			metadata, err = client.GetMetadataByID(ctx, tmdbID, "tv")
 			if err != nil {
-				return nil, fmt.Errorf("TUI selection failed: %w", err)
+				return nil, fmt.Errorf("failed to fetch TMDB metadata for ID %d: %w", tmdbID, err)
 			}
-			if selection.Action != tui.ActionSelected {
-				slog.Debug("User skipped TMDB selection")
+			mediaType = "tv"
+		} else {
+			mediaType = "movie"
+		}
+		_ = metadata // Will be fetched again below
+	} else {
+		// First try to find TMDB ID using IMDB ID if available
+		if imdbID != "" {
+			tmdbID, mediaType = findTMDBIDByIMDBID(ctx, client, imdbID)
+		}
+
+		// If not found by IMDB ID, search by title
+		if tmdbID == 0 {
+			query := title
+			if year > 0 {
+				query = fmt.Sprintf("%s %d", title, year)
+			}
+
+			results, err := client.SearchMulti(ctx, query, 5)
+			if err != nil {
+				return nil, fmt.Errorf("TMDB search failed: %w", err)
+			}
+
+			if len(results) == 0 {
+				slog.Debug("No TMDB results found", "title", title)
 				return nil, nil
 			}
-			selectedResult = *selection.Selection
-		} else {
-			// Non-interactive: use first result
-			selectedResult = results[0]
-		}
 
-		tmdbID = selectedResult.ID
-		mediaType = selectedResult.MediaType
+			// If multiple results and interactive mode, show TUI
+			var selectedResult tmdb.SearchResult
+			if len(results) == 1 {
+				selectedResult = results[0]
+			} else if opts.Interactive {
+				selection, err := tui.Select(title, results)
+				if err != nil {
+					return nil, fmt.Errorf("TUI selection failed: %w", err)
+				}
+				if selection.Action != tui.ActionSelected {
+					slog.Debug("User skipped TMDB selection")
+					return nil, nil
+				}
+				selectedResult = *selection.Selection
+			} else {
+				// Non-interactive: use first result
+				selectedResult = results[0]
+			}
+
+			tmdbID = selectedResult.ID
+			mediaType = selectedResult.MediaType
+		}
 	}
 
 	enrichment := &TMDBEnrichment{
@@ -165,7 +189,19 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 		if err != nil {
 			slog.Warn("Failed to fetch TMDB details for content generation", "error", err)
 		} else {
-			enrichment.ContentMarkdown = content.BuildTMDBContent(details, mediaType, opts.ContentSections)
+			tmdbContent := content.BuildTMDBContent(details, mediaType, opts.ContentSections)
+
+			// Prepend cover image embed if cover was downloaded
+			if enrichment.CoverFilename != "" {
+				coverEmbed := content.BuildCoverImageEmbed(enrichment.CoverFilename)
+				if coverEmbed != "" {
+					enrichment.ContentMarkdown = coverEmbed + "\n\n" + tmdbContent
+				} else {
+					enrichment.ContentMarkdown = tmdbContent
+				}
+			} else {
+				enrichment.ContentMarkdown = tmdbContent
+			}
 		}
 	}
 

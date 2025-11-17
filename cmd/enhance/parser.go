@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/content"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"gopkg.in/yaml.v3"
 )
@@ -26,12 +27,12 @@ type Note struct {
 
 // parseNoteFile parses a markdown file and extracts frontmatter and content.
 func parseNoteFile(filePath string) (*Note, error) {
-	content, err := readFile(filePath)
+	fileContent, err := readFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	note, err := parseNote(content)
+	note, err := parseNote(fileContent)
 	if err != nil {
 		return nil, err
 	}
@@ -45,9 +46,9 @@ func parseNoteFile(filePath string) (*Note, error) {
 }
 
 // parseNote parses markdown content with YAML frontmatter.
-func parseNote(content string) (*Note, error) {
+func parseNote(fileContent string) (*Note, error) {
 	// Split frontmatter and body
-	parts := strings.SplitN(content, "---", 3)
+	parts := strings.SplitN(fileContent, "---", 3)
 	if len(parts) < 3 {
 		return nil, fmt.Errorf("invalid markdown format: missing frontmatter delimiters")
 	}
@@ -92,9 +93,60 @@ func parseNote(content string) (*Note, error) {
 	return note, nil
 }
 
-// HasTMDBData checks if the note already has TMDB data.
+// HasTMDBData checks if the note already has TMDB data in both frontmatter and body.
+// Returns true only if both TMDB ID exists in frontmatter AND content markers exist in body.
 func (n *Note) HasTMDBData() bool {
-	return n.TMDBID != 0
+	return n.TMDBID != 0 && content.HasTMDBContentMarkers(n.OriginalBody)
+}
+
+// NeedsCover checks if the note needs a cover image.
+// Returns true if the cover field is missing or empty.
+func (n *Note) NeedsCover() bool {
+	cover, ok := n.RawFrontmatter["cover"]
+	if !ok {
+		return true
+	}
+
+	coverStr, ok := cover.(string)
+	return !ok || coverStr == ""
+}
+
+// NeedsMetadata checks if the note needs TMDB metadata fields.
+// Returns true if TMDB ID or runtime/genres are missing.
+func (n *Note) NeedsMetadata() bool {
+	// If no TMDB ID, definitely needs metadata
+	if n.TMDBID == 0 {
+		return true
+	}
+
+	// Check if runtime is missing (for movies/TV shows)
+	if n.Type == "movie" || n.Type == "tv" {
+		if _, ok := n.RawFrontmatter["runtime"]; !ok {
+			return true
+		}
+	}
+
+	// Check if genres/tags are missing
+	tags, ok := n.RawFrontmatter["tags"]
+	if !ok {
+		return true
+	}
+
+	// Check if tags array is empty
+	switch v := tags.(type) {
+	case []interface{}:
+		return len(v) == 0
+	case []string:
+		return len(v) == 0
+	default:
+		return true
+	}
+}
+
+// NeedsContent checks if the note needs TMDB content sections.
+// Returns true if TMDB content markers are missing from the body.
+func (n *Note) NeedsContent() bool {
+	return !content.HasTMDBContentMarkers(n.OriginalBody)
 }
 
 // AddTMDBData adds TMDB enrichment data to the note's frontmatter.
@@ -107,7 +159,7 @@ func (n *Note) AddTMDBData(tmdbData *enrichment.TMDBEnrichment) {
 	n.RawFrontmatter["tmdb_type"] = tmdbData.TMDBType
 
 	if tmdbData.RuntimeMins > 0 {
-		n.RawFrontmatter["runtime_mins"] = tmdbData.RuntimeMins
+		n.RawFrontmatter["runtime"] = tmdbData.RuntimeMins
 	}
 
 	if tmdbData.TotalEpisodes > 0 {
@@ -115,36 +167,36 @@ func (n *Note) AddTMDBData(tmdbData *enrichment.TMDBEnrichment) {
 	}
 
 	if len(tmdbData.GenreTags) > 0 {
-		// Merge with existing genres if present
-		existingGenres := []string{}
-		if genres, ok := n.RawFrontmatter["genres"].([]interface{}); ok {
-			for _, g := range genres {
-				if genreStr, ok := g.(string); ok {
-					existingGenres = append(existingGenres, genreStr)
+		// Merge with existing tags if present
+		existingTags := []string{}
+		if tags, ok := n.RawFrontmatter["tags"].([]interface{}); ok {
+			for _, g := range tags {
+				if tagStr, ok := g.(string); ok {
+					existingTags = append(existingTags, tagStr)
 				}
 			}
-		} else if genres, ok := n.RawFrontmatter["genres"].([]string); ok {
-			existingGenres = genres
+		} else if tags, ok := n.RawFrontmatter["tags"].([]string); ok {
+			existingTags = tags
 		}
 
 		// Combine and deduplicate
-		genreSet := make(map[string]bool)
-		for _, g := range existingGenres {
-			genreSet[g] = true
+		tagSet := make(map[string]bool)
+		for _, g := range existingTags {
+			tagSet[g] = true
 		}
 		for _, g := range tmdbData.GenreTags {
-			genreSet[g] = true
+			tagSet[g] = true
 		}
 
-		genres := []string{}
-		for g := range genreSet {
-			genres = append(genres, g)
+		tags := []string{}
+		for g := range tagSet {
+			tags = append(tags, g)
 		}
-		n.RawFrontmatter["genres"] = genres
+		n.RawFrontmatter["tags"] = tags
 	}
 
 	if tmdbData.CoverPath != "" {
-		n.RawFrontmatter["tmdb_cover"] = tmdbData.CoverPath
+		n.RawFrontmatter["cover"] = tmdbData.CoverPath
 	}
 }
 
@@ -162,32 +214,37 @@ func (n *Note) BuildMarkdown(originalContent string, tmdbData *enrichment.TMDBEn
 	sb.Write(frontmatterBytes)
 	sb.WriteString("---\n\n")
 
-	// Write original body
-	sb.WriteString(n.OriginalBody)
-
-	// Append TMDB content if available and requested
+	// Handle TMDB content with marker-based replacement
+	body := n.OriginalBody
 	if tmdbData != nil && tmdbData.ContentMarkdown != "" {
-		// Check if TMDB content already exists
-		hasTMDBContent := strings.Contains(n.OriginalBody, "## TMDB") ||
-			strings.Contains(n.OriginalBody, ">[!tmdb")
-
-		if overwrite || !hasTMDBContent {
-			sb.WriteString("\n\n")
-			sb.WriteString(tmdbData.ContentMarkdown)
+		if content.HasTMDBContentMarkers(body) {
+			// Replace existing TMDB content between markers
+			if overwrite {
+				body = content.ReplaceTMDBContent(body, tmdbData.ContentMarkdown)
+			}
+		} else {
+			// No markers exist - append wrapped content
+			wrappedContent := content.WrapWithMarkers(tmdbData.ContentMarkdown)
+			body = strings.TrimRight(body, "\n")
+			if body != "" {
+				body += "\n\n"
+			}
+			body += wrappedContent
 		}
 	}
 
+	sb.WriteString(body)
 	return sb.String()
 }
 
 // readFile is a helper to read file content.
 // This is separate for easier testing/mocking if needed.
 func readFile(path string) (string, error) {
-	content, err := os.ReadFile(path)
+	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
-	return string(content), nil
+	return string(fileContent), nil
 }
 
 // extractTitleFromPath extracts a title from the file path.

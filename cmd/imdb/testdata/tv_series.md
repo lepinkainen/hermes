@@ -6,9 +6,9 @@ year: 2021
 imdb_rating: 9.2
 my_rating: 8
 date_rated: "2022-12-10"
-runtime_mins: 55
+runtime: 55
 duration: 0h 55m
-genres:
+tags:
   - "Fantasy"
   - "Adventure"
   - "Drama"

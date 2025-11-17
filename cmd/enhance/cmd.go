@@ -31,6 +31,8 @@ type Options struct {
 	DryRun bool
 	// Overwrite determines whether to overwrite existing TMDB content
 	Overwrite bool
+	// Force forces re-enrichment even when TMDB ID exists
+	Force bool
 }
 
 // EnhanceNotes processes markdown files and enriches them with TMDB data.
@@ -56,6 +58,12 @@ func EnhanceNotes(opts Options) error {
 
 	slog.Info("Found markdown files to process", "count", len(files))
 
+	// Prepare root-level attachments directory
+	attachmentsDir := filepath.Join(opts.InputDir, "attachments")
+	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create attachments directory: %w", err)
+	}
+
 	successCount := 0
 	skipCount := 0
 	errorCount := 0
@@ -70,13 +78,6 @@ func EnhanceNotes(opts Options) error {
 			continue
 		}
 
-		// Skip if already has TMDB data and not overwriting
-		if !opts.Overwrite && note.HasTMDBData() {
-			slog.Info("Skipping file (already has TMDB data)", "path", file, "tmdb_id", note.TMDBID)
-			skipCount++
-			continue
-		}
-
 		// Skip if not a movie or TV show
 		if note.Type != "movie" && note.Type != "tv" {
 			slog.Info("Skipping file (not a movie or TV show)", "path", file, "type", note.Type, "title", note.Title)
@@ -84,27 +85,47 @@ func EnhanceNotes(opts Options) error {
 			continue
 		}
 
+		// Smart needs detection: determine what needs to be updated
+		needsCover := note.NeedsCover()
+		needsContent := note.NeedsContent()
+		needsMetadata := note.NeedsMetadata()
+
+		// Skip if already has everything and not forcing
+		if !opts.Force && !needsCover && !needsContent && !needsMetadata {
+			slog.Info("Skipping file (already has all TMDB data)", "path", file, "tmdb_id", note.TMDBID)
+			skipCount++
+			continue
+		}
+
+		// Skip if already has TMDB data and not overwriting (for backward compatibility)
+		if !opts.Overwrite && note.HasTMDBData() && !opts.Force {
+			slog.Info("Skipping file (already has TMDB data)", "path", file, "tmdb_id", note.TMDBID)
+			skipCount++
+			continue
+		}
+
 		if opts.DryRun {
-			slog.Info("Would enhance", "title", note.Title, "year", note.Year, "file", file)
+			slog.Info("Would enhance", "title", note.Title, "year", note.Year, "file", file,
+				"needs_cover", needsCover, "needs_content", needsContent, "needs_metadata", needsMetadata)
 			successCount++
 			continue
 		}
 
-		// Prepare enrichment options
+		// Prepare enrichment options based on what's needed
 		noteDir := filepath.Dir(file)
-		attachmentsDir := filepath.Join(noteDir, "_attachments")
 
 		enrichOpts := enrichment.TMDBEnrichmentOptions{
-			DownloadCover:   opts.TMDBDownloadCover,
-			GenerateContent: opts.TMDBGenerateContent,
+			DownloadCover:   opts.TMDBDownloadCover && needsCover,
+			GenerateContent: opts.TMDBGenerateContent && needsContent,
 			ContentSections: opts.TMDBContentSections,
 			AttachmentsDir:  attachmentsDir,
 			NoteDir:         noteDir,
 			Interactive:     opts.TMDBInteractive,
+			Force:           opts.Force,
 		}
 
-		// Enrich with TMDB data
-		tmdbData, err := enrichment.EnrichFromTMDB(ctx, note.Title, note.Year, note.IMDBID, enrichOpts)
+		// Enrich with TMDB data (pass existing TMDB ID if present)
+		tmdbData, err := enrichment.EnrichFromTMDB(ctx, note.Title, note.Year, note.IMDBID, note.TMDBID, enrichOpts)
 		if err != nil {
 			slog.Warn("Failed to enrich from TMDB", "title", note.Title, "error", err)
 			errorCount++

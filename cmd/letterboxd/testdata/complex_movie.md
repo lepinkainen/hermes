@@ -4,11 +4,11 @@ type: movie
 year: 2023
 date_watched: "2023-08-15"
 letterboxd_rating: 5.0
-runtime_mins: 187
+runtime: 187
 duration: 3h 7m
 directors:
   - "Visionary Auteur"
-genres:
+tags:
   - "Drama"
   - "Psychological Thriller"
   - "Art House"

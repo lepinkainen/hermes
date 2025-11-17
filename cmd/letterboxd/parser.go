@@ -325,7 +325,7 @@ func enrichFromTMDB(movie *Movie) (*enrichment.TMDBEnrichment, error) {
 
 	// Use context.Background() for enrichment
 	ctx := context.Background()
-	return enrichment.EnrichFromTMDB(ctx, movie.Name, movie.Year, movie.ImdbID, opts)
+	return enrichment.EnrichFromTMDB(ctx, movie.Name, movie.Year, movie.ImdbID, 0, opts)
 }
 
 // writeMoviesToMarkdown writes each movie to a markdown file
