@@ -120,7 +120,7 @@ type SearchResult struct {
 	VoteCount    int     `json:"vote_count"`
 	Popularity   float64 `json:"popularity"`
 	Runtime      int     `json:"runtime"`
-	OriginalLang  string  `json:"original_language"`
+	OriginalLang string  `json:"original_language"`
 }
 
 // DisplayTitle returns the appropriate title for the search result.
@@ -188,15 +188,15 @@ func (c *Client) SearchMovies(ctx context.Context, query string, year int, limit
 
 	var response struct {
 		Results []struct {
-			ID              int     `json:"id"`
-			Title           string  `json:"title"`
-			PosterPath      string  `json:"poster_path"`
-			Overview        string  `json:"overview"`
-			ReleaseDate     string  `json:"release_date"`
-			VoteAverage     float64 `json:"vote_average"`
-			VoteCount       int     `json:"vote_count"`
-			Popularity      float64 `json:"popularity"`
-			Runtime         int     `json:"runtime"`
+			ID               int     `json:"id"`
+			Title            string  `json:"title"`
+			PosterPath       string  `json:"poster_path"`
+			Overview         string  `json:"overview"`
+			ReleaseDate      string  `json:"release_date"`
+			VoteAverage      float64 `json:"vote_average"`
+			VoteCount        int     `json:"vote_count"`
+			Popularity       float64 `json:"popularity"`
+			Runtime          int     `json:"runtime"`
 			OriginalLanguage string  `json:"original_language"`
 		} `json:"results"`
 	}
@@ -217,17 +217,17 @@ func (c *Client) SearchMovies(ctx context.Context, query string, year int, limit
 		}
 
 		results = append(results, SearchResult{
-			ID:              item.ID,
-			MediaType:       "movie",
-			Title:           item.Title,
-			PosterPath:      item.PosterPath,
-			Overview:        item.Overview,
-			ReleaseDate:     item.ReleaseDate,
-			VoteAverage:     item.VoteAverage,
-			VoteCount:       item.VoteCount,
-			Popularity:      item.Popularity,
-			Runtime:         item.Runtime,
-			OriginalLang:     item.OriginalLanguage,
+			ID:           item.ID,
+			MediaType:    "movie",
+			Title:        item.Title,
+			PosterPath:   item.PosterPath,
+			Overview:     item.Overview,
+			ReleaseDate:  item.ReleaseDate,
+			VoteAverage:  item.VoteAverage,
+			VoteCount:    item.VoteCount,
+			Popularity:   item.Popularity,
+			Runtime:      item.Runtime,
+			OriginalLang: item.OriginalLanguage,
 		})
 	}
 
@@ -254,18 +254,18 @@ func (c *Client) SearchMulti(ctx context.Context, query string, year int, limit 
 
 	var response struct {
 		Results []struct {
-			ID              int     `json:"id"`
-			MediaType       string  `json:"media_type"`
-			Title           string  `json:"title"`
-			Name            string  `json:"name"`
-			PosterPath      string  `json:"poster_path"`
-			Overview        string  `json:"overview"`
-			ReleaseDate     string  `json:"release_date"`
-			FirstAirDate    string  `json:"first_air_date"`
-			VoteAverage     float64 `json:"vote_average"`
-			VoteCount       int     `json:"vote_count"`
-			Popularity      float64 `json:"popularity"`
-			Runtime         int     `json:"runtime"`
+			ID               int     `json:"id"`
+			MediaType        string  `json:"media_type"`
+			Title            string  `json:"title"`
+			Name             string  `json:"name"`
+			PosterPath       string  `json:"poster_path"`
+			Overview         string  `json:"overview"`
+			ReleaseDate      string  `json:"release_date"`
+			FirstAirDate     string  `json:"first_air_date"`
+			VoteAverage      float64 `json:"vote_average"`
+			VoteCount        int     `json:"vote_count"`
+			Popularity       float64 `json:"popularity"`
+			Runtime          int     `json:"runtime"`
 			OriginalLanguage string  `json:"original_language"`
 		} `json:"results"`
 	}
@@ -289,19 +289,19 @@ func (c *Client) SearchMulti(ctx context.Context, query string, year int, limit 
 		}
 
 		results = append(results, SearchResult{
-			ID:              item.ID,
-			MediaType:       item.MediaType,
-			Title:           item.Title,
-			Name:            item.Name,
-			PosterPath:      item.PosterPath,
-			Overview:        item.Overview,
-			ReleaseDate:     item.ReleaseDate,
-			FirstAirDate:    item.FirstAirDate,
-			VoteAverage:     item.VoteAverage,
-			VoteCount:       item.VoteCount,
-			Popularity:      item.Popularity,
-			Runtime:         item.Runtime,
-			OriginalLang:     item.OriginalLanguage,
+			ID:           item.ID,
+			MediaType:    item.MediaType,
+			Title:        item.Title,
+			Name:         item.Name,
+			PosterPath:   item.PosterPath,
+			Overview:     item.Overview,
+			ReleaseDate:  item.ReleaseDate,
+			FirstAirDate: item.FirstAirDate,
+			VoteAverage:  item.VoteAverage,
+			VoteCount:    item.VoteCount,
+			Popularity:   item.Popularity,
+			Runtime:      item.Runtime,
+			OriginalLang: item.OriginalLanguage,
 		})
 	}
 

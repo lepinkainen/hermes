@@ -265,12 +265,12 @@ func Select(title string, results []tmdb.SearchResult) (SelectionResult, error) 
 			filteredResults = append(filteredResults, result)
 		}
 	}
-	
+
 	// If no items meet the vote threshold, return empty
 	if len(filteredResults) == 0 {
 		return SelectionResult{Action: ActionSkipped}, nil
 	}
-	
+
 	items := make([]tmdbItem, len(filteredResults))
 	for i, result := range filteredResults {
 		items[i] = tmdbItem{SearchResult: result}
@@ -304,39 +304,39 @@ func truncate(value string, width int) string {
 // formatMetadata creates the metadata line with runtime, language, vote count, and popularity
 func formatMetadata(result tmdb.SearchResult, availableWidth int) string {
 	var parts []string
-	
+
 	// Runtime (if available)
 	if result.Runtime > 0 {
 		parts = append(parts, fmt.Sprintf("%dm", result.Runtime))
 	}
-	
+
 	// Language (if available)
 	if result.OriginalLang != "" {
 		lang := strings.ToUpper(result.OriginalLang)
 		parts = append(parts, lang)
 	}
-	
+
 	// Vote count (if available)
 	if result.VoteCount > 0 {
 		votes := formatVoteCount(result.VoteCount)
 		parts = append(parts, votes)
 	}
-	
+
 	// Popularity (if available)
 	if result.Popularity > 0 {
 		pop := fmt.Sprintf("📊%.1f", result.Popularity)
 		parts = append(parts, pop)
 	}
-	
+
 	if len(parts) == 0 {
 		return "No metadata available"
 	}
-	
+
 	metadata := strings.Join(parts, " | ")
 	if availableWidth > 0 && len(metadata) > availableWidth {
 		metadata = truncate(metadata, availableWidth)
 	}
-	
+
 	return metadata
 }
 

@@ -101,3 +101,58 @@ func DownloadCover(opts CoverDownloadOptions) (*CoverDownloadResult, error) {
 func BuildCoverFilename(title string) string {
 	return SanitizeFilename(title) + " - cover.jpg"
 }
+
+// AddCoverOptions holds options for adding a cover to a markdown document.
+type AddCoverOptions struct {
+	// TMDBCoverPath is the relative path from TMDB enrichment (preferred)
+	TMDBCoverPath string
+	// TMDBCoverFilename is the filename from TMDB enrichment
+	TMDBCoverFilename string
+	// FallbackURL is the URL to download from if no TMDB cover
+	FallbackURL string
+	// Title is used to generate the cover filename
+	Title string
+	// Directory is the output directory for cover downloads
+	Directory string
+	// Width is the display width for Obsidian images
+	Width int
+	// UpdateCovers forces re-downloading even if cover exists
+	UpdateCovers bool
+}
+
+// AddCoverToMarkdown adds a cover image to a markdown document.
+// It prefers TMDB cover (higher resolution) and falls back to downloading from FallbackURL.
+func AddCoverToMarkdown(mb *MarkdownBuilder, opts AddCoverOptions) {
+	// First check if TMDB cover is available (downloaded during enrichment)
+	if opts.TMDBCoverPath != "" {
+		mb.AddField("cover", opts.TMDBCoverPath)
+		mb.AddObsidianImage(opts.TMDBCoverFilename, opts.Width)
+		return
+	}
+
+	// Fall back to downloading from URL
+	if opts.FallbackURL == "" {
+		return
+	}
+
+	coverFilename := BuildCoverFilename(opts.Title)
+	result, err := DownloadCover(CoverDownloadOptions{
+		URL:          opts.FallbackURL,
+		OutputDir:    opts.Directory,
+		Filename:     coverFilename,
+		UpdateCovers: opts.UpdateCovers,
+	})
+	if err != nil {
+		slog.Warn("Failed to download cover", "title", opts.Title, "error", err)
+		// Fall back to URL if download fails
+		mb.AddField("cover", opts.FallbackURL)
+		mb.AddImage(opts.FallbackURL)
+		return
+	}
+
+	if result != nil {
+		// Use local path in frontmatter
+		mb.AddField("cover", result.RelativePath)
+		mb.AddObsidianImage(result.Filename, opts.Width)
+	}
+}

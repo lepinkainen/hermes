@@ -3,7 +3,6 @@ package imdb
 import (
 	"fmt"
 	"log/slog"
-	"sort"
 	"strings"
 	"time"
 
@@ -61,49 +60,37 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 		mb.AddStringArray("directors", movie.Directors)
 	}
 
-	// Collect all tags using a map for deduplication
-	tagMap := make(map[string]bool)
+	// Collect all tags using TagCollector for deduplication
+	tc := fileutil.NewTagCollector()
 
 	// Add type tag
 	typeTag := mapTypeToTag(movie.TitleType)
-	if typeTag != "UNKNOWN" {
-		tagMap[typeTag] = true
-	}
+	tc.AddIf(typeTag != "UNKNOWN", typeTag)
 
 	// Add rating tag if available
 	if movie.MyRating > 0 {
-		ratingTag := fmt.Sprintf("rating/%d", movie.MyRating)
-		tagMap[ratingTag] = true
+		tc.AddFormat("rating/%d", movie.MyRating)
 	}
 
 	// Add decade tag
 	if movie.Year > 0 {
 		decade := (movie.Year / 10) * 10
-		decadeTag := fmt.Sprintf("year/%ds", decade)
-		tagMap[decadeTag] = true
+		tc.AddFormat("year/%ds", decade)
 	}
 
 	// Add genres as tags with genre/ prefix
 	for _, genre := range movie.Genres {
-		genreTag := fmt.Sprintf("genre/%s", genre)
-		tagMap[genreTag] = true
+		tc.AddFormat("genre/%s", genre)
 	}
 
 	// Add TMDB genre tags if available
-	if movie.TMDBEnrichment != nil && len(movie.TMDBEnrichment.GenreTags) > 0 {
+	if movie.TMDBEnrichment != nil {
 		for _, tmdbTag := range movie.TMDBEnrichment.GenreTags {
-			tagMap[tmdbTag] = true
+			tc.Add(tmdbTag)
 		}
 	}
 
-	// Convert map to slice and sort alphabetically
-	tags := make([]string, 0, len(tagMap))
-	for tag := range tagMap {
-		tags = append(tags, tag)
-	}
-	sort.Strings(tags)
-
-	mb.AddTags(tags...)
+	mb.AddTags(tc.GetSorted()...)
 
 	// Add content rating if available
 	if movie.ContentRated != "" {
@@ -116,35 +103,18 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	}
 
 	// Add poster image - prefer TMDB cover (higher resolution), fall back to OMDB poster
-	coverAdded := false
-
-	// First check if TMDB cover is available (downloaded during enrichment)
-	if movie.TMDBEnrichment != nil && movie.TMDBEnrichment.CoverPath != "" {
-		mb.AddField("cover", movie.TMDBEnrichment.CoverPath)
-		mb.AddObsidianImage(movie.TMDBEnrichment.CoverFilename, defaultCoverWidth)
-		coverAdded = true
+	coverOpts := fileutil.AddCoverOptions{
+		FallbackURL:  movie.PosterURL,
+		Title:        movie.Title,
+		Directory:    directory,
+		Width:        defaultCoverWidth,
+		UpdateCovers: config.UpdateCovers,
 	}
-
-	// Fall back to OMDB poster if no TMDB cover
-	if !coverAdded && movie.PosterURL != "" {
-		coverFilename := fileutil.BuildCoverFilename(movie.Title)
-		result, err := fileutil.DownloadCover(fileutil.CoverDownloadOptions{
-			URL:          movie.PosterURL,
-			OutputDir:    directory,
-			Filename:     coverFilename,
-			UpdateCovers: config.UpdateCovers,
-		})
-		if err != nil {
-			slog.Warn("Failed to download cover", "title", movie.Title, "error", err)
-			// Fall back to URL if download fails
-			mb.AddField("cover", movie.PosterURL)
-			mb.AddImage(movie.PosterURL)
-		} else if result != nil {
-			// Use local path in frontmatter
-			mb.AddField("cover", result.RelativePath)
-			mb.AddObsidianImage(result.Filename, defaultCoverWidth)
-		}
+	if movie.TMDBEnrichment != nil {
+		coverOpts.TMDBCoverPath = movie.TMDBEnrichment.CoverPath
+		coverOpts.TMDBCoverFilename = movie.TMDBEnrichment.CoverFilename
 	}
+	fileutil.AddCoverToMarkdown(mb, coverOpts)
 
 	// Add plot summary in a callout if available
 	if movie.Plot != "" {
@@ -164,38 +134,20 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 
 	// Add TMDB data if available
 	if movie.TMDBEnrichment != nil {
-		// Add TMDB metadata to frontmatter
-		if movie.TMDBEnrichment.TMDBID > 0 {
-			mb.AddField("tmdb_id", movie.TMDBEnrichment.TMDBID)
-			mb.AddField("tmdb_type", movie.TMDBEnrichment.TMDBType)
-		}
-
-		// Add total episodes for TV shows
-		if movie.TMDBEnrichment.TotalEpisodes > 0 {
-			mb.AddField("total_episodes", movie.TMDBEnrichment.TotalEpisodes)
-		}
-
-		// Add TMDB content sections (includes cover embed if downloaded)
-		// Wrap with markers for future updates
+		wrappedContent := ""
 		if movie.TMDBEnrichment.ContentMarkdown != "" {
-			wrappedContent := content.WrapWithMarkers(movie.TMDBEnrichment.ContentMarkdown)
-			mb.AddParagraph(wrappedContent)
+			wrappedContent = content.WrapWithMarkers(movie.TMDBEnrichment.ContentMarkdown)
 		}
+		mb.AddTMDBEnrichmentFields(
+			movie.TMDBEnrichment.TMDBID,
+			movie.TMDBEnrichment.TMDBType,
+			movie.TMDBEnrichment.TotalEpisodes,
+			wrappedContent,
+		)
 	}
 
-	// Write content to file with overwrite logic
-	written, err := fileutil.WriteFileWithOverwrite(filePath, []byte(mb.Build()), 0644, config.OverwriteFiles)
-	if err != nil {
-		return err
-	}
-
-	if !written {
-		slog.Debug("Skipped existing file", "path", filePath)
-	} else {
-		slog.Info("Wrote file", "path", filePath)
-	}
-
-	return nil
+	// Write content to file with logging
+	return fileutil.WriteMarkdownFile(filePath, mb.Build(), config.OverwriteFiles)
 }
 
 func mapTypeToType(titleType string) string {

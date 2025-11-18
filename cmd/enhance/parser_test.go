@@ -877,7 +877,7 @@ func TestHasAnyRating(t *testing.T) {
 			name: "has letterboxd_rating",
 			note: &Note{
 				RawFrontmatter: map[string]interface{}{
-					"title":           "Test Movie",
+					"title":             "Test Movie",
 					"letterboxd_rating": 4.5,
 				},
 			},
@@ -887,9 +887,9 @@ func TestHasAnyRating(t *testing.T) {
 			name: "has zero ratings",
 			note: &Note{
 				RawFrontmatter: map[string]interface{}{
-					"title":           "Test Movie",
-					"imdb_rating":     0.0,
-					"my_rating":       0,
+					"title":             "Test Movie",
+					"imdb_rating":       0.0,
+					"my_rating":         0,
 					"letterboxd_rating": 0.0,
 				},
 			},
@@ -909,8 +909,8 @@ func TestHasAnyRating(t *testing.T) {
 			name: "has mixed rating types (int and float)",
 			note: &Note{
 				RawFrontmatter: map[string]interface{}{
-					"title":     "Test Movie",
-					"my_rating": 8, // int
+					"title":       "Test Movie",
+					"my_rating":   8,   // int
 					"imdb_rating": 7.5, // float64
 				},
 			},

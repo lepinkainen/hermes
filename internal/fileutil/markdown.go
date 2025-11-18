@@ -2,9 +2,57 @@ package fileutil
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
+
+// TagCollector helps collect and deduplicate tags for markdown frontmatter
+type TagCollector struct {
+	tags map[string]bool
+}
+
+// NewTagCollector creates a new tag collector
+func NewTagCollector() *TagCollector {
+	return &TagCollector{
+		tags: make(map[string]bool),
+	}
+}
+
+// Add adds a single tag to the collector
+func (tc *TagCollector) Add(tag string) *TagCollector {
+	if tag != "" {
+		tc.tags[tag] = true
+	}
+	return tc
+}
+
+// AddIf adds a tag only if the condition is true
+func (tc *TagCollector) AddIf(condition bool, tag string) *TagCollector {
+	if condition && tag != "" {
+		tc.tags[tag] = true
+	}
+	return tc
+}
+
+// AddFormat adds a formatted tag to the collector
+func (tc *TagCollector) AddFormat(format string, args ...interface{}) *TagCollector {
+	tag := fmt.Sprintf(format, args...)
+	if tag != "" {
+		tc.tags[tag] = true
+	}
+	return tc
+}
+
+// GetSorted returns all collected tags as a sorted slice
+func (tc *TagCollector) GetSorted() []string {
+	tags := make([]string, 0, len(tc.tags))
+	for tag := range tc.tags {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+	return tags
+}
 
 // MarkdownBuilder helps construct markdown documents with frontmatter
 type MarkdownBuilder struct {
@@ -123,6 +171,28 @@ func (mb *MarkdownBuilder) AddDuration(minutes int) *MarkdownBuilder {
 	}
 
 	fmt.Fprintf(&mb.frontmatter, "duration: %s\n", FormatDuration(minutes))
+	return mb
+}
+
+// AddTMDBEnrichmentFields adds TMDB enrichment data to the frontmatter and content.
+// The contentMarkdown should already be wrapped with markers if needed.
+func (mb *MarkdownBuilder) AddTMDBEnrichmentFields(tmdbID int, tmdbType string, totalEpisodes int, contentMarkdown string) *MarkdownBuilder {
+	// Add TMDB metadata to frontmatter
+	if tmdbID > 0 {
+		mb.AddField("tmdb_id", tmdbID)
+		mb.AddField("tmdb_type", tmdbType)
+	}
+
+	// Add total episodes for TV shows
+	if totalEpisodes > 0 {
+		mb.AddField("total_episodes", totalEpisodes)
+	}
+
+	// Add content markdown
+	if contentMarkdown != "" {
+		mb.AddParagraph(contentMarkdown)
+	}
+
 	return mb
 }
 

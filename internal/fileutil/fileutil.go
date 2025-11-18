@@ -80,6 +80,23 @@ func WriteFileWithOverwrite(filePath string, data []byte, perm os.FileMode, over
 	return true, nil
 }
 
+// WriteMarkdownFile writes markdown content to a file with logging.
+// It respects the overwrite flag and logs the result.
+func WriteMarkdownFile(filePath string, content string, overwrite bool) error {
+	written, err := WriteFileWithOverwrite(filePath, []byte(content), 0644, overwrite)
+	if err != nil {
+		return err
+	}
+
+	if !written {
+		slog.Debug("Skipped existing file", "path", filePath)
+	} else {
+		slog.Info("Wrote file", "path", filePath)
+	}
+
+	return nil
+}
+
 // WriteJSONFile writes data as JSON to a file, respecting the overwrite flag
 // Returns true if the file was written, false if it was skipped
 func WriteJSONFile(data interface{}, filePath string, overwrite bool) (bool, error) {

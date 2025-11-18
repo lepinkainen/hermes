@@ -13,6 +13,9 @@ bd ready --json              # Check for unblocked work
 bd create "Title" -t bug|feature|task -p 0-4 --json  # Create issue
 bd update bd-42 --status in_progress --json          # Claim task
 bd close bd-42 --reason "Completed" --json           # Complete task
+
+# Complex create with all common flags
+bd create "Add unit tests for TagCollector" -t task -p 2 -d "Test deduplication, AddIf conditions, GetSorted" -l "testing,fileutil" --deps "discovered-from:hermes-5sq"
 ```
 
 **Issue Types:** `bug`, `feature`, `task`, `epic`, `chore`
