@@ -96,8 +96,18 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 		mb.AddField("imdb_id", movie.ImdbID)
 	}
 
-	// Add poster - download locally and use Obsidian syntax
-	if movie.PosterURL != "" {
+	// Add poster - prefer TMDB cover (higher resolution), fall back to OMDB poster
+	coverAdded := false
+
+	// First check if TMDB cover is available (downloaded during enrichment)
+	if movie.TMDBEnrichment != nil && movie.TMDBEnrichment.CoverPath != "" {
+		mb.AddField("cover", movie.TMDBEnrichment.CoverPath)
+		mb.AddObsidianImage(movie.TMDBEnrichment.CoverFilename, defaultCoverWidth)
+		coverAdded = true
+	}
+
+	// Fall back to OMDB poster if no TMDB cover
+	if !coverAdded && movie.PosterURL != "" {
 		coverFilename := fileutil.BuildCoverFilename(movie.Name)
 		result, err := fileutil.DownloadCover(fileutil.CoverDownloadOptions{
 			URL:          movie.PosterURL,

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -197,7 +198,19 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 			coverFilename := fileutil.SanitizeFilename(title) + " - cover.jpg"
 			coverPath := filepath.Join(opts.AttachmentsDir, coverFilename)
 
-			if err := client.DownloadAndResizeImage(ctx, coverURL, coverPath, 1000); err != nil {
+			// Check if cover already exists
+			if _, err := os.Stat(coverPath); err == nil {
+				slog.Debug("TMDB cover already exists, skipping download", "path", coverPath)
+				enrichment.CoverFilename = coverFilename
+
+				// Calculate relative path from note to cover
+				if opts.NoteDir != "" {
+					relPath, err := fileutil.RelativeTo(opts.NoteDir, coverPath)
+					if err == nil {
+						enrichment.CoverPath = relPath
+					}
+				}
+			} else if err := client.DownloadAndResizeImage(ctx, coverURL, coverPath, 1000); err != nil {
 				slog.Warn("Failed to download TMDB cover", "error", err)
 			} else {
 				slog.Info("Downloaded TMDB cover", "path", coverPath)

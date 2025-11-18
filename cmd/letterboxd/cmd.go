@@ -65,6 +65,7 @@ func ParseLetterboxdWithParams(
 	outputDir = cmdConfig.OutputDir
 	writeJSON = cmdConfig.WriteJSON
 	jsonOutput = cmdConfig.JSONOutput
+	overwrite = cmdConfig.Overwrite
 
 	// Call the existing parser
 	return ParseLetterboxd()
