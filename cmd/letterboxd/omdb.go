@@ -6,8 +6,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -98,53 +96,6 @@ func fetchMovieData(title string, year int) (*Movie, error) {
 	// Check if we got a valid response with actual data
 	if omdbMovie.Title == "" {
 		return nil, fmt.Errorf("invalid or empty response from OMDB API for title: %s (%d)", title, year)
-	}
-
-	// If the movie has an IMDB ID, also cache it in the OMDB cache format
-	// This will benefit future IMDB imports as well as Letterboxd imports
-	if omdbMovie.ImdbID != "" {
-		// We should save this to the OMDB cache as well
-		omdbCacheDir := "cache/omdb"
-		omdbCachePath := filepath.Join(omdbCacheDir, omdbMovie.ImdbID+".json")
-
-		// Only if it doesn't already exist
-		if _, err := os.Stat(omdbCachePath); os.IsNotExist(err) {
-			// Create a structure that's compatible with the IMDB importer
-			imdbMovie := struct {
-				Title        string   `json:"Title"`
-				ImdbId       string   `json:"ImdbId"`
-				Plot         string   `json:"Plot"`
-				PosterURL    string   `json:"Poster URL"`
-				ContentRated string   `json:"Content Rated"`
-				Awards       string   `json:"Awards"`
-				Genres       []string `json:"Genres"`
-				Directors    []string `json:"Directors"`
-				RuntimeMins  int      `json:"Runtime (mins)"`
-				IMDbRating   float64  `json:"IMDb Rating"`
-			}{
-				Title:        omdbMovie.Title,
-				ImdbId:       omdbMovie.ImdbID,
-				Plot:         omdbMovie.Plot,
-				PosterURL:    omdbMovie.Poster,
-				ContentRated: omdbMovie.Rated,
-				Awards:       omdbMovie.Awards,
-				Genres:       parseCommaList(omdbMovie.Genre),
-				Directors:    parseCommaList(omdbMovie.Director),
-				RuntimeMins:  parseRuntime(omdbMovie.Runtime),
-				IMDbRating:   parseFloat(omdbMovie.ImdbRating),
-			}
-
-			// Save to OMDB cache
-			if err := os.MkdirAll(omdbCacheDir, 0755); err != nil {
-				slog.Warn("Failed to create OMDB cache directory", "error", err)
-			}
-			imdbData, _ := json.MarshalIndent(imdbMovie, "", "  ")
-			if err := os.WriteFile(omdbCachePath, imdbData, 0644); err != nil {
-				slog.Warn("Failed to save to OMDB cache", "error", err)
-			} else {
-				slog.Info("Cached movie in OMDB cache", "title", title, "imdb_id", omdbMovie.ImdbID)
-			}
-		}
 	}
 
 	// Create a new Movie with enriched data

@@ -8,10 +8,8 @@ import (
 )
 
 func getCachedBook(isbn string) (*Book, *OpenLibraryBook, bool, error) {
-	cacheDir := "cache/goodreads"
-
-	// Use the generic cache utility
-	olBook, fromCache, err := cache.GetOrFetch(cacheDir, isbn, func() (*OpenLibraryBook, error) {
+	// Use the generic cache utility with SQLite backend
+	olBook, fromCache, err := cache.GetOrFetch("openlibrary_cache", isbn, func() (*OpenLibraryBook, error) {
 		_, olBookData, err := fetchBookData(isbn)
 		return olBookData, err
 	})

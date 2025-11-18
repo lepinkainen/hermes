@@ -9,8 +9,8 @@ tags:
   - goodreads/book
   - year/2010s
   - shelf/to-read
-cover_url: "https://covers.openlibrary.org/b/id/12345-L.jpg"
+cover: "attachments/Minimal Book - cover.jpg"
 ---
 
-![](https://covers.openlibrary.org/b/id/12345-L.jpg)
+![[Minimal Book - cover.jpg|250]]
 

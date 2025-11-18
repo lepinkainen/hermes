@@ -1,105 +1,293 @@
 package cache
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
+	"sync"
+	"time"
+
+	"github.com/spf13/viper"
+	_ "modernc.org/sqlite"
 )
 
 // FetchFunc represents a function that fetches data from an external source
 type FetchFunc[T any] func() (T, error)
 
+// CacheDB manages the SQLite database connection for caching
+type CacheDB struct {
+	db   *sql.DB
+	mu   sync.RWMutex
+	path string
+}
+
+var (
+	globalCache     *CacheDB
+	globalCacheOnce sync.Once
+)
+
+// GetGlobalCache returns the singleton cache database instance
+func GetGlobalCache() (*CacheDB, error) {
+	var initErr error
+	globalCacheOnce.Do(func() {
+		dbPath := viper.GetString("cache.dbfile")
+		if dbPath == "" {
+			dbPath = "./cache.db"
+		}
+		globalCache, initErr = NewCacheDB(dbPath)
+		if initErr != nil {
+			return
+		}
+		// Initialize all cache tables
+		for _, schema := range AllCacheSchemas {
+			if err := globalCache.CreateTable(schema); err != nil {
+				initErr = fmt.Errorf("failed to create cache table: %w", err)
+				return
+			}
+		}
+	})
+	if initErr != nil {
+		return nil, initErr
+	}
+	return globalCache, nil
+}
+
+// NewCacheDB creates a new CacheDB instance and opens the database connection
+func NewCacheDB(dbPath string) (*CacheDB, error) {
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open cache database: %w", err)
+	}
+
+	// Set connection pool settings
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
+
+	if err := db.Ping(); err != nil {
+		closeErr := db.Close()
+		return nil, errors.Join(fmt.Errorf("failed to connect to cache database: %w", err), closeErr)
+	}
+
+	return &CacheDB{
+		db:   db,
+		path: dbPath,
+	}, nil
+}
+
+// CreateTable creates a table using the provided schema
+func (c *CacheDB) CreateTable(schema string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	_, err := c.db.Exec(schema)
+	if err != nil {
+		return fmt.Errorf("failed to create table: %w", err)
+	}
+	return nil
+}
+
+// Close closes the database connection
+func (c *CacheDB) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.db != nil {
+		return c.db.Close()
+	}
+	return nil
+}
+
+// validateTableName checks if the table name is in the whitelist
+// to prevent SQL injection attacks
+func validateTableName(tableName string) error {
+	if !ValidCacheTableNames[tableName] {
+		return fmt.Errorf("invalid cache table name: %s", tableName)
+	}
+	return nil
+}
+
 // GetOrFetch retrieves data from cache or fetches it using the provided function
 // T is the type of data being cached
-// cacheDir is the directory where cache files are stored
-// cacheKey is the unique identifier for this cache entry (e.g., ISBN, IMDb ID)
-// fetchFunc is called if the data is not found in cache
-func GetOrFetch[T any](cacheDir, cacheKey string, fetchFunc FetchFunc[T]) (T, bool, error) {
+// tableName is the cache table to use (e.g., "omdb_cache", "openlibrary_cache", "steam_cache")
+// cacheKey is the unique identifier for this cache entry (e.g., ISBN, IMDb ID, App ID)
+// fetchFunc is called if the data is not found in cache or if the cache has expired
+func GetOrFetch[T any](tableName, cacheKey string, fetchFunc FetchFunc[T]) (T, bool, error) {
 	var zero T
 
-	cachePath := filepath.Join(cacheDir, cacheKey+".json")
+	cache, err := GetGlobalCache()
+	if err != nil {
+		// If cache initialization fails, fall back to direct fetch
+		slog.Warn("Failed to initialize cache, fetching directly", "error", err)
+		data, fetchErr := fetchFunc()
+		return data, false, fetchErr
+	}
+
+	// Get TTL duration from config
+	ttlStr := viper.GetString("cache.ttl")
+	if ttlStr == "" {
+		ttlStr = "720h" // Default 30 days
+	}
+	ttl, err := time.ParseDuration(ttlStr)
+	if err != nil {
+		slog.Warn("Invalid cache TTL, using default", "ttl", ttlStr, "error", err)
+		ttl = 720 * time.Hour
+	}
 
 	// Check cache first
-	if data, err := os.ReadFile(cachePath); err == nil {
-		var cached T
-		if err := json.Unmarshal(data, &cached); err == nil {
-			slog.Debug("Cache hit", "cache_path", cachePath)
-			return cached, true, nil
-		} else {
-			slog.Warn("Failed to unmarshal cached data, will refetch", "cache_path", cachePath, "error", err)
+	cached, fromCache, err := cache.Get(tableName, cacheKey, ttl)
+	if err == nil && fromCache {
+		var result T
+		if err := json.Unmarshal([]byte(cached), &result); err == nil {
+			slog.Debug("Cache hit", "table", tableName, "key", cacheKey)
+			return result, true, nil
 		}
+		slog.Warn("Failed to unmarshal cached data, will refetch", "table", tableName, "key", cacheKey, "error", err)
 	}
 
 	// Fetch from external source if not in cache
-	slog.Debug("Cache miss, fetching data", "cache_path", cachePath)
+	slog.Debug("Cache miss, fetching data", "table", tableName, "key", cacheKey)
 	data, err := fetchFunc()
 	if err != nil {
 		return zero, false, fmt.Errorf("failed to fetch data: %w", err)
 	}
 
 	// Cache the result
-	if err := cacheData(cachePath, data); err != nil {
-		// Log error but don't fail - caching failure shouldn't stop the process
-		slog.Warn("Failed to cache data", "cache_path", cachePath, "error", err)
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		slog.Warn("Failed to marshal data for caching", "table", tableName, "key", cacheKey, "error", err)
 	} else {
-		slog.Debug("Data cached successfully", "cache_path", cachePath)
+		if err := cache.Set(tableName, cacheKey, string(jsonData)); err != nil {
+			// Log error but don't fail - caching failure shouldn't stop the process
+			slog.Warn("Failed to cache data", "table", tableName, "key", cacheKey, "error", err)
+		} else {
+			slog.Debug("Data cached successfully", "table", tableName, "key", cacheKey)
+		}
 	}
 
 	return data, false, nil
 }
 
-// cacheData writes data to the cache file
-func cacheData[T any](cachePath string, data T) error {
-	// Create cache directory if it doesn't exist
-	cacheDir := filepath.Dir(cachePath)
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
-		return fmt.Errorf("failed to create cache directory: %w", err)
+// Get retrieves a cached value from the specified table
+// Returns the cached data, whether it was from cache, and any error
+func (c *CacheDB) Get(tableName, key string, ttl time.Duration) (string, bool, error) {
+	if err := validateTableName(tableName); err != nil {
+		return "", false, err
 	}
 
-	// Marshal data to JSON
-	jsonData, err := json.MarshalIndent(data, "", "  ")
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	query := fmt.Sprintf(`
+		SELECT data, cached_at
+		FROM %s
+		WHERE cache_key = ?
+	`, tableName)
+
+	var data string
+	var cachedAt time.Time
+	err := c.db.QueryRow(query, key).Scan(&data, &cachedAt)
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
 	if err != nil {
-		return fmt.Errorf("failed to marshal data: %w", err)
+		return "", false, fmt.Errorf("failed to query cache: %w", err)
 	}
 
-	// Write to cache file
-	if err := os.WriteFile(cachePath, jsonData, 0644); err != nil {
-		return fmt.Errorf("failed to write cache file: %w", err)
+	// Check if cache has expired
+	age := time.Now().UTC().Sub(cachedAt)
+	if age > ttl {
+		slog.Debug("Cache expired", "table", tableName, "key", key, "age", age)
+		return "", false, nil
+	}
+
+	return data, true, nil
+}
+
+// Set stores a value in the cache
+func (c *CacheDB) Set(tableName, key, data string) error {
+	if err := validateTableName(tableName); err != nil {
+		return err
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	query := fmt.Sprintf(`
+		INSERT OR REPLACE INTO %s (cache_key, data, cached_at)
+		VALUES (?, ?, CURRENT_TIMESTAMP)
+	`, tableName)
+
+	_, err := c.db.Exec(query, key, data)
+	if err != nil {
+		return fmt.Errorf("failed to set cache: %w", err)
 	}
 
 	return nil
 }
 
-// ClearCache removes all cache files from the specified directory
-func ClearCache(cacheDir string) error {
-	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
-		// Directory doesn't exist, nothing to clear
-		return nil
+// ClearExpired removes expired cache entries from the specified table
+func (c *CacheDB) ClearExpired(tableName string, ttl time.Duration) error {
+	if err := validateTableName(tableName); err != nil {
+		return err
 	}
 
-	entries, err := os.ReadDir(cacheDir)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	cutoff := time.Now().UTC().Add(-ttl)
+	query := fmt.Sprintf(`
+		DELETE FROM %s
+		WHERE cached_at < ?
+	`, tableName)
+
+	result, err := c.db.Exec(query, cutoff)
 	if err != nil {
-		return fmt.Errorf("failed to read cache directory: %w", err)
+		return fmt.Errorf("failed to clear expired cache: %w", err)
 	}
 
-	for _, entry := range entries {
-		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".json" {
-			cachePath := filepath.Join(cacheDir, entry.Name())
-			if err := os.Remove(cachePath); err != nil {
-				slog.Warn("Failed to remove cache file", "path", cachePath, "error", err)
-			}
-		}
+	rows, _ := result.RowsAffected()
+	if rows > 0 {
+		slog.Info("Cleared expired cache entries", "table", tableName, "count", rows)
 	}
 
-	slog.Info("Cache cleared", "directory", cacheDir)
 	return nil
 }
 
-// CacheExists checks if a cache file exists for the given key
-func CacheExists(cacheDir, cacheKey string) bool {
-	cachePath := filepath.Join(cacheDir, cacheKey+".json")
-	_, err := os.Stat(cachePath)
+// ClearAll removes all cache entries from the specified table
+func (c *CacheDB) ClearAll(tableName string) error {
+	if err := validateTableName(tableName); err != nil {
+		return err
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	query := fmt.Sprintf("DELETE FROM %s", tableName)
+	_, err := c.db.Exec(query)
+	if err != nil {
+		return fmt.Errorf("failed to clear cache: %w", err)
+	}
+
+	slog.Info("Cache cleared", "table", tableName)
+	return nil
+}
+
+// CacheExists checks if a cache entry exists for the given key
+func (c *CacheDB) CacheExists(tableName, key string) bool {
+	if err := validateTableName(tableName); err != nil {
+		return false
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	query := fmt.Sprintf(`
+		SELECT 1 FROM %s WHERE cache_key = ? LIMIT 1
+	`, tableName)
+
+	var exists int
+	err := c.db.QueryRow(query, key).Scan(&exists)
 	return err == nil
 }

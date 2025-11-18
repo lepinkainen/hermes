@@ -21,13 +21,21 @@ type BaseCommandConfig struct {
 // SetupOutputDir handles the common output directory setup logic
 func SetupOutputDir(cfg *BaseCommandConfig) error {
 	// If flag wasn't provided, try to get value from config
-	if cfg.OutputDir == "" {
-		cfg.OutputDir = viper.GetString(cfg.ConfigKey + ".output")
+	outputDir := cfg.OutputDir
+	if outputDir == "" {
+		outputDir = viper.GetString(cfg.ConfigKey + ".output")
+	}
+	if outputDir == "" && cfg.ConfigKey != "" {
+		// Fall back to using the config key as the subdirectory name
+		outputDir = cfg.ConfigKey
 	}
 
 	// Combine the base markdown directory with the specific subdirectory
 	baseDir := viper.GetString("markdownoutputdir")
-	cfg.OutputDir = filepath.Join(baseDir, cfg.OutputDir)
+	if baseDir == "" {
+		baseDir = "markdown"
+	}
+	cfg.OutputDir = filepath.Clean(filepath.Join(baseDir, outputDir))
 
 	// If JSON output is enabled but no path specified, use default in json directory
 	if cfg.WriteJSON && cfg.JSONOutput == "" {
@@ -38,7 +46,7 @@ func SetupOutputDir(cfg *BaseCommandConfig) error {
 		}
 		// Create filename based on parser name
 		jsonFile := cfg.ConfigKey + ".json"
-		cfg.JSONOutput = filepath.Join(jsonBaseDir, jsonFile)
+		cfg.JSONOutput = filepath.Clean(filepath.Join(jsonBaseDir, jsonFile))
 	}
 
 	// Create directories if they don't exist

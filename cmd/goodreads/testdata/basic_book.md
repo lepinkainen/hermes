@@ -29,7 +29,7 @@ description: "|
 subjects:
   - "Fiction"
   - "Adventure"
-cover_url: "https://example.com/cover.jpg"
+cover: "https://example.com/cover.jpg"
 subtitle: "A Test Subtitle"
 subject_people:
   - "Character One"

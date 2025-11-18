@@ -40,7 +40,7 @@ subjects:
   - "Determinism"
   - "Free Will"
   - "Time Perception"
-cover_url: "https://example.com/complex_book_cover.jpg"
+cover: "https://example.com/complex_book_cover.jpg"
 subtitle: "Exploring the Intersection of Physics, Consciousness, and Metaphysical Determinism"
 subject_people:
   - "Albert Einstein"

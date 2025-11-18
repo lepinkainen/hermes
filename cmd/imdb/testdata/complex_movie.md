@@ -9,12 +9,6 @@ my_rating: 10
 date_rated: "2023-06-15"
 runtime: 195
 duration: 3h 15m
-tags:
-  - "Drama"
-  - "Science Fiction"
-  - "Thriller"
-  - "Mystery"
-  - "Psychological"
 directors:
   - "Renowned Director"
   - "Co-Director Vision"
@@ -22,8 +16,14 @@ tags:
   - imdb/movie
   - rating/10
   - year/2020s
+  - genre/Drama
+  - genre/Science Fiction
+  - genre/Thriller
+  - genre/Mystery
+  - genre/Psychological
 content_rating: "R"
 awards: "Won 7 Oscars including Best Picture, Best Director, and Best Original Screenplay. Nominated for 5 additional categories. 125 wins & 86 nominations total at various international film festivals and awards ceremonies."
+cover: "https://example.com/masterpiece_poster.jpg"
 ---
 
 ![](https://example.com/masterpiece_poster.jpg)

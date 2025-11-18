@@ -68,7 +68,7 @@ func (s *SQLiteStore) BatchInsert(database string, table string, records []map[s
 		placeholders[i] = "?"
 	}
 	query := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES (%s)",
+		"INSERT OR REPLACE INTO %s (%s) VALUES (%s)",
 		table,
 		strings.Join(columns, ", "),
 		strings.Join(placeholders, ", "),

@@ -8,17 +8,17 @@ my_rating: 8
 date_rated: "2022-12-10"
 runtime: 55
 duration: 0h 55m
-tags:
-  - "Fantasy"
-  - "Adventure"
-  - "Drama"
 directors:
   - "Show Runner"
 tags:
   - imdb/tv-series
   - rating/8
   - year/2020s
+  - genre/Fantasy
+  - genre/Adventure
+  - genre/Drama
 content_rating: "TV-MA"
+cover: "https://example.com/series_poster.jpg"
 ---
 
 ![](https://example.com/series_poster.jpg)

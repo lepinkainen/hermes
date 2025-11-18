@@ -38,5 +38,6 @@ hermes-*
 *.csv
 *.json
 hermes.db
+cache.db
 exports/
 .envrc

@@ -3,11 +3,14 @@ package letterboxd
 import (
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/content"
 	"github.com/lepinkainen/hermes/internal/fileutil"
 )
+
+const defaultCoverWidth = 250
 
 // writeMovieToMarkdown writes a single movie to a markdown file
 func writeMovieToMarkdown(movie Movie, directory string) error {
@@ -45,21 +48,22 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 		mb.AddStringArray("directors", []string{movie.Director})
 	}
 
-	// Add genres if available
-	if len(movie.Genres) > 0 {
-		mb.AddStringArray("tags", movie.Genres)
-	}
-
 	// Add standard tags
 	tags := []string{"letterboxd/movie"}
 
-	// Add rating tag if available
+	// Add rating tag if available (rounded to integer)
 	if movie.Rating > 0 {
-		tags = append(tags, fmt.Sprintf("rating/%.1f", movie.Rating))
+		tags = append(tags, fmt.Sprintf("rating/%d", int(math.Round(movie.Rating))))
 	}
 
 	// Add decade tag
 	tags = append(tags, mb.GetDecadeTag(movie.Year))
+
+	// Add genres as tags with genre/ prefix
+	for _, genre := range movie.Genres {
+		tags = append(tags, fmt.Sprintf("genre/%s", genre))
+	}
+
 	mb.AddTags(tags...)
 
 	// Add Letterboxd IDs
@@ -71,14 +75,25 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 		mb.AddField("imdb_id", movie.ImdbID)
 	}
 
-	// Add poster URL if available
+	// Add poster - download locally and use Obsidian syntax
 	if movie.PosterURL != "" {
-		mb.AddField("cover", movie.PosterURL)
-	}
-
-	// Add poster image if available
-	if movie.PosterURL != "" {
-		mb.AddImage(movie.PosterURL)
+		coverFilename := fileutil.BuildCoverFilename(movie.Name)
+		result, err := fileutil.DownloadCover(fileutil.CoverDownloadOptions{
+			URL:          movie.PosterURL,
+			OutputDir:    directory,
+			Filename:     coverFilename,
+			UpdateCovers: overwrite, // Use package-level overwrite flag
+		})
+		if err != nil {
+			slog.Warn("Failed to download cover", "title", movie.Name, "error", err)
+			// Fall back to URL if download fails
+			mb.AddField("cover", movie.PosterURL)
+			mb.AddImage(movie.PosterURL)
+		} else if result != nil {
+			// Use local path in frontmatter
+			mb.AddField("cover", result.RelativePath)
+			mb.AddObsidianImage(result.Filename, defaultCoverWidth)
+		}
 	}
 
 	// Add description/plot if available

@@ -76,20 +76,17 @@ func ParseImdb() error {
 	// Write to Datasette if enabled
 	if viper.GetBool("datasette.enabled") {
 		slog.Info("Writing to Datasette")
-		mode := viper.GetString("datasette.mode")
 
-		switch mode {
-		case "local":
-			// Initialize local SQLite store
-			store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
-			if err := store.Connect(); err != nil {
-				slog.Error("Failed to connect to SQLite database", "error", err)
-				return err
-			}
-			defer func() { _ = store.Close() }()
+		// Initialize local SQLite store
+		store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
+		if err := store.Connect(); err != nil {
+			slog.Error("Failed to connect to SQLite database", "error", err)
+			return err
+		}
+		defer func() { _ = store.Close() }()
 
-			// Create table schema
-			schema := `CREATE TABLE IF NOT EXISTS imdb_movies (
+		// Create table schema
+		schema := `CREATE TABLE IF NOT EXISTS imdb_movies (
 				position INTEGER,
 				imdb_id TEXT PRIMARY KEY,
 				my_rating INTEGER,
@@ -114,52 +111,23 @@ func ParseImdb() error {
 				poster_url TEXT
 			)`
 
-			if err := store.CreateTable(schema); err != nil {
-				slog.Error("Failed to create table", "error", err)
-				return err
-			}
-
-			// Convert movies to maps for insertion
-			records := make([]map[string]any, len(movies))
-			for i, movie := range movies {
-				records[i] = movieToMap(movie)
-			}
-
-			// Insert records
-			if err := store.BatchInsert("hermes", "imdb_movies", records); err != nil {
-				slog.Error("Failed to insert records", "error", err)
-				return err
-			}
-			slog.Info("Successfully wrote movies to SQLite database", "count", len(movies))
-
-		case "remote":
-			// Initialize remote Datasette client
-			client := datastore.NewDatasetteClient(
-				viper.GetString("datasette.remote_url"),
-				viper.GetString("datasette.api_token"),
-			)
-			if err := client.Connect(); err != nil {
-				slog.Error("Failed to connect to remote Datasette", "error", err)
-				return err
-			}
-			defer func() { _ = client.Close() }()
-
-			// Convert movies to maps for insertion
-			records := make([]map[string]any, len(movies))
-			for i, movie := range movies {
-				records[i] = movieToMap(movie)
-			}
-
-			// Insert records
-			if err := client.BatchInsert("hermes", "imdb_movies", records); err != nil {
-				slog.Error("Failed to insert records to remote Datasette", "error", err)
-				return err
-			}
-			slog.Info("Successfully wrote movies to remote Datasette", "count", len(movies))
-		default:
-			slog.Error("Invalid Datasette mode", "mode", mode)
-			return fmt.Errorf("invalid Datasette mode: %s", mode)
+		if err := store.CreateTable(schema); err != nil {
+			slog.Error("Failed to create table", "error", err)
+			return err
 		}
+
+		// Convert movies to maps for insertion
+		records := make([]map[string]any, len(movies))
+		for i, movie := range movies {
+			records[i] = movieToMap(movie)
+		}
+
+		// Insert records
+		if err := store.BatchInsert("hermes", "imdb_movies", records); err != nil {
+			slog.Error("Failed to insert records", "error", err)
+			return err
+		}
+		slog.Info("Successfully wrote movies to SQLite database", "count", len(movies))
 	}
 
 	slog.Info("Processed movies", "count", len(movies))
@@ -298,9 +266,11 @@ func enrichMovieData(movie *MovieSeen) error {
 
 	omdbMovie, err := getCachedMovie(movie.ImdbId)
 	if err != nil {
-		// Don't wrap rate limit errors
+		// Don't wrap rate limit errors, but do continue processing without OMDB
 		if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
-			return err // Return the RateLimitError directly
+			markOmdbRateLimitReached()
+			slog.Warn("Skipping OMDB enrichment after rate limit", "title", movie.Title)
+			return nil
 		}
 		return fmt.Errorf("failed to enrich movie data: %w", err)
 	}
@@ -364,10 +334,6 @@ func writeMoviesToMarkdown(movies []MovieSeen, directory string) error {
 
 		// Enrich with OMDB data
 		if err := enrichMovieData(&movies[i]); err != nil {
-			// Check if it's a rate limit error
-			if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
-				return err
-			}
 			slog.Warn("Failed to enrich movie", "title", movies[i].Title, "error", err)
 			// Continue processing even if enrichment fails for other errors
 			continue

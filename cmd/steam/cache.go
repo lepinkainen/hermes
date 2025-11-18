@@ -7,11 +7,10 @@ import (
 )
 
 func getCachedGame(appID string) (*Game, *GameDetails, error) {
-	cacheDir := "cache/steam"
 	appIDInt, _ := strconv.Atoi(appID)
 
-	// Use the generic cache utility
-	details, _, err := cache.GetOrFetch(cacheDir, appID, func() (*GameDetails, error) {
+	// Use the generic cache utility with SQLite backend
+	details, _, err := cache.GetOrFetch("steam_cache", appID, func() (*GameDetails, error) {
 		_, detailsData, fetchErr := fetchGameData(appID)
 		if fetchErr != nil {
 			return nil, fetchErr

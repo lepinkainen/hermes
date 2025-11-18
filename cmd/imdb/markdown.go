@@ -11,6 +11,8 @@ import (
 	"github.com/lepinkainen/hermes/internal/fileutil"
 )
 
+const defaultCoverWidth = 250
+
 // writeMovieToMarkdown writes movie info to a markdown file
 func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	// Get the file path using the common utility
@@ -48,11 +50,6 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 		mb.AddDuration(movie.RuntimeMins)
 	}
 
-	// Add genres as an array
-	if len(movie.Genres) > 0 {
-		mb.AddStringArray("tags", movie.Genres)
-	}
-
 	// Add directors as an array
 	if len(movie.Directors) > 0 {
 		mb.AddStringArray("directors", movie.Directors)
@@ -68,6 +65,11 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	decade := (movie.Year / 10) * 10
 	tags = append(tags, fmt.Sprintf("year/%ds", decade)) // e.g., #year/1990s
 
+	// Add genres as tags with genre/ prefix
+	for _, genre := range movie.Genres {
+		tags = append(tags, fmt.Sprintf("genre/%s", genre))
+	}
+
 	mb.AddTags(tags...)
 
 	// Add content rating if available
@@ -80,9 +82,25 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 		mb.AddField("awards", movie.Awards)
 	}
 
-	// Add poster image if available
+	// Add poster image - download locally and use Obsidian syntax
 	if movie.PosterURL != "" {
-		mb.AddImage(movie.PosterURL)
+		coverFilename := fileutil.BuildCoverFilename(movie.Title)
+		result, err := fileutil.DownloadCover(fileutil.CoverDownloadOptions{
+			URL:          movie.PosterURL,
+			OutputDir:    directory,
+			Filename:     coverFilename,
+			UpdateCovers: config.OverwriteFiles,
+		})
+		if err != nil {
+			slog.Warn("Failed to download cover", "title", movie.Title, "error", err)
+			// Fall back to URL if download fails
+			mb.AddField("cover", movie.PosterURL)
+			mb.AddImage(movie.PosterURL)
+		} else if result != nil {
+			// Use local path in frontmatter
+			mb.AddField("cover", result.RelativePath)
+			mb.AddObsidianImage(result.Filename, defaultCoverWidth)
+		}
 	}
 
 	// Add plot summary in a callout if available

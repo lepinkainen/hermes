@@ -121,16 +121,15 @@ steam:
 
 ## Datasette Integration
 
-Hermes can export data to a local SQLite database or a remote Datasette instance. Configure this in your `config.yaml`:
+Hermes exports to a local SQLite database (default: `hermes.db`) for Datasette. Configure this in your `config.yaml`:
 
 ```yaml
 datasette:
-  enabled: false # Enable Datasette output
-  mode: "local" # "local" or "remote"
-  dbfile: "./hermes.db" # Path to SQLite file (for local mode)
-  remote_url: "" # Remote Datasette URL (for remote mode)
-  api_token: "" # API token for remote insert (for remote mode)
+  enabled: true # Datasette output is on by default; set false to skip
+  dbfile: "./hermes.db" # Path to SQLite file
 ```
+
+The cache database is separate (`cache.db`) and stores API responses; it does not need to be served via Datasette.
 
 ## Command-Line Flags
 
@@ -172,11 +171,8 @@ Command-line flags override values from the configuration file. Common flags inc
 
 #### Datasette
 
-- `--datasette`: Enable Datasette output
-- `--datasette-mode`: Set mode to "local" or "remote"
+- `--datasette`: Enable Datasette output (defaults to true)
 - `--datasette-dbfile`: Path to SQLite database file
-- `--datasette-url`: Remote Datasette URL
-- `--datasette-token`: API token for remote insert
 
 ## Environment Variables
 

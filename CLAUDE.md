@@ -2,7 +2,40 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for workflow details.
+**Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for complete workflow details.
+
+## Issue Tracking with bd (beads)
+
+**Quick Reference:**
+
+```bash
+bd ready --json              # Check for unblocked work
+bd create "Title" -t bug|feature|task -p 0-4 --json  # Create issue
+bd update bd-42 --status in_progress --json          # Claim task
+bd close bd-42 --reason "Completed" --json           # Complete task
+```
+
+**Issue Types:** `bug`, `feature`, `task`, `epic`, `chore`
+
+**Priorities:** `0` (Critical) → `4` (Backlog), default is `2` (Medium)
+
+**Workflow:**
+
+1. Check ready work: `bd ready`
+2. Claim task: `bd update <id> --status in_progress`
+3. Work on it: Implement, test, document
+4. Discover new work? Create linked issue with `--deps discovered-from:<parent-id>`
+5. Complete: `bd close <id> --reason "Done"`
+6. Commit: Always commit `.beads/issues.jsonl` with code changes
+
+**Important Rules:**
+
+- ✅ Use bd for ALL task tracking
+- ✅ Always use `--json` flag for programmatic use
+- ✅ Check `bd ready` before asking "what should I work on?"
+- ✅ Store AI planning docs in `history/` directory
+- ❌ Do NOT create markdown TODO lists
+- ❌ Do NOT use external issue trackers
 
 Refer to llm-shared/project_tech_stack.md for core technology choices, build system configuration, and library preferences.
 

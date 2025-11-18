@@ -10,6 +10,8 @@ import (
 	"github.com/lepinkainen/hermes/internal/fileutil"
 )
 
+const defaultCoverWidth = 250
+
 // CreateMarkdownFile generates a markdown file for a Steam game
 func CreateMarkdownFile(game Game, details *GameDetails, directory string) error {
 	// Ensure the directory exists
@@ -36,8 +38,28 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	// Add release date with standard YYYY-MM-DD format
 	mb.AddDate("release_date", details.ReleaseDate.Date)
 
-	// Add cover image
-	mb.AddField("cover", details.HeaderImage)
+	// Track cover for later use in content
+	var coverFilename string
+	var coverResult *fileutil.CoverDownloadResult
+
+	// Add cover image - download locally
+	if details.HeaderImage != "" {
+		coverFilename = fileutil.BuildCoverFilename(game.Name)
+		var err error
+		coverResult, err = fileutil.DownloadCover(fileutil.CoverDownloadOptions{
+			URL:          details.HeaderImage,
+			OutputDir:    directory,
+			Filename:     coverFilename,
+			UpdateCovers: config.OverwriteFiles,
+		})
+		if err != nil {
+			slog.Warn("Failed to download cover", "title", game.Name, "error", err)
+			// Fall back to URL
+			mb.AddField("cover", details.HeaderImage)
+		} else if coverResult != nil {
+			mb.AddField("cover", coverResult.RelativePath)
+		}
+	}
 
 	// Add developers as an array
 	if len(details.Developers) > 0 {
@@ -79,8 +101,11 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	// Add title as heading
 	mb.AddParagraph(fmt.Sprintf("# %s", game.Name))
 
-	// Add cover image if available
-	if details.HeaderImage != "" {
+	// Add cover image if available - use Obsidian syntax
+	if coverResult != nil {
+		mb.AddObsidianImage(coverResult.Filename, defaultCoverWidth)
+	} else if details.HeaderImage != "" {
+		// Fall back to URL if download failed
 		mb.AddImage(details.HeaderImage)
 	}
 

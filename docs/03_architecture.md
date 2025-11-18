@@ -18,7 +18,7 @@ hermes/
 ├── internal/             # Internal shared packages
 │   ├── cmdutil/          # Command utilities
 │   ├── config/           # Configuration handling
-│   ├── datastore/        # Local SQLite and remote Datasette integration
+│   ├── datastore/        # Local SQLite integration for Datasette
 │   ├── errors/           # Custom error types
 │   └── fileutil/         # File operations utilities
 ├── build/                # Build artifacts
@@ -85,10 +85,7 @@ The `internal/` directory contains shared utilities used across importers:
 
 ## Datastore & Datasette Integration
 
-Hermes supports exporting data to a local SQLite database or a remote Datasette instance. The `internal/datastore` package abstracts both storage backends, and importers can write to either based on configuration. This enables advanced querying and sharing of your imported data.
-
-- **Local Mode:** Data is written to a SQLite file (default: `hermes.db`).
-- **Remote Mode:** Data is sent to a remote Datasette instance using the `datasette-insert` plugin and API token.
+Hermes exports data to a local SQLite database (default: `hermes.db`) for exploration in Datasette. The `internal/datastore` package provides the SQLite store used by all importers.
 
 ## Data Flow
 

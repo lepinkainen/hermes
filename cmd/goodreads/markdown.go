@@ -11,6 +11,8 @@ import (
 	"github.com/lepinkainen/hermes/internal/fileutil"
 )
 
+const defaultCoverWidth = 250
+
 func writeBookToMarkdown(book Book, directory string) error {
 	// Ensure the directory exists
 	if err := os.MkdirAll(directory, 0755); err != nil {
@@ -111,14 +113,32 @@ func writeBookToMarkdown(book Book, directory string) error {
 		mb.AddStringArray("subjects", book.Subjects)
 	}
 
-	// Handle cover URL
+	// Handle cover - download locally and use Obsidian syntax
+	var coverURL string
 	if book.CoverURL != "" {
-		mb.AddField("cover_url", book.CoverURL)
-		mb.AddImage(book.CoverURL)
+		coverURL = book.CoverURL
 	} else if book.CoverID > 0 {
-		coverURL := fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", book.CoverID)
-		mb.AddField("cover_url", coverURL)
-		mb.AddImage(coverURL)
+		coverURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", book.CoverID)
+	}
+
+	if coverURL != "" {
+		coverFilename := fileutil.BuildCoverFilename(book.Title)
+		result, err := fileutil.DownloadCover(fileutil.CoverDownloadOptions{
+			URL:          coverURL,
+			OutputDir:    directory,
+			Filename:     coverFilename,
+			UpdateCovers: config.OverwriteFiles, // Reuse overwrite flag for cover updates
+		})
+		if err != nil {
+			slog.Warn("Failed to download cover", "title", book.Title, "error", err)
+			// Fall back to URL if download fails
+			mb.AddField("cover", coverURL)
+			mb.AddImage(coverURL)
+		} else if result != nil {
+			// Use local path in frontmatter
+			mb.AddField("cover", result.RelativePath)
+			mb.AddObsidianImage(result.Filename, defaultCoverWidth)
+		}
 	}
 
 	if book.Subtitle != "" {

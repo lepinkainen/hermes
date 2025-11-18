@@ -22,11 +22,12 @@ type CLI struct {
 	Overwrite bool `help:"Overwrite existing markdown files when processing"`
 
 	// Datasette flags
-	Datasette      bool   `help:"Enable Datasette output"`
-	DatasetteMode  string `help:"Datasette mode (local or remote)" default:"local" enum:"local,remote"`
-	DatasetteDB    string `help:"Path to local SQLite database file" default:"./hermes.db"`
-	DatasetteURL   string `help:"URL of remote Datasette instance"`
-	DatasetteToken string `help:"API token for remote Datasette instance"`
+	Datasette   bool   `help:"Enable Datasette output" default:"true"`
+	DatasetteDB string `help:"Path to SQLite database file" default:"./hermes.db"`
+
+	// Cache flags
+	CacheDBFile string `help:"Path to cache SQLite database file" default:"./cache.db"`
+	CacheTTL    string `help:"Cache time-to-live duration (e.g., 720h for 30 days)" default:"720h"`
 
 	Import  ImportCmd  `cmd:"" help:"Import data from various sources"`
 	Enhance EnhanceCmd `cmd:"" help:"Enhance existing markdown notes with TMDB data"`
@@ -130,11 +131,12 @@ func initConfig() {
 	viper.SetDefault("OverwriteFiles", false)
 
 	// Datasette defaults
-	viper.SetDefault("datasette.enabled", false)
-	viper.SetDefault("datasette.mode", "local")
+	viper.SetDefault("datasette.enabled", true)
 	viper.SetDefault("datasette.dbfile", "./hermes.db")
-	viper.SetDefault("datasette.remote_url", "")
-	viper.SetDefault("datasette.api_token", "")
+
+	// Cache defaults
+	viper.SetDefault("cache.dbfile", "./cache.db")
+	viper.SetDefault("cache.ttl", "720h") // 30 days
 
 	// Enable environment variable support
 	viper.AutomaticEnv()
@@ -170,10 +172,11 @@ func updateGlobalConfig(cli *CLI) {
 
 	// Update datasette config
 	viper.Set("datasette.enabled", cli.Datasette)
-	viper.Set("datasette.mode", cli.DatasetteMode)
 	viper.Set("datasette.dbfile", cli.DatasetteDB)
-	viper.Set("datasette.remote_url", cli.DatasetteURL)
-	viper.Set("datasette.api_token", cli.DatasetteToken)
+
+	// Update cache config
+	viper.Set("cache.dbfile", cli.CacheDBFile)
+	viper.Set("cache.ttl", cli.CacheTTL)
 }
 
 // Run methods for each command

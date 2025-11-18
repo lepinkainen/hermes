@@ -137,13 +137,28 @@ func (mb *MarkdownBuilder) AddParagraph(text string) *MarkdownBuilder {
 	return mb
 }
 
-// AddImage adds an image to the content
+// AddImage adds an image to the content using standard markdown syntax
 func (mb *MarkdownBuilder) AddImage(imageURL string) *MarkdownBuilder {
 	if imageURL == "" {
 		return mb
 	}
 
 	fmt.Fprintf(&mb.content, "![](%s)\n\n", imageURL)
+	return mb
+}
+
+// AddObsidianImage adds an image using Obsidian's wiki-link syntax with sizing.
+// Format: ![[filename|width]]
+func (mb *MarkdownBuilder) AddObsidianImage(filename string, width int) *MarkdownBuilder {
+	if filename == "" {
+		return mb
+	}
+
+	if width > 0 {
+		fmt.Fprintf(&mb.content, "![[%s|%d]]\n\n", filename, width)
+	} else {
+		fmt.Fprintf(&mb.content, "![[%s]]\n\n", filename)
+	}
 	return mb
 }
 

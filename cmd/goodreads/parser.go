@@ -159,7 +159,7 @@ func ParseGoodreads() error {
 		// Try to enrich the book with OpenLibrary data
 		if isbn != "" || isbn13 != "" {
 			if err := enrichBookFromOpenLibrary(&book); err != nil {
-				slog.Warn("Could not enrich book data", "error", err)
+				slog.Warn("Could not enrich book data", "title", book.Title, "error", err)
 			}
 		}
 
@@ -193,18 +193,15 @@ func ParseGoodreads() error {
 	// Datasette integration
 	if viper.GetBool("datasette.enabled") {
 		slog.Info("Writing Goodreads books to Datasette")
-		mode := viper.GetString("datasette.mode")
 
-		switch mode {
-		case "local":
-			store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
-			if err := store.Connect(); err != nil {
-				slog.Error("Failed to connect to SQLite database", "error", err)
-				return err
-			}
-			defer func() { _ = store.Close() }()
+		store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
+		if err := store.Connect(); err != nil {
+			slog.Error("Failed to connect to SQLite database", "error", err)
+			return err
+		}
+		defer func() { _ = store.Close() }()
 
-			schema := `CREATE TABLE IF NOT EXISTS goodreads_books (
+		schema := `CREATE TABLE IF NOT EXISTS goodreads_books (
 				id INTEGER PRIMARY KEY,
 				title TEXT,
 				authors TEXT,
@@ -235,46 +232,21 @@ func ParseGoodreads() error {
 				subtitle TEXT
 			)`
 
-			if err := store.CreateTable(schema); err != nil {
-				slog.Error("Failed to create table", "error", err)
-				return err
-			}
-
-			records := make([]map[string]any, len(books))
-			for i, book := range books {
-				records[i] = bookToMap(book)
-			}
-
-			if err := store.BatchInsert("hermes", "goodreads_books", records); err != nil {
-				slog.Error("Failed to insert records", "error", err)
-				return err
-			}
-			slog.Info("Successfully wrote books to SQLite database", "count", len(books))
-		case "remote":
-			client := datastore.NewDatasetteClient(
-				viper.GetString("datasette.remote_url"),
-				viper.GetString("datasette.api_token"),
-			)
-			if err := client.Connect(); err != nil {
-				slog.Error("Failed to connect to remote Datasette", "error", err)
-				return err
-			}
-			defer func() { _ = client.Close() }()
-
-			records := make([]map[string]any, len(books))
-			for i, book := range books {
-				records[i] = bookToMap(book)
-			}
-
-			if err := client.BatchInsert("hermes", "goodreads_books", records); err != nil {
-				slog.Error("Failed to insert records to remote Datasette", "error", err)
-				return err
-			}
-			slog.Info("Successfully wrote books to remote Datasette", "count", len(books))
-		default:
-			slog.Error("Invalid Datasette mode", "mode", mode)
-			return fmt.Errorf("invalid Datasette mode: %s", mode)
+		if err := store.CreateTable(schema); err != nil {
+			slog.Error("Failed to create table", "error", err)
+			return err
 		}
+
+		records := make([]map[string]any, len(books))
+		for i, book := range books {
+			records[i] = bookToMap(book)
+		}
+
+		if err := store.BatchInsert("hermes", "goodreads_books", records); err != nil {
+			slog.Error("Failed to insert records", "error", err)
+			return err
+		}
+		slog.Info("Successfully wrote books to SQLite database", "count", len(books))
 	}
 
 	return nil

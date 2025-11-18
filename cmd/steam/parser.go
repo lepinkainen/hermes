@@ -79,18 +79,15 @@ func ParseSteam() error {
 	// Datasette integration
 	if viper.GetBool("datasette.enabled") {
 		slog.Info("Writing Steam games to Datasette")
-		mode := viper.GetString("datasette.mode")
 
-		switch mode {
-		case "local":
-			store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
-			if err := store.Connect(); err != nil {
-				slog.Error("Failed to connect to SQLite database", "error", err)
-				return err
-			}
-			defer func() { _ = store.Close() }()
+		store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
+		if err := store.Connect(); err != nil {
+			slog.Error("Failed to connect to SQLite database", "error", err)
+			return err
+		}
+		defer func() { _ = store.Close() }()
 
-			schema := `CREATE TABLE IF NOT EXISTS steam_games (
+		schema := `CREATE TABLE IF NOT EXISTS steam_games (
 				appid INTEGER PRIMARY KEY,
 				name TEXT,
 				playtime_forever INTEGER,
@@ -111,46 +108,21 @@ func ParseSteam() error {
 				metacritic_url TEXT
 			)`
 
-			if err := store.CreateTable(schema); err != nil {
-				slog.Error("Failed to create table", "error", err)
-				return err
-			}
-
-			records := make([]map[string]any, len(processedGames))
-			for i, details := range processedGames {
-				records[i] = gameDetailsToMap(details)
-			}
-
-			if err := store.BatchInsert("hermes", "steam_games", records); err != nil {
-				slog.Error("Failed to insert records", "error", err)
-				return err
-			}
-			slog.Info("Successfully wrote games to SQLite database", "count", len(processedGames))
-		case "remote":
-			client := datastore.NewDatasetteClient(
-				viper.GetString("datasette.remote_url"),
-				viper.GetString("datasette.api_token"),
-			)
-			if err := client.Connect(); err != nil {
-				slog.Error("Failed to connect to remote Datasette", "error", err)
-				return err
-			}
-			defer func() { _ = client.Close() }()
-
-			records := make([]map[string]any, len(processedGames))
-			for i, details := range processedGames {
-				records[i] = gameDetailsToMap(details)
-			}
-
-			if err := client.BatchInsert("hermes", "steam_games", records); err != nil {
-				slog.Error("Failed to insert records to remote Datasette", "error", err)
-				return err
-			}
-			slog.Info("Successfully wrote games to remote Datasette", "count", len(processedGames))
-		default:
-			slog.Error("Invalid Datasette mode", "mode", mode)
-			return fmt.Errorf("invalid Datasette mode: %s", mode)
+		if err := store.CreateTable(schema); err != nil {
+			slog.Error("Failed to create table", "error", err)
+			return err
 		}
+
+		records := make([]map[string]any, len(processedGames))
+		for i, details := range processedGames {
+			records[i] = gameDetailsToMap(details)
+		}
+
+		if err := store.BatchInsert("hermes", "steam_games", records); err != nil {
+			slog.Error("Failed to insert records", "error", err)
+			return err
+		}
+		slog.Info("Successfully wrote games to SQLite database", "count", len(processedGames))
 	}
 
 	// Write to JSON if enabled
