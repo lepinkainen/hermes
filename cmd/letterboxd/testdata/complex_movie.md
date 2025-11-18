@@ -4,6 +4,7 @@ type: movie
 year: 2023
 date_watched: "2023-08-15"
 letterboxd_rating: 5.0
+seen: true
 runtime: 187
 duration: 3h 7m
 directors:

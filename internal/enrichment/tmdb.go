@@ -75,10 +75,10 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 		tmdbID = existingTMDBID
 		// We don't know the media type yet, will be determined when fetching metadata
 		// For now, try movie first, then TV
-		metadata, _, err := client.CachedGetMetadataByID(ctx, tmdbID, "movie")
+		metadata, _, err := client.CachedGetMetadataByID(ctx, tmdbID, "movie", false)
 		if err != nil {
 			// Try TV if movie fails
-			metadata, _, err = client.CachedGetMetadataByID(ctx, tmdbID, "tv")
+			metadata, _, err = client.CachedGetMetadataByID(ctx, tmdbID, "tv", false)
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch TMDB metadata for ID %d: %w", tmdbID, err)
 			}
@@ -150,7 +150,7 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 	}
 
 	// Fetch metadata
-	metadata, fromCache, err := client.CachedGetMetadataByID(ctx, tmdbID, mediaType)
+	metadata, fromCache, err := client.CachedGetMetadataByID(ctx, tmdbID, mediaType, opts.Force)
 	if err != nil {
 		slog.Warn("Failed to fetch TMDB metadata", "error", err)
 	} else {
@@ -198,9 +198,9 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 		var err error
 		var detailsFromCache bool
 		if mediaType == "movie" {
-			details, detailsFromCache, err = client.CachedGetFullMovieDetails(ctx, tmdbID)
+			details, detailsFromCache, err = client.CachedGetFullMovieDetails(ctx, tmdbID, opts.Force)
 		} else {
-			details, detailsFromCache, err = client.CachedGetFullTVDetails(ctx, tmdbID)
+			details, detailsFromCache, err = client.CachedGetFullTVDetails(ctx, tmdbID, opts.Force)
 		}
 
 		if err != nil {

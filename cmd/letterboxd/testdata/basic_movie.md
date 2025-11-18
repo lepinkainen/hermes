@@ -4,6 +4,7 @@ type: movie
 year: 2021
 date_watched: "2021-10-15"
 letterboxd_rating: 4.5
+seen: true
 runtime: 120
 duration: 2h 0m
 directors:

@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sync"
@@ -17,6 +18,9 @@ type TestData struct {
 
 func setupTestCache(t *testing.T) (*CacheDB, string) {
 	t.Helper()
+
+	viper.Reset()
+	t.Cleanup(viper.Reset)
 
 	// Register test_cache as a valid table name for tests
 	ValidCacheTableNames["test_cache"] = true
@@ -52,6 +56,28 @@ func setupTestCache(t *testing.T) (*CacheDB, string) {
 	return cache, dbPath
 }
 
+func withGlobalCache(t *testing.T, cache *CacheDB) {
+	t.Helper()
+
+	oldCache := globalCache
+	globalCache = cache
+	globalCacheOnce = sync.Once{}
+	globalCacheOnce.Do(func() {})
+
+	t.Cleanup(func() {
+		globalCache = oldCache
+		globalCacheOnce = sync.Once{}
+	})
+}
+
+func setCachedAt(t *testing.T, cache *CacheDB, tableName, key string, at time.Time) {
+	t.Helper()
+
+	if _, err := cache.db.Exec("UPDATE "+tableName+" SET cached_at = ? WHERE cache_key = ?", at.UTC(), key); err != nil {
+		t.Fatalf("Failed to update cached_at: %v", err)
+	}
+}
+
 func TestGetOrFetch_CacheHit(t *testing.T) {
 	cache, dbPath := setupTestCache(t)
 	defer func() { _ = cache.Close() }()
@@ -68,14 +94,7 @@ func TestGetOrFetch_CacheHit(t *testing.T) {
 	}
 
 	// Override global cache for this test  - needs to happen BEFORE calling GetOrFetch
-	oldCache := globalCache
-	defer func() {
-		globalCache = oldCache
-		globalCacheOnce = sync.Once{} // Reset for next test
-	}()
-	globalCache = cache
-	globalCacheOnce = sync.Once{} // Reset so it uses the overridden cache
-	globalCacheOnce.Do(func() {}) // Mark as done so GetGlobalCache doesn't try to reinit
+	withGlobalCache(t, cache)
 
 	// Test GetOrFetch
 	fetchCalled := false
@@ -107,22 +126,15 @@ func TestGetOrFetch_CacheMiss(t *testing.T) {
 	defer func() { _ = os.Remove(dbPath) }()
 
 	// Override global cache for this test
-	oldCache := globalCache
-	defer func() {
-		globalCache = oldCache
-		globalCacheOnce = sync.Once{} // Reset for next test
-	}()
-	globalCache = cache
-	globalCacheOnce = sync.Once{}
-	globalCacheOnce.Do(func() {})
+	withGlobalCache(t, cache)
 
 	testKey := "test-key"
 	expectedData := TestData{ID: 2, Name: "Fetched"}
 
 	// Test GetOrFetch with cache miss
-	fetchCalled := false
+	fetchCalled := 0
 	fetchFunc := func() (TestData, error) {
-		fetchCalled = true
+		fetchCalled++
 		return expectedData, nil
 	}
 
@@ -135,8 +147,8 @@ func TestGetOrFetch_CacheMiss(t *testing.T) {
 	if fromCache {
 		t.Error("Expected fromCache to be false")
 	}
-	if !fetchCalled {
-		t.Error("Expected fetch function to be called")
+	if fetchCalled != 1 {
+		t.Errorf("Expected fetch function to be called once, got %d", fetchCalled)
 	}
 	if result.ID != expectedData.ID || result.Name != expectedData.Name {
 		t.Errorf("Expected %+v, got %+v", expectedData, result)
@@ -146,6 +158,76 @@ func TestGetOrFetch_CacheMiss(t *testing.T) {
 	if !cache.CacheExists("test_cache", testKey) {
 		t.Error("Expected cache entry to be created")
 	}
+
+	// Second call should hit cache and avoid fetch
+	result, fromCache, err = GetOrFetch("test_cache", testKey, fetchFunc)
+	if err != nil {
+		t.Fatalf("Expected no error on second call, got %v", err)
+	}
+	if !fromCache {
+		t.Error("Expected second call to return from cache")
+	}
+	if fetchCalled != 1 {
+		t.Errorf("Expected fetch not to be called again, got %d calls", fetchCalled)
+	}
+	if result.ID != expectedData.ID || result.Name != expectedData.Name {
+		t.Errorf("Expected %+v from cache, got %+v", expectedData, result)
+	}
+}
+
+func TestGetOrFetch_RespectsTTLExpiration(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	withGlobalCache(t, cache)
+
+	testKey := "test-key"
+	staleData := `{"id":1,"name":"stale"}`
+	freshData := TestData{ID: 2, Name: "Fresh"}
+
+	if err := cache.Set("test_cache", testKey, staleData); err != nil {
+		t.Fatalf("Failed to seed stale cache: %v", err)
+	}
+	setCachedAt(t, cache, "test_cache", testKey, time.Now().Add(-2*time.Hour))
+
+	viper.Set("cache.ttl", "1h")
+
+	fetchCalled := 0
+	fetchFunc := func() (TestData, error) {
+		fetchCalled++
+		return freshData, nil
+	}
+
+	result, fromCache, err := GetOrFetch("test_cache", testKey, fetchFunc)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if fromCache {
+		t.Fatal("Expected cache miss due to TTL expiration")
+	}
+	if fetchCalled != 1 {
+		t.Fatalf("Expected fetch to be called once, got %d", fetchCalled)
+	}
+	if result.ID != freshData.ID || result.Name != freshData.Name {
+		t.Fatalf("Expected fresh data, got %+v", result)
+	}
+
+	cached, cachedHit, err := cache.Get("test_cache", testKey, time.Hour)
+	if err != nil {
+		t.Fatalf("Expected cached data to be stored, got error %v", err)
+	}
+	if !cachedHit {
+		t.Fatal("Expected cached entry after refresh")
+	}
+
+	var cachedData TestData
+	if err := json.Unmarshal([]byte(cached), &cachedData); err != nil {
+		t.Fatalf("Failed to unmarshal cached data: %v", err)
+	}
+	if cachedData != freshData {
+		t.Fatalf("Expected cached data %+v, got %+v", freshData, cachedData)
+	}
 }
 
 func TestGetOrFetch_FetchError(t *testing.T) {
@@ -154,14 +236,7 @@ func TestGetOrFetch_FetchError(t *testing.T) {
 	defer func() { _ = os.Remove(dbPath) }()
 
 	// Override global cache for this test
-	oldCache := globalCache
-	defer func() {
-		globalCache = oldCache
-		globalCacheOnce = sync.Once{} // Reset for next test
-	}()
-	globalCache = cache
-	globalCacheOnce = sync.Once{}
-	globalCacheOnce.Do(func() {})
+	withGlobalCache(t, cache)
 
 	testKey := "test-key"
 
@@ -225,8 +300,9 @@ func TestCacheDB_GetExpired(t *testing.T) {
 		t.Fatalf("Failed to set cache: %v", err)
 	}
 
-	// Test Get with very short TTL (should be expired immediately)
-	data, fromCache, err := cache.Get("test_cache", testKey, 1*time.Nanosecond)
+	setCachedAt(t, cache, "test_cache", testKey, time.Now().Add(-2*time.Hour))
+
+	data, fromCache, err := cache.Get("test_cache", testKey, time.Hour)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -248,22 +324,22 @@ func TestCacheDB_ClearExpired(t *testing.T) {
 	_ = cache.Set("test_cache", "key2", `{"id":2}`)
 	_ = cache.Set("test_cache", "key3", `{"id":3}`)
 
-	// Clear expired entries (with a short TTL so all should be cleared after a sleep)
-	time.Sleep(10 * time.Millisecond)
-	err := cache.ClearExpired("test_cache", 1*time.Millisecond)
+	setCachedAt(t, cache, "test_cache", "key1", time.Now().Add(-2*time.Hour))
+	setCachedAt(t, cache, "test_cache", "key2", time.Now().Add(-30*time.Minute))
+
+	err := cache.ClearExpired("test_cache", 45*time.Minute)
 	if err != nil {
 		t.Fatalf("Failed to clear expired cache: %v", err)
 	}
 
-	// Verify all entries were removed
 	if cache.CacheExists("test_cache", "key1") {
 		t.Error("Expected key1 to be cleared")
 	}
-	if cache.CacheExists("test_cache", "key2") {
-		t.Error("Expected key2 to be cleared")
+	if !cache.CacheExists("test_cache", "key2") {
+		t.Error("Expected key2 to remain")
 	}
-	if cache.CacheExists("test_cache", "key3") {
-		t.Error("Expected key3 to be cleared")
+	if !cache.CacheExists("test_cache", "key3") {
+		t.Error("Expected key3 to remain")
 	}
 }
 

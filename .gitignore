@@ -29,7 +29,6 @@ build/
 /dist
 config.yaml
 config.yml
-/cache/
 /.cache/
 /.gocache/
 /.gomodcache/

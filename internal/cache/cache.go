@@ -114,6 +114,17 @@ func validateTableName(tableName string) error {
 // cacheKey is the unique identifier for this cache entry (e.g., ISBN, IMDb ID, App ID)
 // fetchFunc is called if the data is not found in cache or if the cache has expired
 func GetOrFetch[T any](tableName, cacheKey string, fetchFunc FetchFunc[T]) (T, bool, error) {
+	return getOrFetchWithPolicy(tableName, cacheKey, fetchFunc, nil)
+}
+
+// GetOrFetchWithPolicy retrieves data from cache or fetches it using the provided function, with optional control
+// over whether a fetched value should be cached.
+// If shouldCache is nil, all fetched values are cached (default behaviour).
+func GetOrFetchWithPolicy[T any](tableName, cacheKey string, fetchFunc FetchFunc[T], shouldCache func(T) bool) (T, bool, error) {
+	return getOrFetchWithPolicy(tableName, cacheKey, fetchFunc, shouldCache)
+}
+
+func getOrFetchWithPolicy[T any](tableName, cacheKey string, fetchFunc FetchFunc[T], shouldCache func(T) bool) (T, bool, error) {
 	var zero T
 
 	cache, err := GetGlobalCache()
@@ -151,6 +162,11 @@ func GetOrFetch[T any](tableName, cacheKey string, fetchFunc FetchFunc[T]) (T, b
 	data, err := fetchFunc()
 	if err != nil {
 		return zero, false, fmt.Errorf("failed to fetch data: %w", err)
+	}
+
+	if shouldCache != nil && !shouldCache(data) {
+		slog.Debug("Skipping cache store per policy", "table", tableName, "key", cacheKey)
+		return data, false, nil
 	}
 
 	// Cache the result

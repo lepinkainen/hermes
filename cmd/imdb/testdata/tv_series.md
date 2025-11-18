@@ -1,6 +1,7 @@
 ---
 title: "Epic Fantasy Series"
 type: tv-series
+seen: true
 imdb_id: "tt5555555"
 year: 2021
 imdb_rating: 9.2

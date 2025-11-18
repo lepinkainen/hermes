@@ -37,6 +37,7 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 	// Add rating if available
 	if movie.Rating > 0 {
 		mb.AddField("letterboxd_rating", movie.Rating)
+		mb.AddField("seen", true)
 	}
 
 	// Add duration if available

@@ -796,3 +796,134 @@ tmdb_type: "movie"
 		t.Logf("ℹ Heat file might need some metadata")
 	}
 }
+
+func TestHasSeenField(t *testing.T) {
+	tests := []struct {
+		name     string
+		note     *Note
+		expected bool
+	}{
+		{
+			name: "has seen field",
+			note: &Note{
+				Seen: true,
+				RawFrontmatter: map[string]interface{}{
+					"title": "Test Movie",
+					"seen":  true,
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "does not have seen field",
+			note: &Note{
+				Seen: false,
+				RawFrontmatter: map[string]interface{}{
+					"title": "Test Movie",
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "has seen field set to false",
+			note: &Note{
+				Seen: false,
+				RawFrontmatter: map[string]interface{}{
+					"title": "Test Movie",
+					"seen":  false,
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.note.hasSeenField()
+			if result != tc.expected {
+				t.Errorf("hasSeenField() = %v, want %v", result, tc.expected)
+			}
+		})
+	}
+}
+
+func TestHasAnyRating(t *testing.T) {
+	tests := []struct {
+		name     string
+		note     *Note
+		expected bool
+	}{
+		{
+			name: "has imdb_rating",
+			note: &Note{
+				RawFrontmatter: map[string]interface{}{
+					"title":       "Test Movie",
+					"imdb_rating": 8.5,
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "has my_rating",
+			note: &Note{
+				RawFrontmatter: map[string]interface{}{
+					"title":     "Test Movie",
+					"my_rating": 9,
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "has letterboxd_rating",
+			note: &Note{
+				RawFrontmatter: map[string]interface{}{
+					"title":           "Test Movie",
+					"letterboxd_rating": 4.5,
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "has zero ratings",
+			note: &Note{
+				RawFrontmatter: map[string]interface{}{
+					"title":           "Test Movie",
+					"imdb_rating":     0.0,
+					"my_rating":       0,
+					"letterboxd_rating": 0.0,
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "has no ratings",
+			note: &Note{
+				RawFrontmatter: map[string]interface{}{
+					"title": "Test Movie",
+					"year":  2020,
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "has mixed rating types (int and float)",
+			note: &Note{
+				RawFrontmatter: map[string]interface{}{
+					"title":     "Test Movie",
+					"my_rating": 8, // int
+					"imdb_rating": 7.5, // float64
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.note.hasAnyRating()
+			if result != tc.expected {
+				t.Errorf("hasAnyRating() = %v, want %v", result, tc.expected)
+			}
+		})
+	}
+}

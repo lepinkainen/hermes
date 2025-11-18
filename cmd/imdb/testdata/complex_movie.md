@@ -2,6 +2,7 @@
 title: "The Cinematic Masterpiece - Director's Extended Cut"
 original_title: "La Chef-d'œuvre Cinématographique"
 type: movie
+seen: true
 imdb_id: "tt9876543"
 year: 2022
 imdb_rating: 9.8

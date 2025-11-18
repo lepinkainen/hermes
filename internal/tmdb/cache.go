@@ -2,7 +2,9 @@ package tmdb
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/cache"
@@ -40,12 +42,14 @@ type CachedMetadata struct {
 func (c *Client) CachedSearchMovies(ctx context.Context, query string, year int, limit int) ([]SearchResult, bool, error) {
 	cacheKey := fmt.Sprintf("movies_%s_%d_%d", normalizeQuery(query), year, limit)
 
-	result, fromCache, err := cache.GetOrFetch("tmdb_cache", cacheKey, func() (*CachedSearchResults, error) {
+	result, fromCache, err := cache.GetOrFetchWithPolicy("tmdb_cache", cacheKey, func() (*CachedSearchResults, error) {
 		results, searchErr := c.SearchMovies(ctx, query, year, limit)
 		if searchErr != nil {
 			return nil, searchErr
 		}
 		return &CachedSearchResults{Results: results}, nil
+	}, func(result *CachedSearchResults) bool {
+		return result != nil && len(result.Results) > 0
 	})
 
 	if err != nil {
@@ -60,12 +64,14 @@ func (c *Client) CachedSearchMovies(ctx context.Context, query string, year int,
 func (c *Client) CachedSearchMulti(ctx context.Context, query string, year int, limit int) ([]SearchResult, bool, error) {
 	cacheKey := fmt.Sprintf("search_%s_%d_%d", normalizeQuery(query), year, limit)
 
-	result, fromCache, err := cache.GetOrFetch("tmdb_cache", cacheKey, func() (*CachedSearchResults, error) {
+	result, fromCache, err := cache.GetOrFetchWithPolicy("tmdb_cache", cacheKey, func() (*CachedSearchResults, error) {
 		results, searchErr := c.SearchMulti(ctx, query, year, limit)
 		if searchErr != nil {
 			return nil, searchErr
 		}
 		return &CachedSearchResults{Results: results}, nil
+	}, func(result *CachedSearchResults) bool {
+		return result != nil && len(result.Results) > 0
 	})
 
 	if err != nil {
@@ -120,8 +126,17 @@ func (c *Client) CachedGetTVDetails(ctx context.Context, tvID int, appendToRespo
 
 // CachedGetFullMovieDetails fetches full movie details with caching.
 // Cache key format: movie_full_{tmdb_id}
-func (c *Client) CachedGetFullMovieDetails(ctx context.Context, movieID int) (map[string]any, bool, error) {
+func (c *Client) CachedGetFullMovieDetails(ctx context.Context, movieID int, force bool) (map[string]any, bool, error) {
 	cacheKey := fmt.Sprintf("movie_full_%d", movieID)
+
+	if force {
+		details, err := c.GetFullMovieDetails(ctx, movieID)
+		if err != nil {
+			return nil, false, err
+		}
+		c.cacheTMDBValue(cacheKey, &CachedMovieDetails{Details: details})
+		return details, false, nil
+	}
 
 	result, fromCache, err := cache.GetOrFetch("tmdb_cache", cacheKey, func() (*CachedMovieDetails, error) {
 		details, fetchErr := c.GetFullMovieDetails(ctx, movieID)
@@ -140,8 +155,17 @@ func (c *Client) CachedGetFullMovieDetails(ctx context.Context, movieID int) (ma
 
 // CachedGetFullTVDetails fetches full TV details with caching.
 // Cache key format: tv_full_{tmdb_id}
-func (c *Client) CachedGetFullTVDetails(ctx context.Context, tvID int) (map[string]any, bool, error) {
+func (c *Client) CachedGetFullTVDetails(ctx context.Context, tvID int, force bool) (map[string]any, bool, error) {
 	cacheKey := fmt.Sprintf("tv_full_%d", tvID)
+
+	if force {
+		details, err := c.GetFullTVDetails(ctx, tvID)
+		if err != nil {
+			return nil, false, err
+		}
+		c.cacheTMDBValue(cacheKey, &CachedTVDetails{Details: details})
+		return details, false, nil
+	}
 
 	result, fromCache, err := cache.GetOrFetch("tmdb_cache", cacheKey, func() (*CachedTVDetails, error) {
 		details, fetchErr := c.GetFullTVDetails(ctx, tvID)
@@ -160,8 +184,17 @@ func (c *Client) CachedGetFullTVDetails(ctx context.Context, tvID int) (map[stri
 
 // CachedGetMetadataByID fetches metadata by TMDB ID with caching.
 // Cache key format: metadata_{media_type}_{tmdb_id}
-func (c *Client) CachedGetMetadataByID(ctx context.Context, mediaID int, mediaType string) (*Metadata, bool, error) {
+func (c *Client) CachedGetMetadataByID(ctx context.Context, mediaID int, mediaType string, force bool) (*Metadata, bool, error) {
 	cacheKey := fmt.Sprintf("metadata_%s_%d", mediaType, mediaID)
+
+	if force {
+		metadata, err := c.GetMetadataByID(ctx, mediaID, mediaType)
+		if err != nil {
+			return nil, false, err
+		}
+		c.cacheTMDBValue(cacheKey, &CachedMetadata{Metadata: metadata})
+		return metadata, false, nil
+	}
 
 	result, fromCache, err := cache.GetOrFetch("tmdb_cache", cacheKey, func() (*CachedMetadata, error) {
 		metadata, fetchErr := c.GetMetadataByID(ctx, mediaID, mediaType)
@@ -183,7 +216,7 @@ func (c *Client) CachedGetMetadataByID(ctx context.Context, mediaID int, mediaTy
 func (c *Client) CachedFindByIMDBID(ctx context.Context, imdbID string) (int, string, bool, error) {
 	cacheKey := fmt.Sprintf("find_imdb_%s", imdbID)
 
-	result, fromCache, err := cache.GetOrFetch("tmdb_cache", cacheKey, func() (*CachedFindResult, error) {
+	result, fromCache, err := cache.GetOrFetchWithPolicy("tmdb_cache", cacheKey, func() (*CachedFindResult, error) {
 		tmdbID, mediaType, findErr := c.FindByIMDBID(ctx, imdbID)
 		if findErr != nil {
 			return nil, findErr
@@ -193,6 +226,8 @@ func (c *Client) CachedFindByIMDBID(ctx context.Context, imdbID string) (int, st
 			MediaType: mediaType,
 			Found:     tmdbID > 0,
 		}, nil
+	}, func(result *CachedFindResult) bool {
+		return result != nil && result.Found
 	})
 
 	if err != nil {
@@ -200,6 +235,24 @@ func (c *Client) CachedFindByIMDBID(ctx context.Context, imdbID string) (int, st
 	}
 
 	return result.TMDBID, result.MediaType, fromCache, nil
+}
+
+func (c *Client) cacheTMDBValue(cacheKey string, payload any) {
+	cacheDB, err := cache.GetGlobalCache()
+	if err != nil {
+		slog.Warn("Failed to initialize cache for TMDB force refresh", "error", err)
+		return
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		slog.Warn("Failed to marshal TMDB payload for cache refresh", "key", cacheKey, "error", err)
+		return
+	}
+
+	if err := cacheDB.Set("tmdb_cache", cacheKey, string(data)); err != nil {
+		slog.Warn("Failed to update TMDB cache entry", "key", cacheKey, "error", err)
+	}
 }
 
 // normalizeQuery normalizes a query string for use as a cache key.

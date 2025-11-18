@@ -33,6 +33,11 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 
 	// Add type-specific metadata
 	mb.AddType(mapTypeToType(movie.TitleType))
+	
+	// Add seen flag if movie has a rating
+	if movie.MyRating > 0 {
+		mb.AddField("seen", true)
+	}
 
 	// Basic metadata
 	mb.AddField("imdb_id", movie.ImdbId)

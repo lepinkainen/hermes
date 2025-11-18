@@ -3,9 +3,15 @@ package tmdb
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/lepinkainen/hermes/internal/cache"
+	"github.com/spf13/viper"
 )
 
 func TestNormalizeQuery(t *testing.T) {
@@ -26,6 +32,284 @@ func TestNormalizeQuery(t *testing.T) {
 		if got != want {
 			t.Errorf("normalizeQuery(%q) = %q, want %q", input, got, want)
 		}
+	}
+}
+
+func setupTMDBCache(t *testing.T) {
+	t.Helper()
+
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	tmpDir := filepath.Join(os.TempDir(), "hermes-tmdb-cache-tests")
+	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
+		t.Fatalf("Failed to create temp cache dir: %v", err)
+	}
+
+	viper.Set("cache.dbfile", filepath.Join(tmpDir, "tmdb-cache.db"))
+	viper.Set("cache.ttl", "24h")
+
+	cacheDB, err := cache.GetGlobalCache()
+	if err != nil {
+		t.Fatalf("Failed to init cache: %v", err)
+	}
+	if err := cacheDB.ClearAll("tmdb_cache"); err != nil {
+		t.Fatalf("Failed to reset tmdb_cache table: %v", err)
+	}
+}
+
+func TestCachedSearchMovies_DoesNotCacheMisses(t *testing.T) {
+	setupTMDBCache(t)
+
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		w.Header().Set("Content-Type", "application/json")
+		if requestCount == 1 {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"results": []map[string]any{},
+			})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"results": []map[string]any{
+				{
+					"id":           101,
+					"title":        "Fresh Result",
+					"poster_path":  "/poster.jpg",
+					"overview":     "desc",
+					"release_date": "2024-01-01",
+					"vote_average": 7.5,
+				},
+			},
+		})
+	}))
+	defer server.Close()
+
+	client := NewClient("test-api-key", WithBaseURL(server.URL))
+	ctx := context.Background()
+
+	results, fromCache, err := client.CachedSearchMovies(ctx, "query", 0, 5)
+	if err != nil {
+		t.Fatalf("CachedSearchMovies first call error = %v", err)
+	}
+	if fromCache {
+		t.Fatalf("Expected first call not from cache")
+	}
+	if len(results) != 0 {
+		t.Fatalf("Expected no results on first call, got %d", len(results))
+	}
+
+	results, fromCache, err = client.CachedSearchMovies(ctx, "query", 0, 5)
+	if err != nil {
+		t.Fatalf("CachedSearchMovies second call error = %v", err)
+	}
+	if fromCache {
+		t.Fatalf("Expected second call to bypass cached miss")
+	}
+	if len(results) != 1 {
+		t.Fatalf("Expected fresh result after miss, got %d", len(results))
+	}
+	if results[0].ID != 101 {
+		t.Fatalf("Expected result ID 101, got %d", results[0].ID)
+	}
+	if requestCount != 2 {
+		t.Fatalf("Expected two HTTP requests, got %d", requestCount)
+	}
+
+	// Third call should use the cached hit
+	_, fromCache, err = client.CachedSearchMovies(ctx, "query", 0, 5)
+	if err != nil {
+		t.Fatalf("CachedSearchMovies third call error = %v", err)
+	}
+	if !fromCache {
+		t.Fatalf("Expected third call to hit cache")
+	}
+	if requestCount != 2 {
+		t.Fatalf("Expected no additional HTTP requests after cache fill, got %d", requestCount)
+	}
+}
+
+func TestCachedFindByIMDBID_DoesNotCacheMisses(t *testing.T) {
+	setupTMDBCache(t)
+
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		w.Header().Set("Content-Type", "application/json")
+		if requestCount == 1 {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"movie_results": []map[string]any{},
+				"tv_results":    []map[string]any{},
+			})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"movie_results": []map[string]any{
+				{"id": 202},
+			},
+			"tv_results": []map[string]any{},
+		})
+	}))
+	defer server.Close()
+
+	client := NewClient("test-api-key", WithBaseURL(server.URL))
+	ctx := context.Background()
+
+	tmdbID, mediaType, fromCache, err := client.CachedFindByIMDBID(ctx, "tt0123456")
+	if err != nil {
+		t.Fatalf("CachedFindByIMDBID first call error = %v", err)
+	}
+	if tmdbID != 0 || mediaType != "" {
+		t.Fatalf("Expected no result on first call, got id=%d type=%s", tmdbID, mediaType)
+	}
+	if fromCache {
+		t.Fatalf("Expected first call not from cache")
+	}
+
+	tmdbID, mediaType, fromCache, err = client.CachedFindByIMDBID(ctx, "tt0123456")
+	if err != nil {
+		t.Fatalf("CachedFindByIMDBID second call error = %v", err)
+	}
+	if fromCache {
+		t.Fatalf("Expected second call to bypass cached miss")
+	}
+	if tmdbID != 202 || mediaType != "movie" {
+		t.Fatalf("Expected movie result id=202, type=movie; got id=%d type=%s", tmdbID, mediaType)
+	}
+	if requestCount != 2 {
+		t.Fatalf("Expected two HTTP requests, got %d", requestCount)
+	}
+
+	_, _, fromCache, err = client.CachedFindByIMDBID(ctx, "tt0123456")
+	if err != nil {
+		t.Fatalf("CachedFindByIMDBID third call error = %v", err)
+	}
+	if !fromCache {
+		t.Fatalf("Expected third call to hit cache")
+	}
+	if requestCount != 2 {
+		t.Fatalf("Expected no additional HTTP requests after cache fill, got %d", requestCount)
+	}
+}
+
+func TestCachedGetMetadataByID_ForceBypassesCache(t *testing.T) {
+	setupTMDBCache(t)
+
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		w.Header().Set("Content-Type", "application/json")
+		runtime := 100
+		if requestCount > 1 {
+			runtime = 200
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":      101,
+			"runtime": runtime,
+			"genres":  []map[string]any{},
+		})
+	}))
+	defer server.Close()
+
+	client := NewClient("test-api-key", WithBaseURL(server.URL))
+	ctx := context.Background()
+
+	metadata, fromCache, err := client.CachedGetMetadataByID(ctx, 101, "movie", false)
+	if err != nil {
+		t.Fatalf("CachedGetMetadataByID initial call error = %v", err)
+	}
+	if fromCache {
+		t.Fatalf("Expected initial fetch not from cache")
+	}
+	if metadata.Runtime == nil || *metadata.Runtime != 100 {
+		t.Fatalf("Expected runtime 100 from initial fetch, got %+v", metadata.Runtime)
+	}
+
+	metadata, fromCache, err = client.CachedGetMetadataByID(ctx, 101, "movie", true)
+	if err != nil {
+		t.Fatalf("CachedGetMetadataByID force call error = %v", err)
+	}
+	if fromCache {
+		t.Fatalf("Expected force call to bypass cache")
+	}
+	if metadata.Runtime == nil || *metadata.Runtime != 200 {
+		t.Fatalf("Expected runtime 200 from forced fetch, got %+v", metadata.Runtime)
+	}
+	if requestCount != 2 {
+		t.Fatalf("Expected two HTTP requests after force refresh, got %d", requestCount)
+	}
+
+	metadata, fromCache, err = client.CachedGetMetadataByID(ctx, 101, "movie", false)
+	if err != nil {
+		t.Fatalf("CachedGetMetadataByID cached call error = %v", err)
+	}
+	if !fromCache {
+		t.Fatalf("Expected cached value after force refresh")
+	}
+	if metadata.Runtime == nil || *metadata.Runtime != 200 {
+		t.Fatalf("Expected cached runtime 200 after force refresh, got %+v", metadata.Runtime)
+	}
+	if requestCount != 2 {
+		t.Fatalf("Expected no additional HTTP requests after cached read, got %d", requestCount)
+	}
+}
+
+func TestCachedGetFullMovieDetails_ForceBypassesCache(t *testing.T) {
+	setupTMDBCache(t)
+
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		w.Header().Set("Content-Type", "application/json")
+		title := fmt.Sprintf("Title-%d", requestCount)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":    101,
+			"title": title,
+		})
+	}))
+	defer server.Close()
+
+	client := NewClient("test-api-key", WithBaseURL(server.URL))
+	ctx := context.Background()
+
+	details, fromCache, err := client.CachedGetFullMovieDetails(ctx, 101, false)
+	if err != nil {
+		t.Fatalf("CachedGetFullMovieDetails initial call error = %v", err)
+	}
+	if fromCache {
+		t.Fatalf("Expected initial full details fetch not from cache")
+	}
+	if details["title"] != "Title-1" {
+		t.Fatalf("Expected initial title Title-1, got %v", details["title"])
+	}
+
+	details, fromCache, err = client.CachedGetFullMovieDetails(ctx, 101, true)
+	if err != nil {
+		t.Fatalf("CachedGetFullMovieDetails force call error = %v", err)
+	}
+	if fromCache {
+		t.Fatalf("Expected force full details call to bypass cache")
+	}
+	if details["title"] != "Title-2" {
+		t.Fatalf("Expected forced title Title-2, got %v", details["title"])
+	}
+	if requestCount != 2 {
+		t.Fatalf("Expected two HTTP requests after force refresh, got %d", requestCount)
+	}
+
+	details, fromCache, err = client.CachedGetFullMovieDetails(ctx, 101, false)
+	if err != nil {
+		t.Fatalf("CachedGetFullMovieDetails cached call error = %v", err)
+	}
+	if !fromCache {
+		t.Fatalf("Expected cached data after force refresh")
+	}
+	if details["title"] != "Title-2" {
+		t.Fatalf("Expected cached title Title-2, got %v", details["title"])
+	}
+	if requestCount != 2 {
+		t.Fatalf("Expected no additional HTTP requests after cached read, got %d", requestCount)
 	}
 }
 

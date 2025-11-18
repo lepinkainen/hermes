@@ -16,6 +16,14 @@ import (
 	"github.com/spf13/viper"
 )
 
+var (
+	parseGoodreads  = goodreads.ParseGoodreadsWithParams
+	parseIMDB       = imdb.ParseImdbWithParams
+	parseLetterboxd = letterboxd.ParseLetterboxdWithParams
+	parseSteam      = steam.ParseSteamWithParams
+	runEnhancement  = enhance.EnhanceNotes
+)
+
 // CLI represents the complete command structure for the hermes application
 type CLI struct {
 	// Global flags
@@ -195,7 +203,7 @@ func (g *GoodreadsCmd) Run() error {
 		return fmt.Errorf("input CSV file is required (provide via --input flag or goodreads.csvfile in config)")
 	}
 
-	return goodreads.ParseGoodreadsWithParams(input, g.Output, g.JSON, g.JSONOutput, false)
+	return parseGoodreads(input, g.Output, g.JSON, g.JSONOutput, false)
 }
 
 func (i *IMDBCmd) Run() error {
@@ -210,7 +218,7 @@ func (i *IMDBCmd) Run() error {
 		return fmt.Errorf("input CSV file is required (provide via --input flag or imdb.csvfile in config)")
 	}
 
-	return imdb.ParseImdbWithParams(
+	return parseIMDB(
 		input,
 		i.Output,
 		i.JSON,
@@ -236,7 +244,7 @@ func (l *LetterboxdCmd) Run() error {
 		return fmt.Errorf("input CSV file is required (provide via --input flag or letterboxd.csvfile in config)")
 	}
 
-	return letterboxd.ParseLetterboxdWithParams(
+	return parseLetterboxd(
 		input,
 		l.Output,
 		l.JSON,
@@ -270,7 +278,7 @@ func (s *SteamCmd) Run() error {
 		return fmt.Errorf("steam API key is required (provide via --apikey flag or steam.apikey in config)")
 	}
 
-	return steam.ParseSteamWithParams(steamID, apiKey, s.Output, s.JSON, s.JSONOutput, false)
+	return parseSteam(steamID, apiKey, s.Output, s.JSON, s.JSONOutput, false)
 }
 
 func (e *EnhanceCmd) Run() error {
@@ -286,7 +294,7 @@ func (e *EnhanceCmd) Run() error {
 		TMDBContentSections: e.TMDBContentSections,
 	}
 
-	return enhance.EnhanceNotes(opts)
+	return runEnhancement(opts)
 }
 
 func initLogging() {

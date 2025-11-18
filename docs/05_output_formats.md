@@ -185,6 +185,7 @@ imdb_rating: 9.3
 poster: "https://m.media-amazon.com/images/M/MV5BMDFkYTc0MGEtZmNhMC00ZDIzLWFmNTEtODM1ZmRlYWMwMWFmXkEyXkFqcGdeQXVyMTMxODk2OTU@._V1_.jpg"
 date_rated: "2021-07-22"
 my_rating: 10
+seen: true
 ---
 
 # The Shawshank Redemption (1994)
@@ -234,6 +235,7 @@ Common frontmatter fields across importers:
 - `source_id`: The ID of the item on the source website
 - `date_added`: When the item was added to the user's collection
 - `rating`: The user's rating of the item
+- `seen`: Boolean flag indicating if the item has been watched/read. Automatically set to true when any rating is present. If omitted or false, the item is considered unwatched/unread.
 
 Importer-specific frontmatter fields are documented in the respective importer documentation.
 

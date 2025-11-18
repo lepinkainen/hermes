@@ -20,6 +20,7 @@ type Note struct {
 	IMDBID       string `yaml:"imdb_id,omitempty"`
 	TMDBID       int    `yaml:"tmdb_id,omitempty"`
 	LetterboxdID string `yaml:"letterboxd_id,omitempty"`
+	Seen         bool   `yaml:"seen,omitempty"`
 
 	// Raw frontmatter and content
 	RawFrontmatter map[string]interface{}
@@ -92,6 +93,9 @@ func parseNote(fileContent string) (*Note, error) {
 	}
 	if letterboxdID, ok := frontmatter["letterboxd_id"].(string); ok {
 		note.LetterboxdID = letterboxdID
+	}
+	if seen, ok := frontmatter["seen"].(bool); ok {
+		note.Seen = seen
 	}
 
 	return note, nil
@@ -201,6 +205,11 @@ func (n *Note) AddTMDBData(tmdbData *enrichment.TMDBEnrichment) {
 
 	if tmdbData.CoverPath != "" {
 		n.RawFrontmatter["cover"] = tmdbData.CoverPath
+	}
+
+	// Set seen flag if movie has any rating but seen field is not already set
+	if !n.hasSeenField() && n.hasAnyRating() {
+		n.RawFrontmatter["seen"] = true
 	}
 }
 
@@ -340,4 +349,45 @@ func (n *Note) GetIDSummary() string {
 		return "no IDs"
 	}
 	return strings.Join(summary, ", ")
+}
+
+// hasSeenField checks if the note already has a seen field in frontmatter.
+func (n *Note) hasSeenField() bool {
+	_, exists := n.RawFrontmatter["seen"]
+	return exists
+}
+
+// hasAnyRating checks if the note has any rating field (imdb_rating, my_rating, or letterboxd_rating).
+func (n *Note) hasAnyRating() bool {
+	// Check for IMDb rating
+	if imdbRating, ok := n.RawFrontmatter["imdb_rating"]; ok {
+		if rating, isFloat := imdbRating.(float64); isFloat && rating > 0 {
+			return true
+		}
+		if rating, isInt := imdbRating.(int); isInt && rating > 0 {
+			return true
+		}
+	}
+	
+	// Check for my_rating
+	if myRating, ok := n.RawFrontmatter["my_rating"]; ok {
+		if rating, isInt := myRating.(int); isInt && rating > 0 {
+			return true
+		}
+		if rating, isFloat := myRating.(float64); isFloat && rating > 0 {
+			return true
+		}
+	}
+	
+	// Check for letterboxd_rating
+	if letterboxdRating, ok := n.RawFrontmatter["letterboxd_rating"]; ok {
+		if rating, isFloat := letterboxdRating.(float64); isFloat && rating > 0 {
+			return true
+		}
+		if rating, isInt := letterboxdRating.(int); isInt && rating > 0 {
+			return true
+		}
+	}
+	
+	return false
 }

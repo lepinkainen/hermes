@@ -5,6 +5,8 @@ package main
 
 import "github.com/lepinkainen/hermes/cmd"
 
+var execute = cmd.Execute
+
 func main() {
-	cmd.Execute()
+	execute()
 }

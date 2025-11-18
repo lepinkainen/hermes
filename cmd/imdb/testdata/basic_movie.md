@@ -2,6 +2,7 @@
 title: "Test Movie"
 original_title: "Original Test Movie"
 type: movie
+seen: true
 imdb_id: "tt1234567"
 year: 2020
 imdb_rating: 8.5
