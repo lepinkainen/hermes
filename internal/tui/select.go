@@ -101,7 +101,7 @@ func newItemStyles() itemStyles {
 		ratingStyle: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("178")),
 		metadataStyle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("243")).
+			Foreground(lipgloss.Color("247")).
 			Faint(true),
 		overviewStyle: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("248")),
@@ -258,8 +258,21 @@ var (
 
 // Select presents an interactive selection UI for TMDB search results.
 func Select(title string, results []tmdb.SearchResult) (SelectionResult, error) {
-	items := make([]tmdbItem, len(results))
-	for i, result := range results {
+	// Filter out items with less than 100 votes
+	filteredResults := make([]tmdb.SearchResult, 0, len(results))
+	for _, result := range results {
+		if result.VoteCount >= 100 {
+			filteredResults = append(filteredResults, result)
+		}
+	}
+	
+	// If no items meet the vote threshold, return empty
+	if len(filteredResults) == 0 {
+		return SelectionResult{Action: ActionSkipped}, nil
+	}
+	
+	items := make([]tmdbItem, len(filteredResults))
+	for i, result := range filteredResults {
 		items[i] = tmdbItem{SearchResult: result}
 	}
 	m := newModel(title, items)

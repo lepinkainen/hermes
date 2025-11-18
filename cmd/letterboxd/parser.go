@@ -1,11 +1,8 @@
 package letterboxd
 
 import (
-	"bytes"
 	"context"
-	"encoding/csv"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -13,12 +10,14 @@ import (
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/config"
+	"github.com/lepinkainen/hermes/internal/csvutil"
 	"github.com/lepinkainen/hermes/internal/datastore"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/errors"
 	"github.com/lepinkainen/hermes/internal/fileutil"
+	"github.com/lepinkainen/hermes/internal/frontmatter"
+	"github.com/lepinkainen/hermes/internal/omdb"
 	"github.com/spf13/viper"
-	"gopkg.in/yaml.v3"
 )
 
 // Convert Movie to map[string]any for database insertion
@@ -127,49 +126,10 @@ func ParseLetterboxd() error {
 
 // processCSVFile reads and parses the Letterboxd CSV file
 func processCSVFile(filename string) ([]Movie, error) {
-	csvFile, err := os.Open(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open CSV file: %v", err)
+	opts := csvutil.ProcessorOptions{
+		SkipInvalid: skipInvalid,
 	}
-	defer func() { _ = csvFile.Close() }()
-
-	// File existence check
-	if fi, err := csvFile.Stat(); err != nil || fi.Size() == 0 {
-		return nil, fmt.Errorf("CSV file is empty or cannot be read")
-	}
-
-	reader := csv.NewReader(csvFile)
-
-	// Skip header
-	if _, err := reader.Read(); err != nil {
-		return nil, fmt.Errorf("failed to read header: %v", err)
-	}
-
-	var movies []Movie
-
-	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			slog.Warn("Error reading record", "error", err)
-			continue
-		}
-
-		movie, err := parseMovieRecord(record)
-		if err != nil {
-			if skipInvalid {
-				slog.Warn("Skipping invalid movie", "error", err)
-				continue
-			}
-			return nil, fmt.Errorf("invalid movie: %v", err)
-		}
-
-		movies = append(movies, movie)
-	}
-
-	return movies, nil
+	return csvutil.ProcessCSV(filename, parseMovieRecord, opts)
 }
 
 // parseMovieRecord converts a CSV record into a Movie struct
@@ -221,7 +181,7 @@ func writeMoviesToJSON(movies []Movie, jsonOutput string) error {
 
 			if err := enrichMovieData(&movies[i]); err != nil {
 				if errors.IsRateLimitError(err) {
-					markOmdbRateLimitReached()
+					omdb.MarkRateLimitReached()
 					slog.Warn("Skipping OMDB enrichment after rate limit", "movie", movies[i].Name)
 					continue
 				}
@@ -247,7 +207,7 @@ func enrichMovieData(movie *Movie) error {
 	if err != nil {
 		// Don't wrap rate limit errors, but continue to TMDB enrichment
 		if errors.IsRateLimitError(err) {
-			markOmdbRateLimitReached()
+			omdb.MarkRateLimitReached()
 			slog.Warn("Skipping OMDB enrichment after rate limit", "movie", movie.Name)
 			// Don't return - continue to TMDB enrichment below
 		} else {
@@ -360,7 +320,7 @@ func writeMoviesToMarkdown(movies []Movie, directory string) error {
 					return err
 				}
 				if errors.IsRateLimitError(err) {
-					markOmdbRateLimitReached()
+					omdb.MarkRateLimitReached()
 					slog.Warn("Skipping OMDB enrichment after rate limit", "movie", movies[i].Name)
 					// Continue writing without enrichment
 				} else {
@@ -396,61 +356,26 @@ func loadExistingTMDBID(movie *Movie, directory string) {
 		return
 	}
 
-	content := bytes.TrimSpace(data)
-	if !bytes.HasPrefix(content, []byte("---")) {
-		return
-	}
-
-	// Split frontmatter section
-	parts := bytes.SplitN(content, []byte("---"), 3)
-	if len(parts) < 3 {
-		return
-	}
-	frontmatter := parts[1]
-
-	var fm map[string]any
-	if err := yaml.Unmarshal(frontmatter, &fm); err != nil {
+	note, err := frontmatter.ParseMarkdown(data)
+	if err != nil {
 		return
 	}
 
 	// Prefer stored IMDb ID when CSV is missing it
 	if movie.ImdbID == "" {
-		if imdbID, ok := fm["imdb_id"].(string); ok {
-			movie.ImdbID = strings.TrimSpace(imdbID)
-		}
+		movie.ImdbID = note.GetString("imdb_id")
 	}
 
-	rawID, ok := fm["tmdb_id"]
-	if !ok {
-		return
-	}
-
-	existingID := intFromAny(rawID)
+	existingID := note.GetInt("tmdb_id")
 	if existingID <= 0 {
 		return
 	}
 
-	tmdbType, _ := fm["tmdb_type"].(string)
+	tmdbType := note.GetString("tmdb_type")
 
 	if movie.TMDBEnrichment == nil {
 		movie.TMDBEnrichment = &enrichment.TMDBEnrichment{}
 	}
 	movie.TMDBEnrichment.TMDBID = existingID
 	movie.TMDBEnrichment.TMDBType = tmdbType
-}
-
-func intFromAny(val any) int {
-	switch v := val.(type) {
-	case int:
-		return v
-	case int64:
-		return int(v)
-	case float64:
-		return int(v)
-	case string:
-		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
-			return n
-		}
-	}
-	return 0
 }

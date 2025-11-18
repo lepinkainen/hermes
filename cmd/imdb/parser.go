@@ -2,18 +2,18 @@ package imdb
 
 import (
 	"context"
-	"encoding/csv"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/csvutil"
 	"github.com/lepinkainen/hermes/internal/datastore"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/errors"
+	"github.com/lepinkainen/hermes/internal/omdb"
 	"github.com/spf13/viper"
 )
 
@@ -135,50 +135,11 @@ func ParseImdb() error {
 }
 
 func processCSVFile(filename string) ([]MovieSeen, error) {
-	csvFile, err := os.Open(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open CSV file: %v", err)
+	opts := csvutil.ProcessorOptions{
+		FieldsPerRecord: 14, // IMDb export format has 14 fields
+		SkipInvalid:     skipInvalid,
 	}
-	defer func() { _ = csvFile.Close() }()
-
-	// File existence check
-	if fi, err := csvFile.Stat(); err != nil || fi.Size() == 0 {
-		return nil, fmt.Errorf("CSV file is empty or cannot be read")
-	}
-
-	reader := csv.NewReader(csvFile)
-	reader.FieldsPerRecord = 14 // New format has 14 fields
-
-	// Skip header
-	if _, err := reader.Read(); err != nil {
-		return nil, fmt.Errorf("failed to read header: %v", err)
-	}
-
-	var movies []MovieSeen
-
-	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			slog.Warn("Error reading record", "error", err)
-			continue
-		}
-
-		movie, err := parseMovieRecord(record)
-		if err != nil {
-			if skipInvalid {
-				slog.Warn("Skipping invalid movie", "error", err)
-				continue
-			}
-			return nil, fmt.Errorf("invalid movie: %v", err)
-		}
-
-		movies = append(movies, movie)
-	}
-
-	return movies, nil
+	return csvutil.ProcessCSV(filename, parseMovieRecord, opts)
 }
 
 // parseMovieRecord converts a CSV record into a MovieSeen struct
@@ -267,8 +228,8 @@ func enrichMovieData(movie *MovieSeen) error {
 	omdbMovie, err := getCachedMovie(movie.ImdbId)
 	if err != nil {
 		// Don't wrap rate limit errors, but do continue processing without OMDB
-		if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
-			markOmdbRateLimitReached()
+		if errors.IsRateLimitError(err) {
+			omdb.MarkRateLimitReached()
 			slog.Warn("Skipping OMDB enrichment after rate limit", "title", movie.Title)
 			return nil
 		}

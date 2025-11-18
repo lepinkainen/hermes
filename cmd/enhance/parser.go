@@ -175,32 +175,10 @@ func (n *Note) AddTMDBData(tmdbData *enrichment.TMDBEnrichment) {
 	}
 
 	if len(tmdbData.GenreTags) > 0 {
-		// Merge with existing tags if present
-		existingTags := []string{}
-		if tags, ok := n.RawFrontmatter["tags"].([]interface{}); ok {
-			for _, g := range tags {
-				if tagStr, ok := g.(string); ok {
-					existingTags = append(existingTags, tagStr)
-				}
-			}
-		} else if tags, ok := n.RawFrontmatter["tags"].([]string); ok {
-			existingTags = tags
-		}
-
-		// Combine and deduplicate
-		tagSet := make(map[string]bool)
-		for _, g := range existingTags {
-			tagSet[g] = true
-		}
-		for _, g := range tmdbData.GenreTags {
-			tagSet[g] = true
-		}
-
-		tags := []string{}
-		for g := range tagSet {
-			tags = append(tags, g)
-		}
-		n.RawFrontmatter["tags"] = tags
+		// Merge with existing tags using shared utility
+		existingTags := enrichment.TagsFromAny(n.RawFrontmatter["tags"])
+		mergedTags := enrichment.MergeTags(existingTags, tmdbData.GenreTags)
+		n.RawFrontmatter["tags"] = mergedTags
 	}
 
 	if tmdbData.CoverPath != "" {
@@ -368,7 +346,7 @@ func (n *Note) hasAnyRating() bool {
 			return true
 		}
 	}
-	
+
 	// Check for my_rating
 	if myRating, ok := n.RawFrontmatter["my_rating"]; ok {
 		if rating, isInt := myRating.(int); isInt && rating > 0 {
@@ -378,7 +356,7 @@ func (n *Note) hasAnyRating() bool {
 			return true
 		}
 	}
-	
+
 	// Check for letterboxd_rating
 	if letterboxdRating, ok := n.RawFrontmatter["letterboxd_rating"]; ok {
 		if rating, isFloat := letterboxdRating.(float64); isFloat && rating > 0 {
@@ -388,6 +366,6 @@ func (n *Note) hasAnyRating() bool {
 			return true
 		}
 	}
-	
+
 	return false
 }

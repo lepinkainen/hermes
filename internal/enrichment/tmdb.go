@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/content"
@@ -115,10 +117,30 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 				return nil, nil
 			}
 
+			// Filter out items with less than 100 votes
+			filteredResults := make([]tmdb.SearchResult, 0, len(results))
+			for _, result := range results {
+				if result.VoteCount >= 100 {
+					filteredResults = append(filteredResults, result)
+				}
+			}
+
+			// If no items meet the vote threshold, return
+			if len(filteredResults) == 0 {
+				slog.Debug("No TMDB results with 100+ votes found", "title", title)
+				return nil, nil
+			}
+
+			results = filteredResults
+
 			// If multiple results and interactive mode, show TUI
 			var selectedResult tmdb.SearchResult
 			if len(results) == 1 {
 				selectedResult = results[0]
+			} else if exactMatch := findExactMatch(results, title, year); exactMatch != nil {
+				// Auto-select exact title+year match
+				slog.Debug("Auto-selected exact TMDB match", "title", title, "year", year, "tmdb_id", exactMatch.ID)
+				selectedResult = *exactMatch
 			} else if opts.Interactive {
 				selection, err := tui.Select(title, results)
 				if err != nil {
@@ -245,4 +267,47 @@ func findTMDBIDByIMDBID(ctx context.Context, client *tmdb.Client, imdbID string)
 	}
 
 	return tmdbID, mediaType
+}
+
+// findExactMatch returns a result if exactly one result matches the title and year.
+// Returns nil if no match is found or if multiple matches exist (ambiguous).
+func findExactMatch(results []tmdb.SearchResult, title string, year int) *tmdb.SearchResult {
+	normalizedTitle := strings.ToLower(strings.TrimSpace(title))
+
+	var match *tmdb.SearchResult
+	matchCount := 0
+
+	for i := range results {
+		result := &results[i]
+
+		// Get the result's title and year
+		resultTitle := result.Title
+		if resultTitle == "" {
+			resultTitle = result.Name // TV shows use Name
+		}
+
+		// Get year from release date
+		resultYear := 0
+		dateStr := result.ReleaseDate
+		if dateStr == "" {
+			dateStr = result.FirstAirDate // TV shows use FirstAirDate
+		}
+		if len(dateStr) >= 4 {
+			if y, err := strconv.Atoi(dateStr[:4]); err == nil {
+				resultYear = y
+			}
+		}
+
+		// Check for exact match (case-insensitive title, exact year)
+		if strings.ToLower(strings.TrimSpace(resultTitle)) == normalizedTitle && resultYear == year {
+			match = result
+			matchCount++
+			if matchCount > 1 {
+				// Multiple exact matches - ambiguous, return nil
+				return nil
+			}
+		}
+	}
+
+	return match
 }
