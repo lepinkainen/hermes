@@ -174,21 +174,23 @@ func parseMovieRecord(record []string) (Movie, error) {
 
 // writeMoviesToJSON writes the movies to a JSON file
 func writeMoviesToJSON(movies []Movie, jsonOutput string) error {
-	// Enrich with OMDB data if not skipped
-	if !skipEnrich {
-		for i := range movies {
-			// If we already have a TMDB ID in an existing note, use it directly to avoid searching
-			loadExistingTMDBID(&movies[i], outputDir)
+	for i := range movies {
+		// If we already have a TMDB ID in an existing note, use it directly to avoid searching
+		loadExistingTMDBID(&movies[i], outputDir)
 
-			if err := enrichMovieData(&movies[i]); err != nil {
-				if errors.IsRateLimitError(err) {
-					omdb.MarkRateLimitReached()
-					slog.Warn("Skipping OMDB enrichment after rate limit", "movie", movies[i].Name)
-					continue
-				}
-				slog.Warn("Failed to enrich movie for JSON", "movie", movies[i].Name, "error", err)
-				// Continue processing even if enrichment fails for other errors
+		// Enrich with OMDB/TMDB data unless explicitly skipped
+		if skipEnrich {
+			continue
+		}
+
+		if err := enrichMovieData(&movies[i]); err != nil {
+			if errors.IsRateLimitError(err) {
+				omdb.MarkRateLimitReached()
+				slog.Warn("Skipping OMDB enrichment after rate limit", "movie", movies[i].Name)
+				continue
 			}
+			slog.Warn("Failed to enrich movie for JSON", "movie", movies[i].Name, "error", err)
+			// Continue processing even if enrichment fails for other errors
 		}
 	}
 
