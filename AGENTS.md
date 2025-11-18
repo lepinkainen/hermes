@@ -47,6 +47,8 @@ bd close bd-42 --reason "Completed" --json
 - `epic` - Large feature with subtasks
 - `chore` - Maintenance (dependencies, tooling)
 
+**Epics:** Use epics to group related or refactoring work when helpful. Create with `bd create "Title" -t epic -p <priority> --json`, then attach child issues via dependencies (`bd dep add <child> <epic> -t parent-child --json`). Prefer grouping similar refactors/cleanups under a shared epic instead of scattering standalone tasks.
+
 ### Priorities
 
 - `0` - Critical (security, data loss, broken builds)
