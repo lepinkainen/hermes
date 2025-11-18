@@ -127,7 +127,7 @@ func writeBookToMarkdown(book Book, directory string) error {
 			URL:          coverURL,
 			OutputDir:    directory,
 			Filename:     coverFilename,
-			UpdateCovers: config.OverwriteFiles, // Reuse overwrite flag for cover updates
+			UpdateCovers: config.UpdateCovers,
 		})
 		if err != nil {
 			slog.Warn("Failed to download cover", "title", book.Title, "error", err)

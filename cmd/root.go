@@ -19,7 +19,8 @@ import (
 // CLI represents the complete command structure for the hermes application
 type CLI struct {
 	// Global flags
-	Overwrite bool `help:"Overwrite existing markdown files when processing"`
+	Overwrite    bool `help:"Overwrite existing markdown files when processing"`
+	UpdateCovers bool `help:"Re-download cover images even if they already exist"`
 
 	// Datasette flags
 	Datasette   bool   `help:"Enable Datasette output" default:"true"`
@@ -169,6 +170,7 @@ func initConfig() {
 func updateGlobalConfig(cli *CLI) {
 	// Update config based on CLI flags
 	config.SetOverwriteFiles(cli.Overwrite)
+	config.SetUpdateCovers(cli.UpdateCovers)
 
 	// Update datasette config
 	viper.Set("datasette.enabled", cli.Datasette)

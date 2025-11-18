@@ -89,7 +89,7 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 			URL:          movie.PosterURL,
 			OutputDir:    directory,
 			Filename:     coverFilename,
-			UpdateCovers: config.OverwriteFiles,
+			UpdateCovers: config.UpdateCovers,
 		})
 		if err != nil {
 			slog.Warn("Failed to download cover", "title", movie.Title, "error", err)

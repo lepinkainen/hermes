@@ -6,6 +6,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/content"
 	"github.com/lepinkainen/hermes/internal/fileutil"
 )
@@ -82,7 +83,7 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 			URL:          movie.PosterURL,
 			OutputDir:    directory,
 			Filename:     coverFilename,
-			UpdateCovers: overwrite, // Use package-level overwrite flag
+			UpdateCovers: config.UpdateCovers,
 		})
 		if err != nil {
 			slog.Warn("Failed to download cover", "title", movie.Name, "error", err)
