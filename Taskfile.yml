@@ -73,7 +73,7 @@ tasks:
     desc: Run Go tests with coverage
     cmds:
       - mkdir -p {{.COVERAGE_DIR}}
-      - go test -v -race -coverprofile={{.COVERAGE_DIR}}/coverage.out ./...
+      - go test -race -coverprofile={{.COVERAGE_DIR}}/coverage.out ./...
       - go tool cover -html={{.COVERAGE_DIR}}/coverage.out -o {{.COVERAGE_DIR}}/coverage.html
     sources:
       - ./**/*.go

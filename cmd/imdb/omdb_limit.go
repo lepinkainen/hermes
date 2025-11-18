@@ -13,6 +13,7 @@ func markOmdbRateLimitReached() {
 	}
 }
 
+// omdbRequestsAllowed returns true if OMDB requests are still allowed
 func omdbRequestsAllowed() bool {
 	return !omdbRateLimitReached.Load()
 }

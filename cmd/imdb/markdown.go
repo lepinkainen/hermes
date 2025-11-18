@@ -3,6 +3,7 @@ package imdb
 import (
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 	"time"
 
@@ -55,20 +56,47 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 		mb.AddStringArray("directors", movie.Directors)
 	}
 
-	// Add Obsidian-specific tags
-	tags := []string{
-		mapTypeToTag(movie.TitleType),            // e.g., #imdb/movie
-		fmt.Sprintf("rating/%d", movie.MyRating), // e.g., #rating/8
+	// Collect all tags using a map for deduplication
+	tagMap := make(map[string]bool)
+	
+	// Add type tag
+	typeTag := mapTypeToTag(movie.TitleType)
+	if typeTag != "UNKNOWN" {
+		tagMap[typeTag] = true
+	}
+
+	// Add rating tag if available
+	if movie.MyRating > 0 {
+		ratingTag := fmt.Sprintf("rating/%d", movie.MyRating)
+		tagMap[ratingTag] = true
 	}
 
 	// Add decade tag
-	decade := (movie.Year / 10) * 10
-	tags = append(tags, fmt.Sprintf("year/%ds", decade)) // e.g., #year/1990s
+	if movie.Year > 0 {
+		decade := (movie.Year / 10) * 10
+		decadeTag := fmt.Sprintf("year/%ds", decade)
+		tagMap[decadeTag] = true
+	}
 
 	// Add genres as tags with genre/ prefix
 	for _, genre := range movie.Genres {
-		tags = append(tags, fmt.Sprintf("genre/%s", genre))
+		genreTag := fmt.Sprintf("genre/%s", genre)
+		tagMap[genreTag] = true
 	}
+
+	// Add TMDB genre tags if available
+	if movie.TMDBEnrichment != nil && len(movie.TMDBEnrichment.GenreTags) > 0 {
+		for _, tmdbTag := range movie.TMDBEnrichment.GenreTags {
+			tagMap[tmdbTag] = true
+		}
+	}
+
+	// Convert map to slice and sort alphabetically
+	tags := make([]string, 0, len(tagMap))
+	for tag := range tagMap {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
 
 	mb.AddTags(tags...)
 
@@ -125,11 +153,6 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 		if movie.TMDBEnrichment.TMDBID > 0 {
 			mb.AddField("tmdb_id", movie.TMDBEnrichment.TMDBID)
 			mb.AddField("tmdb_type", movie.TMDBEnrichment.TMDBType)
-		}
-
-		// Add TMDB genre tags (merge with existing tags)
-		if len(movie.TMDBEnrichment.GenreTags) > 0 {
-			mb.AddTags(movie.TMDBEnrichment.GenreTags...)
 		}
 
 		// Add total episodes for TV shows

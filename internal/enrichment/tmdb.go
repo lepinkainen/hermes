@@ -9,6 +9,7 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/content"
+	"github.com/lepinkainen/hermes/internal/errors"
 	"github.com/lepinkainen/hermes/internal/fileutil"
 	"github.com/lepinkainen/hermes/internal/tmdb"
 	"github.com/lepinkainen/hermes/internal/tui"
@@ -30,6 +31,8 @@ type TMDBEnrichmentOptions struct {
 	Interactive bool
 	// Force forces re-enrichment even when TMDB ID exists
 	Force bool
+	// MoviesOnly restricts search to movies only (excludes TV shows)
+	MoviesOnly bool
 }
 
 // TMDBEnrichment holds TMDB enrichment data.
@@ -72,10 +75,10 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 		tmdbID = existingTMDBID
 		// We don't know the media type yet, will be determined when fetching metadata
 		// For now, try movie first, then TV
-		metadata, err := client.GetMetadataByID(ctx, tmdbID, "movie")
+		metadata, _, err := client.CachedGetMetadataByID(ctx, tmdbID, "movie")
 		if err != nil {
 			// Try TV if movie fails
-			metadata, err = client.GetMetadataByID(ctx, tmdbID, "tv")
+			metadata, _, err = client.CachedGetMetadataByID(ctx, tmdbID, "tv")
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch TMDB metadata for ID %d: %w", tmdbID, err)
 			}
@@ -90,16 +93,21 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 			tmdbID, mediaType = findTMDBIDByIMDBID(ctx, client, imdbID)
 		}
 
-		// If not found by IMDB ID, search by title
+		// If not found by IMDB ID, search by title (with year hint)
 		if tmdbID == 0 {
-			query := title
-			if year > 0 {
-				query = fmt.Sprintf("%s %d", title, year)
+			var results []tmdb.SearchResult
+			var fromCache bool
+			var err error
+			if opts.MoviesOnly {
+				results, fromCache, err = client.CachedSearchMovies(ctx, title, year, 10)
+			} else {
+				results, fromCache, err = client.CachedSearchMulti(ctx, title, year, 10)
 			}
-
-			results, err := client.SearchMulti(ctx, query, 5)
 			if err != nil {
 				return nil, fmt.Errorf("TMDB search failed: %w", err)
+			}
+			if fromCache {
+				slog.Debug("TMDB search result from cache", "title", title, "year", year)
 			}
 
 			if len(results) == 0 {
@@ -116,11 +124,16 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 				if err != nil {
 					return nil, fmt.Errorf("TUI selection failed: %w", err)
 				}
-				if selection.Action != tui.ActionSelected {
+
+				switch selection.Action {
+				case tui.ActionSelected:
+					selectedResult = *selection.Selection
+				case tui.ActionStopped:
+					return nil, errors.NewStopProcessingError("TMDB selection stopped by user")
+				default:
 					slog.Debug("User skipped TMDB selection")
 					return nil, nil
 				}
-				selectedResult = *selection.Selection
 			} else {
 				// Non-interactive: use first result
 				selectedResult = results[0]
@@ -137,10 +150,13 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 	}
 
 	// Fetch metadata
-	metadata, err := client.GetMetadataByID(ctx, tmdbID, mediaType)
+	metadata, fromCache, err := client.CachedGetMetadataByID(ctx, tmdbID, mediaType)
 	if err != nil {
 		slog.Warn("Failed to fetch TMDB metadata", "error", err)
 	} else {
+		if fromCache {
+			slog.Debug("TMDB metadata from cache", "tmdb_id", tmdbID)
+		}
 		if metadata.Runtime != nil {
 			enrichment.RuntimeMins = *metadata.Runtime
 		}
@@ -180,15 +196,19 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 	if opts.GenerateContent {
 		var details map[string]any
 		var err error
+		var detailsFromCache bool
 		if mediaType == "movie" {
-			details, err = client.GetFullMovieDetails(ctx, tmdbID)
+			details, detailsFromCache, err = client.CachedGetFullMovieDetails(ctx, tmdbID)
 		} else {
-			details, err = client.GetFullTVDetails(ctx, tmdbID)
+			details, detailsFromCache, err = client.CachedGetFullTVDetails(ctx, tmdbID)
 		}
 
 		if err != nil {
 			slog.Warn("Failed to fetch TMDB details for content generation", "error", err)
 		} else {
+			if detailsFromCache {
+				slog.Debug("TMDB full details from cache", "tmdb_id", tmdbID)
+			}
 			tmdbContent := content.BuildTMDBContent(details, mediaType, opts.ContentSections)
 
 			// Prepend cover image embed if cover was downloaded
@@ -208,12 +228,21 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 	return enrichment, nil
 }
 
-// findTMDBIDByIMDBID attempts to find TMDB ID using IMDB ID via external_ids endpoint.
-func findTMDBIDByIMDBID(ctx context.Context, client *tmdb.Client, _ string) (int, string) {
-	// TODO: TMDB doesn't have a direct IMDB ID lookup in the simple API
-	// For now, we'll skip this and rely on search
-	_ = ctx
-	_ = client
+// findTMDBIDByIMDBID attempts to find TMDB ID using IMDB ID via the find endpoint.
+func findTMDBIDByIMDBID(ctx context.Context, client *tmdb.Client, imdbID string) (int, string) {
+	tmdbID, mediaType, fromCache, err := client.CachedFindByIMDBID(ctx, imdbID)
+	if err != nil {
+		slog.Warn("Failed to find TMDB ID by IMDB ID", "imdb_id", imdbID, "error", err)
+		return 0, ""
+	}
 
-	return 0, ""
+	if tmdbID > 0 {
+		cacheStatus := "fetched"
+		if fromCache {
+			cacheStatus = "cached"
+		}
+		slog.Debug("Found TMDB ID by IMDB ID", "imdb_id", imdbID, "tmdb_id", tmdbID, "media_type", mediaType, "cache", cacheStatus)
+	}
+
+	return tmdbID, mediaType
 }

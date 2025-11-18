@@ -24,7 +24,7 @@ func getCachedMovie(title string, year int) (*Movie, error) {
 		movieData, fetchErr := fetchMovieData(title, year)
 		if fetchErr != nil {
 			// Check if it's a rate limit error
-			if _, isRateLimit := fetchErr.(*errors.RateLimitError); isRateLimit {
+			if errors.IsRateLimitError(fetchErr) {
 				slog.Warn("OMDB API rate limit reached; skipping further OMDB requests for this run")
 				markOmdbRateLimitReached()
 				return nil, fetchErr

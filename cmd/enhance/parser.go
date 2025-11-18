@@ -14,11 +14,12 @@ import (
 // Note represents a parsed markdown note with YAML frontmatter.
 type Note struct {
 	// Frontmatter fields
-	Title  string `yaml:"title"`
-	Type   string `yaml:"type"`
-	Year   int    `yaml:"year"`
-	IMDBID string `yaml:"imdb_id,omitempty"`
-	TMDBID int    `yaml:"tmdb_id,omitempty"`
+	Title        string `yaml:"title"`
+	Type         string `yaml:"type"`
+	Year         int    `yaml:"year"`
+	IMDBID       string `yaml:"imdb_id,omitempty"`
+	TMDBID       int    `yaml:"tmdb_id,omitempty"`
+	LetterboxdID string `yaml:"letterboxd_id,omitempty"`
 
 	// Raw frontmatter and content
 	RawFrontmatter map[string]interface{}
@@ -88,6 +89,9 @@ func parseNote(fileContent string) (*Note, error) {
 	}
 	if tmdbID, ok := frontmatter["tmdb_id"].(int); ok {
 		note.TMDBID = tmdbID
+	}
+	if letterboxdID, ok := frontmatter["letterboxd_id"].(string); ok {
+		note.LetterboxdID = letterboxdID
 	}
 
 	return note, nil
@@ -291,4 +295,49 @@ func detectTypeFromTags(frontmatter map[string]interface{}) string {
 	}
 
 	return ""
+}
+
+// MediaIDs represents all external IDs found in the frontmatter.
+type MediaIDs struct {
+	TMDBID       int    `yaml:"tmdb_id,omitempty"`
+	IMDBID       string `yaml:"imdb_id,omitempty"`
+	LetterboxdID string `yaml:"letterboxd_id,omitempty"`
+}
+
+// GetMediaIDs extracts all external media IDs from the frontmatter.
+// Returns a struct containing any TMDB, IMDB, or Letterboxd IDs found.
+func (n *Note) GetMediaIDs() MediaIDs {
+	ids := MediaIDs{
+		TMDBID:       n.TMDBID,
+		IMDBID:       n.IMDBID,
+		LetterboxdID: n.LetterboxdID,
+	}
+	return ids
+}
+
+// HasAnyID checks if the note has any external ID (TMDB, IMDB, or Letterboxd).
+// Returns true if at least one ID is present and non-empty.
+func (n *Note) HasAnyID() bool {
+	ids := n.GetMediaIDs()
+	return ids.TMDBID != 0 || ids.IMDBID != "" || ids.LetterboxdID != ""
+}
+
+// GetIDSummary returns a formatted string summary of all available IDs.
+// Useful for logging and debugging.
+func (n *Note) GetIDSummary() string {
+	ids := n.GetMediaIDs()
+	var summary []string
+	if ids.TMDBID != 0 {
+		summary = append(summary, fmt.Sprintf("tmdb:%d", ids.TMDBID))
+	}
+	if ids.IMDBID != "" {
+		summary = append(summary, fmt.Sprintf("imdb:%s", ids.IMDBID))
+	}
+	if ids.LetterboxdID != "" {
+		summary = append(summary, fmt.Sprintf("letterboxd:%s", ids.LetterboxdID))
+	}
+	if len(summary) == 0 {
+		return "no IDs"
+	}
+	return strings.Join(summary, ", ")
 }

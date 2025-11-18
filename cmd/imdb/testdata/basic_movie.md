@@ -13,11 +13,11 @@ directors:
   - "Director One"
   - "Director Two"
 tags:
+  - genre/Action
+  - genre/Adventure
   - imdb/movie
   - rating/9
   - year/2020s
-  - genre/Action
-  - genre/Adventure
 content_rating: "PG-13"
 awards: "Won 2 Oscars."
 cover: "https://example.com/poster.jpg"

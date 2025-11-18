@@ -9,11 +9,11 @@ duration: 2h 0m
 directors:
   - "Test Director"
 tags:
+  - genre/Action
+  - genre/Drama
   - letterboxd/movie
   - rating/5
   - year/2020s
-  - genre/Action
-  - genre/Drama
 letterboxd_uri: "https://letterboxd.com/user/film/test-movie/"
 letterboxd_id: "test-movie"
 imdb_id: "tt1234567"

@@ -11,12 +11,12 @@ duration: 0h 55m
 directors:
   - "Show Runner"
 tags:
+  - genre/Adventure
+  - genre/Drama
+  - genre/Fantasy
   - imdb/tv-series
   - rating/8
   - year/2020s
-  - genre/Fantasy
-  - genre/Adventure
-  - genre/Drama
 content_rating: "TV-MA"
 cover: "https://example.com/series_poster.jpg"
 ---

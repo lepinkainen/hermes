@@ -9,14 +9,14 @@ duration: 3h 7m
 directors:
   - "Visionary Auteur"
 tags:
+  - genre/Art House
+  - genre/Drama
+  - genre/Experimental
+  - genre/Historical Fiction
+  - genre/Psychological Thriller
   - letterboxd/movie
   - rating/5
   - year/2020s
-  - genre/Drama
-  - genre/Psychological Thriller
-  - genre/Art House
-  - genre/Experimental
-  - genre/Historical Fiction
 letterboxd_uri: "https://letterboxd.com/cinephile/film/the-masterpiece-of-cinema/"
 letterboxd_id: "the-masterpiece-of-cinema"
 imdb_id: "tt8765432"

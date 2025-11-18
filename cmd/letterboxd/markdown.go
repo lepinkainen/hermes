@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"sort"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/config"
@@ -49,21 +50,39 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 		mb.AddStringArray("directors", []string{movie.Director})
 	}
 
-	// Add standard tags
-	tags := []string{"letterboxd/movie"}
+	// Collect all tags using a map for deduplication
+	tagMap := make(map[string]bool)
+	tagMap["letterboxd/movie"] = true
 
 	// Add rating tag if available (rounded to integer)
 	if movie.Rating > 0 {
-		tags = append(tags, fmt.Sprintf("rating/%d", int(math.Round(movie.Rating))))
+		ratingTag := fmt.Sprintf("rating/%d", int(math.Round(movie.Rating)))
+		tagMap[ratingTag] = true
 	}
 
 	// Add decade tag
-	tags = append(tags, mb.GetDecadeTag(movie.Year))
+	decadeTag := mb.GetDecadeTag(movie.Year)
+	tagMap[decadeTag] = true
 
 	// Add genres as tags with genre/ prefix
 	for _, genre := range movie.Genres {
-		tags = append(tags, fmt.Sprintf("genre/%s", genre))
+		genreTag := fmt.Sprintf("genre/%s", genre)
+		tagMap[genreTag] = true
 	}
+
+	// Add TMDB genre tags if available
+	if movie.TMDBEnrichment != nil && len(movie.TMDBEnrichment.GenreTags) > 0 {
+		for _, tmdbTag := range movie.TMDBEnrichment.GenreTags {
+			tagMap[tmdbTag] = true
+		}
+	}
+
+	// Convert map to slice and sort alphabetically
+	tags := make([]string, 0, len(tagMap))
+	for tag := range tagMap {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
 
 	mb.AddTags(tags...)
 
@@ -127,11 +146,6 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 		if movie.TMDBEnrichment.TMDBID > 0 {
 			mb.AddField("tmdb_id", movie.TMDBEnrichment.TMDBID)
 			mb.AddField("tmdb_type", movie.TMDBEnrichment.TMDBType)
-		}
-
-		// Add TMDB genre tags (merge with existing tags)
-		if len(movie.TMDBEnrichment.GenreTags) > 0 {
-			mb.AddTags(movie.TMDBEnrichment.GenreTags...)
 		}
 
 		// Add total episodes for TV shows (shouldn't happen for Letterboxd, but good to have)

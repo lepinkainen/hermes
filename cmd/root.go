@@ -59,7 +59,7 @@ type IMDBCmd struct {
 	JSON       bool   `help:"Write data to JSON format"`
 	JSONOutput string `help:"Path to JSON output file (defaults to json/imdb.json)"`
 	// TMDB enrichment options
-	TMDBEnabled         bool     `help:"Enable TMDB enrichment" default:"false"`
+	TMDBEnabled         bool     `help:"Enable TMDB enrichment" default:"true"`
 	TMDBDownloadCover   bool     `help:"Download cover images from TMDB" default:"false"`
 	TMDBGenerateContent bool     `help:"Generate TMDB content sections" default:"false"`
 	TMDBNoInteractive   bool     `help:"Disable interactive TUI for TMDB selection (auto-select first result)" default:"false"`
@@ -73,7 +73,7 @@ type LetterboxdCmd struct {
 	JSON       bool   `help:"Write data to JSON format"`
 	JSONOutput string `help:"Path to JSON output file (defaults to json/letterboxd.json)"`
 	// TMDB enrichment options
-	TMDBEnabled         bool     `help:"Enable TMDB enrichment" default:"false"`
+	TMDBEnabled         bool     `help:"Enable TMDB enrichment" default:"true"`
 	TMDBDownloadCover   bool     `help:"Download cover images from TMDB" default:"false"`
 	TMDBGenerateContent bool     `help:"Generate TMDB content sections" default:"false"`
 	TMDBNoInteractive   bool     `help:"Disable interactive TUI for TMDB selection (auto-select first result)" default:"false"`

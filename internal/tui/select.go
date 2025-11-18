@@ -15,7 +15,7 @@ import (
 
 const (
 	defaultListWidth  = 72
-	defaultListHeight = 12
+	defaultListHeight = 20
 )
 
 // SelectionAction represents the user's action in the selection UI.
@@ -62,6 +62,7 @@ type itemStyles struct {
 	typeStyle     lipgloss.Style
 	titleStyle    lipgloss.Style
 	ratingStyle   lipgloss.Style
+	metadataStyle lipgloss.Style
 	overviewStyle lipgloss.Style
 }
 
@@ -99,6 +100,9 @@ func newItemStyles() itemStyles {
 			Foreground(lipgloss.Color("254")),
 		ratingStyle: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("178")),
+		metadataStyle: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("243")).
+			Faint(true),
 		overviewStyle: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("248")),
 	}
@@ -112,7 +116,7 @@ func newDelegate() tmdbDelegate {
 	return tmdbDelegate{styles: newItemStyles()}
 }
 
-func (d tmdbDelegate) Height() int                         { return 4 }
+func (d tmdbDelegate) Height() int                         { return 5 }
 func (d tmdbDelegate) Spacing() int                        { return 1 }
 func (d tmdbDelegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
 
@@ -132,11 +136,13 @@ func (d tmdbDelegate) Render(w io.Writer, m list.Model, idx int, item list.Item)
 	}
 
 	typeLine := d.styles.typeStyle.Render(fmt.Sprintf("[%s]", strings.ToUpper(typeLabel)))
+	metadataLine := d.styles.metadataStyle.Render(formatMetadata(result.SearchResult, m.Width()-4))
 	titleLine := d.styles.titleStyle.Render(fmt.Sprintf("%s (%s)", strings.ToUpper(title), year))
 	ratingLine := d.styles.ratingStyle.Render(fmt.Sprintf("%.1f/10", rating))
 	overviewLine := d.styles.overviewStyle.Render(overview)
 
-	content := lipgloss.JoinVertical(lipgloss.Left, typeLine, titleLine, ratingLine, overviewLine)
+	// Build content with metadata line after type
+	content := lipgloss.JoinVertical(lipgloss.Left, typeLine, metadataLine, titleLine, ratingLine, overviewLine)
 
 	container := d.styles.normal
 	if idx == m.Index() {
@@ -280,6 +286,53 @@ func truncate(value string, width int) string {
 		return value[:width]
 	}
 	return value[:width-3] + "..."
+}
+
+// formatMetadata creates the metadata line with runtime, language, vote count, and popularity
+func formatMetadata(result tmdb.SearchResult, availableWidth int) string {
+	var parts []string
+	
+	// Runtime (if available)
+	if result.Runtime > 0 {
+		parts = append(parts, fmt.Sprintf("%dm", result.Runtime))
+	}
+	
+	// Language (if available)
+	if result.OriginalLang != "" {
+		lang := strings.ToUpper(result.OriginalLang)
+		parts = append(parts, lang)
+	}
+	
+	// Vote count (if available)
+	if result.VoteCount > 0 {
+		votes := formatVoteCount(result.VoteCount)
+		parts = append(parts, votes)
+	}
+	
+	// Popularity (if available)
+	if result.Popularity > 0 {
+		pop := fmt.Sprintf("📊%.1f", result.Popularity)
+		parts = append(parts, pop)
+	}
+	
+	if len(parts) == 0 {
+		return "No metadata available"
+	}
+	
+	metadata := strings.Join(parts, " | ")
+	if availableWidth > 0 && len(metadata) > availableWidth {
+		metadata = truncate(metadata, availableWidth)
+	}
+	
+	return metadata
+}
+
+// formatVoteCount formats vote count in a compact way
+func formatVoteCount(count int) string {
+	if count >= 1000 {
+		return fmt.Sprintf("%.1fK votes", float64(count)/1000)
+	}
+	return fmt.Sprintf("%d votes", count)
 }
 
 func clamp(defaultValue, available, minimum int) int {

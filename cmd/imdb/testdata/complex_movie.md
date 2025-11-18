@@ -13,14 +13,14 @@ directors:
   - "Renowned Director"
   - "Co-Director Vision"
 tags:
+  - genre/Drama
+  - genre/Mystery
+  - genre/Psychological
+  - genre/Science Fiction
+  - genre/Thriller
   - imdb/movie
   - rating/10
   - year/2020s
-  - genre/Drama
-  - genre/Science Fiction
-  - genre/Thriller
-  - genre/Mystery
-  - genre/Psychological
 content_rating: "R"
 awards: "Won 7 Oscars including Best Picture, Best Director, and Best Original Screenplay. Nominated for 5 additional categories. 125 wins & 86 nominations total at various international film festivals and awards ceremonies."
 cover: "https://example.com/masterpiece_poster.jpg"

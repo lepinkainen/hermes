@@ -444,3 +444,355 @@ func TestNeedsContent(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMediaIDs(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    MediaIDs
+	}{
+		{
+			name: "TMDB ID only",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+tmdb_id: 949
+---
+
+Content here.`,
+			want: MediaIDs{TMDBID: 949},
+		},
+		{
+			name: "IMDB ID only",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+imdb_id: "tt0113277"
+---
+
+Content here.`,
+			want: MediaIDs{IMDBID: "tt0113277"},
+		},
+		{
+			name: "Letterboxd ID only",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+letterboxd_id: "2bg8"
+---
+
+Content here.`,
+			want: MediaIDs{LetterboxdID: "2bg8"},
+		},
+		{
+			name: "All IDs present",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+tmdb_id: 949
+imdb_id: "tt0113277"
+letterboxd_id: "2bg8"
+---
+
+Content here.`,
+			want: MediaIDs{
+				TMDBID:       949,
+				IMDBID:       "tt0113277",
+				LetterboxdID: "2bg8",
+			},
+		},
+		{
+			name: "No IDs",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+---
+
+Content here.`,
+			want: MediaIDs{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			note, err := parseNote(tt.content)
+			if err != nil {
+				t.Fatalf("Failed to parse note: %v", err)
+			}
+
+			ids := note.GetMediaIDs()
+			if ids.TMDBID != tt.want.TMDBID {
+				t.Errorf("TMDBID = %v, want %v", ids.TMDBID, tt.want.TMDBID)
+			}
+			if ids.IMDBID != tt.want.IMDBID {
+				t.Errorf("IMDBID = %v, want %v", ids.IMDBID, tt.want.IMDBID)
+			}
+			if ids.LetterboxdID != tt.want.LetterboxdID {
+				t.Errorf("LetterboxdID = %v, want %v", ids.LetterboxdID, tt.want.LetterboxdID)
+			}
+		})
+	}
+}
+
+func TestHasAnyID(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{
+			name: "TMDB ID only",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+tmdb_id: 949
+---
+
+Content here.`,
+			want: true,
+		},
+		{
+			name: "IMDB ID only",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+imdb_id: "tt0113277"
+---
+
+Content here.`,
+			want: true,
+		},
+		{
+			name: "Letterboxd ID only",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+letterboxd_id: "2bg8"
+---
+
+Content here.`,
+			want: true,
+		},
+		{
+			name: "All IDs present",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+tmdb_id: 949
+imdb_id: "tt0113277"
+letterboxd_id: "2bg8"
+---
+
+Content here.`,
+			want: true,
+		},
+		{
+			name: "No IDs",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+---
+
+Content here.`,
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			note, err := parseNote(tt.content)
+			if err != nil {
+				t.Fatalf("Failed to parse note: %v", err)
+			}
+
+			hasAny := note.HasAnyID()
+			if hasAny != tt.want {
+				t.Errorf("HasAnyID() = %v, want %v", hasAny, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetIDSummary(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{
+			name: "All IDs present",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+tmdb_id: 949
+imdb_id: "tt0113277"
+letterboxd_id: "2bg8"
+---
+
+Content here.`,
+			want: "tmdb:949, imdb:tt0113277, letterboxd:2bg8",
+		},
+		{
+			name: "TMDB and IMDB only",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+tmdb_id: 949
+imdb_id: "tt0113277"
+---
+
+Content here.`,
+			want: "tmdb:949, imdb:tt0113277",
+		},
+		{
+			name: "IMDB only",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+imdb_id: "tt0113277"
+---
+
+Content here.`,
+			want: "imdb:tt0113277",
+		},
+		{
+			name: "No IDs",
+			content: `---
+title: "Test Movie"
+type: movie
+year: 2021
+---
+
+Content here.`,
+			want: "no IDs",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			note, err := parseNote(tt.content)
+			if err != nil {
+				t.Fatalf("Failed to parse note: %v", err)
+			}
+
+			summary := note.GetIDSummary()
+			if summary != tt.want {
+				t.Errorf("GetIDSummary() = %v, want %v", summary, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseNoteWithHeatFile(t *testing.T) {
+	// Test with actual Heat (1995) file content
+	content := `---
+title: "Heat"
+type: movie
+year: 1995
+date_watched: "2019-04-12"
+letterboxd_rating: 8.3
+runtime: 170
+duration: 2h 50m
+directors:
+  - "Michael Mann"
+tags:
+  - letterboxd/movie
+  - rating/8
+  - year/1990s
+  - genre/Action
+  - genre/Crime
+  - genre/Drama
+letterboxd_uri: "https://boxd.it/2bg8"
+letterboxd_id: "2bg8"
+cover: "attachments/Heat - cover.jpg"
+tmdb_id: 949
+tmdb_type: "movie"
+---
+
+![[Heat - cover.jpg|250]]
+
+>[!summary]- Plot
+> A group of high-end professional thieves start to feel the heat from the LAPD when they unknowingly leave a verbal clue at their latest heist.
+
+>[!cast]- Cast
+> - Al Pacino
+> - Robert De Niro
+> - Val Kilmer
+
+>[!info]- Letterboxd
+> [View on Letterboxd](https://boxd.it/2bg8)
+`
+
+	note, err := parseNote(content)
+	if err != nil {
+		t.Fatalf("Failed to parse Heat note: %v", err)
+	}
+
+	// Verify parsing
+	if note.Title != "Heat" {
+		t.Errorf("Title = %v, want Heat", note.Title)
+	}
+	if note.Type != "movie" {
+		t.Errorf("Type = %v, want movie", note.Type)
+	}
+	if note.Year != 1995 {
+		t.Errorf("Year = %v, want 1995", note.Year)
+	}
+	if note.TMDBID != 949 {
+		t.Errorf("TMDBID = %v, want 949", note.TMDBID)
+	}
+	if note.LetterboxdID != "2bg8" {
+		t.Errorf("LetterboxdID = %v, want 2bg8", note.LetterboxdID)
+	}
+
+	// Test ID extraction
+	ids := note.GetMediaIDs()
+	if ids.TMDBID != 949 {
+		t.Errorf("GetMediaIDs().TMDBID = %v, want 949", ids.TMDBID)
+	}
+	if ids.LetterboxdID != "2bg8" {
+		t.Errorf("GetMediaIDs().LetterboxdID = %v, want 2bg8", ids.LetterboxdID)
+	}
+
+	// Test utility functions
+	if !note.HasAnyID() {
+		t.Errorf("HasAnyID() = false, want true")
+	}
+
+	summary := note.GetIDSummary()
+	expectedSummary := "tmdb:949, letterboxd:2bg8"
+	if summary != expectedSummary {
+		t.Errorf("GetIDSummary() = %v, want %v", summary, expectedSummary)
+	}
+
+	// Verify the original issue: HasTMDBData should return false because no TMDB content markers
+	if note.HasTMDBData() {
+		t.Errorf("HasTMDBData() = true, want false (Heat file has TMDB ID but no TMDB content markers)")
+	}
+
+	// Test why this file would trigger TMDB search: needs content but has TMDB ID
+	if note.NeedsContent() {
+		t.Logf("✓ Heat file needs TMDB content (no markers found)")
+	} else {
+		t.Errorf("Heat file should need TMDB content (no markers found)")
+	}
+
+	if !note.NeedsMetadata() {
+		t.Logf("✓ Heat file has all metadata (TMDB ID, runtime, tags)")
+	} else {
+		t.Logf("ℹ Heat file might need some metadata")
+	}
+}

@@ -47,12 +47,24 @@ CREATE TABLE IF NOT EXISTS letterboxd_cache (
 CREATE INDEX IF NOT EXISTS idx_letterboxd_cached_at ON letterboxd_cache(cached_at);
 `
 
+// TMDBCacheSchema defines the schema for TMDB movie/show cache
+const TMDBCacheSchema = `
+CREATE TABLE IF NOT EXISTS tmdb_cache (
+	cache_key TEXT PRIMARY KEY NOT NULL,
+	data TEXT NOT NULL,
+	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_tmdb_cached_at ON tmdb_cache(cached_at);
+`
+
 // AllCacheSchemas contains all cache table schemas for easy initialization
 var AllCacheSchemas = []string{
 	OMDBCacheSchema,
 	OpenLibraryCacheSchema,
 	SteamCacheSchema,
 	LetterboxdCacheSchema,
+	TMDBCacheSchema,
 }
 
 // ValidCacheTableNames is the whitelist of allowed cache table names
@@ -62,4 +74,5 @@ var ValidCacheTableNames = map[string]bool{
 	"openlibrary_cache": true,
 	"steam_cache":       true,
 	"letterboxd_cache":  true,
+	"tmdb_cache":        true,
 }

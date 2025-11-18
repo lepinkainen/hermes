@@ -1,6 +1,7 @@
 package letterboxd
 
 import (
+	"bytes"
 	"context"
 	"encoding/csv"
 	"fmt"
@@ -15,7 +16,9 @@ import (
 	"github.com/lepinkainen/hermes/internal/datastore"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/errors"
+	"github.com/lepinkainen/hermes/internal/fileutil"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 // Convert Movie to map[string]any for database insertion
@@ -213,8 +216,11 @@ func writeMoviesToJSON(movies []Movie, jsonOutput string) error {
 	// Enrich with OMDB data if not skipped
 	if !skipEnrich {
 		for i := range movies {
+			// If we already have a TMDB ID in an existing note, use it directly to avoid searching
+			loadExistingTMDBID(&movies[i], outputDir)
+
 			if err := enrichMovieData(&movies[i]); err != nil {
-				if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
+				if errors.IsRateLimitError(err) {
 					markOmdbRateLimitReached()
 					slog.Warn("Skipping OMDB enrichment after rate limit", "movie", movies[i].Name)
 					continue
@@ -235,47 +241,78 @@ func enrichMovieData(movie *Movie) error {
 		return nil
 	}
 
+	var omdbErr error
+
 	enrichedMovie, err := getCachedMovie(movie.Name, movie.Year)
 	if err != nil {
-		// Don't wrap rate limit errors
-		if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
+		// Don't wrap rate limit errors, but continue to TMDB enrichment
+		if errors.IsRateLimitError(err) {
 			markOmdbRateLimitReached()
 			slog.Warn("Skipping OMDB enrichment after rate limit", "movie", movie.Name)
-			return nil
+			// Don't return - continue to TMDB enrichment below
+		} else {
+			slog.Warn("Failed to enrich from OMDB", "movie", movie.Name, "error", err)
 		}
-		return fmt.Errorf("failed to enrich movie data: %w", err)
-	}
+		omdbErr = err
+	} else {
+		// Preserve existing data but add OMDB enrichments
+		movie.Description = enrichedMovie.Description
+		movie.PosterURL = enrichedMovie.PosterURL
 
-	// Preserve existing data but add OMDB enrichments
-	movie.Description = enrichedMovie.Description
-	movie.PosterURL = enrichedMovie.PosterURL
-
-	// Only update these if they're empty
-	if movie.Director == "" {
-		movie.Director = enrichedMovie.Director
-	}
-	if len(movie.Cast) == 0 {
-		movie.Cast = enrichedMovie.Cast
-	}
-	if len(movie.Genres) == 0 {
-		movie.Genres = enrichedMovie.Genres
-	}
-	if movie.Runtime == 0 {
-		movie.Runtime = enrichedMovie.Runtime
-	}
-	if movie.Rating == 0 {
-		movie.Rating = enrichedMovie.Rating
+		// Only update these if they're empty
+		if movie.Director == "" {
+			movie.Director = enrichedMovie.Director
+		}
+		if len(movie.Cast) == 0 {
+			movie.Cast = enrichedMovie.Cast
+		}
+		if len(movie.Genres) == 0 {
+			movie.Genres = enrichedMovie.Genres
+		}
+		if movie.Runtime == 0 {
+			movie.Runtime = enrichedMovie.Runtime
+		}
+		if movie.Rating == 0 {
+			movie.Rating = enrichedMovie.Rating
+		}
 	}
 
 	// TMDB enrichment (if enabled)
+	var tmdbErr error
 	if tmdbEnabled {
 		tmdbEnrichment, err := enrichFromTMDB(movie)
 		if err != nil {
+			if errors.IsStopProcessingError(err) {
+				return err
+			}
+			tmdbErr = err
 			slog.Warn("Failed to enrich from TMDB", "movie", movie.Name, "error", err)
 			// Don't fail the whole import if TMDB enrichment fails
 		} else if tmdbEnrichment != nil {
 			movie.TMDBEnrichment = tmdbEnrichment
+
+			// Combine TMDB data with OMDB data where TMDB provides better values
+			// Use TMDB runtime if OMDB runtime is missing
+			if tmdbEnrichment.RuntimeMins > 0 && movie.Runtime == 0 {
+				slog.Debug("Using TMDB runtime", "movie", movie.Name, "omdb_runtime", movie.Runtime, "tmdb_runtime", tmdbEnrichment.RuntimeMins)
+				movie.Runtime = tmdbEnrichment.RuntimeMins
+			}
+
+			// Prefer TMDB cover over OMDB poster (higher resolution)
+			// The cover is downloaded separately via tmdbDownloadCover flag
+			// We just note when TMDB cover is available as primary source
+			if tmdbEnrichment.CoverPath != "" || tmdbEnrichment.CoverFilename != "" {
+				slog.Debug("Using TMDB cover (higher resolution)", "movie", movie.Name)
+			}
+
+			// Note: TMDB genres are in format "movie/Action" and stored in GenreTags
+			// They are kept separate from OMDB genres intentionally for different tagging systems
 		}
+	}
+
+	// Only surface an error if both enrichment sources failed
+	if omdbErr != nil && tmdbErr != nil {
+		return fmt.Errorf("movie enrichment failed; omdb: %w; tmdb: %v", omdbErr, tmdbErr)
 	}
 
 	return nil
@@ -296,11 +333,16 @@ func enrichFromTMDB(movie *Movie) (*enrichment.TMDBEnrichment, error) {
 		AttachmentsDir:  attachmentsDir,
 		NoteDir:         outputDir,
 		Interactive:     tmdbInteractive,
+		MoviesOnly:      true, // Letterboxd only catalogs movies, not TV shows
 	}
 
 	// Use context.Background() for enrichment
+	existingTMDBID := 0
+	if movie.TMDBEnrichment != nil {
+		existingTMDBID = movie.TMDBEnrichment.TMDBID
+	}
 	ctx := context.Background()
-	return enrichment.EnrichFromTMDB(ctx, movie.Name, movie.Year, movie.ImdbID, 0, opts)
+	return enrichment.EnrichFromTMDB(ctx, movie.Name, movie.Year, movie.ImdbID, existingTMDBID, opts)
 }
 
 // writeMoviesToMarkdown writes each movie to a markdown file
@@ -308,10 +350,16 @@ func writeMoviesToMarkdown(movies []Movie, directory string) error {
 	for i := range movies {
 		slog.Info("Processing movie", "name", movies[i].Name)
 
+		// If a TMDB ID already exists in the note, reuse it instead of searching
+		loadExistingTMDBID(&movies[i], directory)
+
 		// Enrich with OMDB data if not skipped
 		if !skipEnrich {
 			if err := enrichMovieData(&movies[i]); err != nil {
-				if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
+				if errors.IsStopProcessingError(err) {
+					return err
+				}
+				if errors.IsRateLimitError(err) {
 					markOmdbRateLimitReached()
 					slog.Warn("Skipping OMDB enrichment after rate limit", "movie", movies[i].Name)
 					// Continue writing without enrichment
@@ -331,4 +379,78 @@ func writeMoviesToMarkdown(movies []Movie, directory string) error {
 		slog.Debug("Wrote movie to markdown file", "movie", movies[i].Name)
 	}
 	return nil
+}
+
+// loadExistingTMDBID reads the existing markdown (if any) and initializes TMDB ID/type
+// so enrichment can fetch directly without searching again.
+func loadExistingTMDBID(movie *Movie, directory string) {
+	if movie == nil {
+		return
+	}
+
+	title := fmt.Sprintf("%s (%d)", movie.Name, movie.Year)
+	filePath := fileutil.GetMarkdownFilePath(title, directory)
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return
+	}
+
+	content := bytes.TrimSpace(data)
+	if !bytes.HasPrefix(content, []byte("---")) {
+		return
+	}
+
+	// Split frontmatter section
+	parts := bytes.SplitN(content, []byte("---"), 3)
+	if len(parts) < 3 {
+		return
+	}
+	frontmatter := parts[1]
+
+	var fm map[string]any
+	if err := yaml.Unmarshal(frontmatter, &fm); err != nil {
+		return
+	}
+
+	// Prefer stored IMDb ID when CSV is missing it
+	if movie.ImdbID == "" {
+		if imdbID, ok := fm["imdb_id"].(string); ok {
+			movie.ImdbID = strings.TrimSpace(imdbID)
+		}
+	}
+
+	rawID, ok := fm["tmdb_id"]
+	if !ok {
+		return
+	}
+
+	existingID := intFromAny(rawID)
+	if existingID <= 0 {
+		return
+	}
+
+	tmdbType, _ := fm["tmdb_type"].(string)
+
+	if movie.TMDBEnrichment == nil {
+		movie.TMDBEnrichment = &enrichment.TMDBEnrichment{}
+	}
+	movie.TMDBEnrichment.TMDBID = existingID
+	movie.TMDBEnrichment.TMDBType = tmdbType
+}
+
+func intFromAny(val any) int {
+	switch v := val.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	case string:
+		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+			return n
+		}
+	}
+	return 0
 }
