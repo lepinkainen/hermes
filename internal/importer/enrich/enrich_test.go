@@ -1,6 +1,7 @@
 package enrich
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/lepinkainen/hermes/internal/enrichment"
@@ -40,6 +41,32 @@ func TestEnrich_ContinuesOnOMDBRateLimitAndAppliesTMDB(t *testing.T) {
 	assert.True(t, rateLimited, "rate limit handler should be invoked")
 	assert.True(t, tmdbApplied, "TMDB data should be applied even after OMDB rate limit")
 	assert.Equal(t, 42, m.tmdbID)
+}
+
+func TestEnrich_ContinuesOnWrappedOMDBRateLimit(t *testing.T) {
+	m := movie{}
+	rateLimited := false
+	tmdbApplied := false
+
+	_, err := Enrich(&m, Options[movie, *movie]{
+		FetchOMDB: func() (*movie, error) {
+			return nil, fmt.Errorf("cache miss: %w", hermeserrors.NewRateLimitError("limit"))
+		},
+		OnOMDBRateLimit: func(error) { rateLimited = true },
+		TMDBEnabled:     true,
+		FetchTMDB: func() (*enrichment.TMDBEnrichment, error) {
+			return &enrichment.TMDBEnrichment{TMDBID: 99}, nil
+		},
+		ApplyTMDB: func(target *movie, tmdbData *enrichment.TMDBEnrichment) {
+			tmdbApplied = true
+			target.tmdbID = tmdbData.TMDBID
+		},
+	})
+
+	require.NoError(t, err)
+	assert.True(t, rateLimited, "wrapped rate limit should be detected")
+	assert.True(t, tmdbApplied, "TMDB should still apply after wrapped rate limit")
+	assert.Equal(t, 99, m.tmdbID)
 }
 
 func TestEnrich_ReturnsCombinedErrorWhenBothFail(t *testing.T) {
