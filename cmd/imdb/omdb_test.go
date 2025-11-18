@@ -3,7 +3,9 @@ package imdb
 import (
 	"testing"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseFloat(t *testing.T) {
@@ -89,6 +91,54 @@ func TestParseRuntime(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result := parseRuntime(tc.input)
 			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestGetOMDBAPIKey(t *testing.T) {
+	testCases := []struct {
+		name          string
+		imdbKey       string
+		globalKey     string
+		wantKey       string
+		wantErrSubstr string
+	}{
+		{
+			name:      "prefers_imdb_scoped_key",
+			imdbKey:   "imdb-secret",
+			globalKey: "global-secret",
+			wantKey:   "imdb-secret",
+		},
+		{
+			name:      "falls_back_to_global_key",
+			globalKey: "global-secret",
+			wantKey:   "global-secret",
+		},
+		{
+			name:          "errors_when_missing",
+			wantErrSubstr: "omdb.api_key or imdb.omdb_api_key",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			viper.Reset()
+			if tc.imdbKey != "" {
+				viper.Set("imdb.omdb_api_key", tc.imdbKey)
+			}
+			if tc.globalKey != "" {
+				viper.Set("omdb.api_key", tc.globalKey)
+			}
+
+			got, err := getOMDBAPIKey()
+			if tc.wantErrSubstr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.wantErrSubstr)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantKey, got)
 		})
 	}
 }

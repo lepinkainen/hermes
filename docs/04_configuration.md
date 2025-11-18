@@ -69,7 +69,7 @@ imdb:
   # Path to the IMDb CSV export file
   csvfile: "./path/to/imdb_ratings.csv"
 
-  # OMDB API key for data enrichment
+  # OMDB API key for data enrichment (you can also set global omdb.api_key)
   apikey: "your_omdb_api_key"
 
   # Whether to enrich data with OMDB API

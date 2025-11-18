@@ -13,6 +13,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/datastore"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/errors"
+	"github.com/lepinkainen/hermes/internal/importer/enrich"
 	"github.com/lepinkainen/hermes/internal/omdb"
 	"github.com/spf13/viper"
 )
@@ -220,51 +221,50 @@ func parseMovieRecord(record []string) (MovieSeen, error) {
 }
 
 func enrichMovieData(movie *MovieSeen) error {
-	// Skip if we already have enriched data
-	if movie.Plot != "" {
-		return nil
-	}
+	_, err := enrich.Enrich(movie, enrich.Options[MovieSeen, *MovieSeen]{
+		SkipOMDB: movie.Plot != "",
+		FetchOMDB: func() (*MovieSeen, error) {
+			return getCachedMovie(movie.ImdbId)
+		},
+		ApplyOMDB: func(target *MovieSeen, omdbMovie *MovieSeen) {
+			if omdbMovie == nil {
+				return
+			}
+			target.Plot = omdbMovie.Plot
+			target.PosterURL = omdbMovie.PosterURL
+			target.ContentRated = omdbMovie.ContentRated
+			target.Awards = omdbMovie.Awards
 
-	omdbMovie, err := getCachedMovie(movie.ImdbId)
-	if err != nil {
-		// Don't wrap rate limit errors, but do continue processing without OMDB
-		if errors.IsRateLimitError(err) {
+			if len(target.Genres) == 0 {
+				target.Genres = omdbMovie.Genres
+			}
+			if len(target.Directors) == 0 {
+				target.Directors = omdbMovie.Directors
+			}
+			if target.RuntimeMins == 0 {
+				target.RuntimeMins = omdbMovie.RuntimeMins
+			}
+		},
+		OnOMDBError: func(err error) {
+			slog.Warn("Failed to enrich from OMDB", "title", movie.Title, "error", err)
+		},
+		OnOMDBRateLimit: func(error) {
 			omdb.MarkRateLimitReached()
 			slog.Warn("Skipping OMDB enrichment after rate limit", "title", movie.Title)
-			return nil
-		}
-		return fmt.Errorf("failed to enrich movie data: %w", err)
-	}
-
-	// Preserve existing data but add OMDB enrichments
-	movie.Plot = omdbMovie.Plot
-	movie.PosterURL = omdbMovie.PosterURL
-	movie.ContentRated = omdbMovie.ContentRated
-	movie.Awards = omdbMovie.Awards
-
-	// Only update these if they're empty
-	if len(movie.Genres) == 0 {
-		movie.Genres = omdbMovie.Genres
-	}
-	if len(movie.Directors) == 0 {
-		movie.Directors = omdbMovie.Directors
-	}
-	if movie.RuntimeMins == 0 {
-		movie.RuntimeMins = omdbMovie.RuntimeMins
-	}
-
-	// TMDB enrichment (if enabled)
-	if tmdbEnabled {
-		tmdbEnrichment, err := enrichFromTMDB(movie)
-		if err != nil {
+		},
+		TMDBEnabled: tmdbEnabled,
+		FetchTMDB: func() (*enrichment.TMDBEnrichment, error) {
+			return enrichFromTMDB(movie)
+		},
+		ApplyTMDB: func(target *MovieSeen, tmdbEnrichment *enrichment.TMDBEnrichment) {
+			target.TMDBEnrichment = tmdbEnrichment
+		},
+		OnTMDBError: func(err error) {
 			slog.Warn("Failed to enrich from TMDB", "title", movie.Title, "error", err)
-			// Don't fail the whole import if TMDB enrichment fails
-		} else if tmdbEnrichment != nil {
-			movie.TMDBEnrichment = tmdbEnrichment
-		}
-	}
+		},
+	})
 
-	return nil
+	return err
 }
 
 // enrichFromTMDB enriches a movie with TMDB data

@@ -14,9 +14,9 @@ import (
 )
 
 func fetchMovieData(imdbID string) (*MovieSeen, error) {
-	apiKey := viper.GetString("imdb.omdb_api_key")
-	if apiKey == "" {
-		return nil, fmt.Errorf("imdb.omdb_api_key not set in config")
+	apiKey, err := getOMDBAPIKey()
+	if err != nil {
+		return nil, err
 	}
 
 	slog.Info("Fetching movie data", "imdb_id", imdbID)
@@ -81,6 +81,19 @@ func fetchMovieData(imdbID string) (*MovieSeen, error) {
 	}
 
 	return movie, nil
+}
+
+func getOMDBAPIKey() (string, error) {
+	apiKey := viper.GetString("imdb.omdb_api_key")
+	if apiKey == "" {
+		apiKey = viper.GetString("omdb.api_key")
+	}
+
+	if apiKey == "" {
+		return "", fmt.Errorf("omdb.api_key or imdb.omdb_api_key not set in config")
+	}
+
+	return apiKey, nil
 }
 
 // Helper functions to parse OMDB data

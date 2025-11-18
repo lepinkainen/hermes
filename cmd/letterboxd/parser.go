@@ -16,6 +16,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/errors"
 	"github.com/lepinkainen/hermes/internal/fileutil"
 	"github.com/lepinkainen/hermes/internal/frontmatter"
+	"github.com/lepinkainen/hermes/internal/importer/enrich"
 	"github.com/lepinkainen/hermes/internal/omdb"
 	"github.com/spf13/viper"
 )
@@ -196,86 +197,63 @@ func writeMoviesToJSON(movies []Movie, jsonOutput string) error {
 
 // enrichMovieData fetches additional data from OMDB API
 func enrichMovieData(movie *Movie) error {
-	// Skip if we already have enriched data
-	if movie.Description != "" {
-		return nil
-	}
+	_, err := enrich.Enrich(movie, enrich.Options[Movie, *Movie]{
+		SkipOMDB: movie.Description != "",
+		FetchOMDB: func() (*Movie, error) {
+			return getCachedMovie(movie.Name, movie.Year)
+		},
+		ApplyOMDB: func(target *Movie, enrichedMovie *Movie) {
+			if enrichedMovie == nil {
+				return
+			}
+			target.Description = enrichedMovie.Description
+			target.PosterURL = enrichedMovie.PosterURL
 
-	var omdbErr error
-
-	enrichedMovie, err := getCachedMovie(movie.Name, movie.Year)
-	if err != nil {
-		// Don't wrap rate limit errors, but continue to TMDB enrichment
-		if errors.IsRateLimitError(err) {
+			if target.Director == "" {
+				target.Director = enrichedMovie.Director
+			}
+			if len(target.Cast) == 0 {
+				target.Cast = enrichedMovie.Cast
+			}
+			if len(target.Genres) == 0 {
+				target.Genres = enrichedMovie.Genres
+			}
+			if target.Runtime == 0 {
+				target.Runtime = enrichedMovie.Runtime
+			}
+			if target.Rating == 0 {
+				target.Rating = enrichedMovie.Rating
+			}
+		},
+		OnOMDBError: func(err error) {
+			slog.Warn("Failed to enrich from OMDB", "movie", movie.Name, "error", err)
+		},
+		OnOMDBRateLimit: func(error) {
 			omdb.MarkRateLimitReached()
 			slog.Warn("Skipping OMDB enrichment after rate limit", "movie", movie.Name)
-			// Don't return - continue to TMDB enrichment below
-		} else {
-			slog.Warn("Failed to enrich from OMDB", "movie", movie.Name, "error", err)
-		}
-		omdbErr = err
-	} else {
-		// Preserve existing data but add OMDB enrichments
-		movie.Description = enrichedMovie.Description
-		movie.PosterURL = enrichedMovie.PosterURL
+		},
+		TMDBEnabled: tmdbEnabled,
+		FetchTMDB: func() (*enrichment.TMDBEnrichment, error) {
+			return enrichFromTMDB(movie)
+		},
+		ApplyTMDB: func(target *Movie, tmdbEnrichment *enrichment.TMDBEnrichment) {
+			target.TMDBEnrichment = tmdbEnrichment
 
-		// Only update these if they're empty
-		if movie.Director == "" {
-			movie.Director = enrichedMovie.Director
-		}
-		if len(movie.Cast) == 0 {
-			movie.Cast = enrichedMovie.Cast
-		}
-		if len(movie.Genres) == 0 {
-			movie.Genres = enrichedMovie.Genres
-		}
-		if movie.Runtime == 0 {
-			movie.Runtime = enrichedMovie.Runtime
-		}
-		if movie.Rating == 0 {
-			movie.Rating = enrichedMovie.Rating
-		}
-	}
-
-	// TMDB enrichment (if enabled)
-	var tmdbErr error
-	if tmdbEnabled {
-		tmdbEnrichment, err := enrichFromTMDB(movie)
-		if err != nil {
-			if errors.IsStopProcessingError(err) {
-				return err
-			}
-			tmdbErr = err
-			slog.Warn("Failed to enrich from TMDB", "movie", movie.Name, "error", err)
-			// Don't fail the whole import if TMDB enrichment fails
-		} else if tmdbEnrichment != nil {
-			movie.TMDBEnrichment = tmdbEnrichment
-
-			// Combine TMDB data with OMDB data where TMDB provides better values
-			// Use TMDB runtime if OMDB runtime is missing
-			if tmdbEnrichment.RuntimeMins > 0 && movie.Runtime == 0 {
-				slog.Debug("Using TMDB runtime", "movie", movie.Name, "omdb_runtime", movie.Runtime, "tmdb_runtime", tmdbEnrichment.RuntimeMins)
-				movie.Runtime = tmdbEnrichment.RuntimeMins
+			if tmdbEnrichment.RuntimeMins > 0 && target.Runtime == 0 {
+				slog.Debug("Using TMDB runtime", "movie", target.Name, "omdb_runtime", target.Runtime, "tmdb_runtime", tmdbEnrichment.RuntimeMins)
+				target.Runtime = tmdbEnrichment.RuntimeMins
 			}
 
-			// Prefer TMDB cover over OMDB poster (higher resolution)
-			// The cover is downloaded separately via tmdbDownloadCover flag
-			// We just note when TMDB cover is available as primary source
 			if tmdbEnrichment.CoverPath != "" || tmdbEnrichment.CoverFilename != "" {
-				slog.Debug("Using TMDB cover (higher resolution)", "movie", movie.Name)
+				slog.Debug("Using TMDB cover (higher resolution)", "movie", target.Name)
 			}
+		},
+		OnTMDBError: func(err error) {
+			slog.Warn("Failed to enrich from TMDB", "movie", movie.Name, "error", err)
+		},
+	})
 
-			// Note: TMDB genres are in format "movie/Action" and stored in GenreTags
-			// They are kept separate from OMDB genres intentionally for different tagging systems
-		}
-	}
-
-	// Only surface an error if both enrichment sources failed
-	if omdbErr != nil && tmdbErr != nil {
-		return fmt.Errorf("movie enrichment failed; omdb: %w; tmdb: %v", omdbErr, tmdbErr)
-	}
-
-	return nil
+	return err
 }
 
 // enrichFromTMDB enriches a movie with TMDB data

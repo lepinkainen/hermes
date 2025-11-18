@@ -54,11 +54,13 @@ In your `config.yaml` file:
 ```yaml
 imdb:
   csvfile: "./path/to/imdb_ratings.csv"
-  omdb_api_key: "your_omdb_api_key" # Get from http://www.omdbapi.com/apikey.aspx
+  omdb_api_key: "your_omdb_api_key" # Get from http://www.omdbapi.com/apikey.aspx (or set global omdb.api_key)
   output:
     markdown: "./markdown/movies"
     json: "./json/movies"
 ```
+
+The importer will use `imdb.omdb_api_key` when present and fall back to a shared `omdb.api_key`, so you can centralize the key if multiple importers use it.
 
 ### Command-Line Options
 
