@@ -30,7 +30,9 @@ build/
 config.yaml
 config.yml
 /cache/
-goodreads_library_export.csv
+/.cache/
+/.gocache/
+/.gomodcache/
 .DS_Store
 hermes
 hermes-*
