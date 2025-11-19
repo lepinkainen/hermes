@@ -35,7 +35,7 @@ func TestUpdateNoteWithTMDBData(t *testing.T) {
 	path := filepath.Join(dir, "Heat.md")
 	content := `---
 title: Heat
-type: movie
+tmdb_type: movie
 year: 1995
 ---
 

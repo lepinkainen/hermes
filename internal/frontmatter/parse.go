@@ -89,3 +89,56 @@ func (p *ParsedNote) GetString(key string) string {
 	}
 	return StringFromAny(val)
 }
+
+// DetectMediaType determines the media type from frontmatter.
+// Checks tmdb_type field first, then falls back to detecting from tags.
+// Returns "movie", "tv", or empty string if type cannot be determined.
+func DetectMediaType(fm map[string]any) string {
+	if fm == nil {
+		return ""
+	}
+
+	// Check tmdb_type field first
+	if mediaType := StringFromAny(fm["tmdb_type"]); mediaType != "" {
+		return mediaType
+	}
+
+	// Fall back to detecting from tags
+	return detectTypeFromTags(fm)
+}
+
+// detectTypeFromTags attempts to determine media type from the tags array.
+func detectTypeFromTags(fm map[string]any) string {
+	tags, ok := fm["tags"]
+	if !ok {
+		return ""
+	}
+
+	// Handle []any (common YAML array representation)
+	if tagSlice, ok := tags.([]any); ok {
+		for _, tag := range tagSlice {
+			if tagStr, ok := tag.(string); ok {
+				if tagStr == "movie" {
+					return "movie"
+				}
+				if tagStr == "tv" || tagStr == "tv-show" || tagStr == "series" {
+					return "tv"
+				}
+			}
+		}
+	}
+
+	// Handle []string
+	if tagSlice, ok := tags.([]string); ok {
+		for _, tag := range tagSlice {
+			if tag == "movie" {
+				return "movie"
+			}
+			if tag == "tv" || tag == "tv-show" || tag == "series" {
+				return "tv"
+			}
+		}
+	}
+
+	return ""
+}

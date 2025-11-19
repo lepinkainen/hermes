@@ -2,6 +2,8 @@ package frontmatter
 
 import (
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestParseMarkdown(t *testing.T) {
@@ -158,5 +160,67 @@ func TestParsedNote_GetString(t *testing.T) {
 	}
 	if got := note.GetString("int"); got != "" {
 		t.Errorf("GetString('int') = %q, want ''", got)
+	}
+}
+
+func TestDetectMediaType(t *testing.T) {
+	tests := []struct {
+		name string
+		fm   map[string]any
+		want string
+	}{
+		{
+			name: "tmdb_type movie",
+			fm:   map[string]any{"tmdb_type": "movie"},
+			want: "movie",
+		},
+		{
+			name: "tmdb_type movie from YAML",
+			fm: func() map[string]any {
+				var m map[string]any
+				_ = yaml.Unmarshal([]byte("tmdb_type: movie"), &m)
+				return m
+			}(),
+			want: "movie",
+		},
+		{
+			name: "tmdb_type tv",
+			fm:   map[string]any{"tmdb_type": "tv"},
+			want: "tv",
+		},
+		{
+			name: "detect from movie tag",
+			fm:   map[string]any{"tags": []any{"movie", "action"}},
+			want: "movie",
+		},
+		{
+			name: "detect from tv tag",
+			fm:   map[string]any{"tags": []any{"tv", "drama"}},
+			want: "tv",
+		},
+		{
+			name: "tmdb_type takes precedence over tags",
+			fm:   map[string]any{"tmdb_type": "movie", "tags": []any{"tv"}},
+			want: "movie",
+		},
+		{
+			name: "nil frontmatter",
+			fm:   nil,
+			want: "",
+		},
+		{
+			name: "no type info",
+			fm:   map[string]any{"title": "Test"},
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DetectMediaType(tt.fm)
+			if got != tt.want {
+				t.Errorf("DetectMediaType() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }

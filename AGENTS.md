@@ -143,6 +143,10 @@ history/
 
 For more details, see README.md and QUICKSTART.md.
 
+### LLM Reference
+
+Need a quick tour of the shared helpers under `internal/`? Read `docs/internal_llm_reference.md` for package-by-package guidance before writing new utilities.
+
 ## Project Structure & Module Organization
 
 - `main.go` wires the CLI and dispatches importer subcommands.

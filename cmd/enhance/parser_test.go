@@ -1,10 +1,13 @@
 package enhance
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/lepinkainen/hermes/internal/content"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/importer/mediaids"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseNote(t *testing.T) {
@@ -18,7 +21,7 @@ func TestParseNote(t *testing.T) {
 			name: "basic movie note",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 imdb_id: "tt1234567"
 ---
@@ -30,10 +33,10 @@ This is the content of the note.`,
 				Year:   2021,
 				IMDBID: "tt1234567",
 				RawFrontmatter: map[string]interface{}{
-					"title":   "Test Movie",
-					"type":    "movie",
-					"year":    2021,
-					"imdb_id": "tt1234567",
+					"title":     "Test Movie",
+					"tmdb_type": "movie",
+					"year":      2021,
+					"imdb_id":   "tt1234567",
 				},
 				OriginalBody: "This is the content of the note.",
 			},
@@ -43,7 +46,7 @@ This is the content of the note.`,
 			name: "note with tmdb_id",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 tmdb_id: 12345
 ---
@@ -55,10 +58,10 @@ Content here.`,
 				Year:   2021,
 				TMDBID: 12345,
 				RawFrontmatter: map[string]interface{}{
-					"title":   "Test Movie",
-					"type":    "movie",
-					"year":    2021,
-					"tmdb_id": 12345,
+					"title":     "Test Movie",
+					"tmdb_type": "movie",
+					"year":      2021,
+					"tmdb_id":   12345,
 				},
 				OriginalBody: "Content here.",
 			},
@@ -215,7 +218,7 @@ func TestBuildMarkdown(t *testing.T) {
 
 	originalContent := `---
 title: Test Movie
-type: movie
+tmdb_type: movie
 year: 2021
 ---
 
@@ -241,6 +244,124 @@ Original content here.`
 	if !containsSubstring(result, "## TMDB Content") {
 		t.Errorf("TMDB content should be appended")
 	}
+}
+
+func TestBuildMarkdownOverwriteTMDBBehavior(t *testing.T) {
+	t.Run("overwriteTrueUpdatesOnlyTMDBFields", func(t *testing.T) {
+		originalContent := `---
+title: "Existing Show"
+tmdb_id: 100
+tmdb_type: "tv"
+runtime: 30
+total_episodes: 10
+cover: "_attachments/old-cover.jpg"
+tags:
+  - watchlist
+  - genre/animated
+created: "2024-01-01"
+modified: "2024-02-01"
+service: "plex"
+status: "watching"
+episodes: 5
+finished: false
+custom_field: "keep-me"
+---
+
+Personal intro before TMDB block.
+
+<!-- TMDB_DATA_START -->
+## Overview
+Outdated TMDB overview.
+<!-- TMDB_DATA_END -->
+
+Personal wrap up after TMDB block.
+`
+		note, err := parseNote(originalContent)
+		require.NoError(t, err)
+
+		tmdbData := &enrichment.TMDBEnrichment{
+			TMDBID:          2024,
+			TMDBType:        "tv",
+			RuntimeMins:     55,
+			TotalEpisodes:   12,
+			GenreTags:       []string{"Action", "Drama"},
+			CoverPath:       "_attachments/new-cover.jpg",
+			ContentMarkdown: "## Fresh Overview\nNew TMDB summary.",
+		}
+
+		note.AddTMDBData(tmdbData)
+		result := note.BuildMarkdown(originalContent, tmdbData, true)
+
+		updated, err := parseNote(result)
+		require.NoError(t, err)
+
+		fm := updated.RawFrontmatter
+
+		require.Equal(t, tmdbData.TMDBID, fm["tmdb_id"])
+		require.Equal(t, tmdbData.TMDBType, fm["tmdb_type"])
+		require.Equal(t, tmdbData.RuntimeMins, fm["runtime"])
+		require.Equal(t, tmdbData.TotalEpisodes, fm["total_episodes"])
+		require.Equal(t, tmdbData.CoverPath, fm["cover"])
+
+		tags := enrichment.TagsFromAny(fm["tags"])
+		require.ElementsMatch(t, []string{"Action", "Drama", "genre/animated", "watchlist"}, tags)
+
+		require.Equal(t, "2024-01-01", fm["created"])
+		require.Equal(t, "2024-02-01", fm["modified"])
+		require.Equal(t, "plex", fm["service"])
+		require.Equal(t, "watching", fm["status"])
+		require.Equal(t, 5, fm["episodes"])
+		require.Equal(t, false, fm["finished"])
+		require.Equal(t, "keep-me", fm["custom_field"])
+
+		body := updated.OriginalBody
+		require.Contains(t, body, "Personal intro before TMDB block.")
+		require.Contains(t, body, "Personal wrap up after TMDB block.")
+		require.Contains(t, body, tmdbData.ContentMarkdown)
+		require.NotContains(t, body, "Outdated TMDB overview.")
+		require.Equal(t, 1, strings.Count(body, content.TMDBDataStart))
+		require.Equal(t, 1, strings.Count(body, content.TMDBDataEnd))
+	})
+
+	t.Run("appendWhenMarkersMissingAndOverwriteFalse", func(t *testing.T) {
+		originalContent := `---
+title: "Markerless Movie"
+created: "2023-05-05"
+service: "letterboxd"
+---
+
+Just me writing notes.
+`
+		note, err := parseNote(originalContent)
+		require.NoError(t, err)
+
+		tmdbData := &enrichment.TMDBEnrichment{
+			TMDBID:          303,
+			TMDBType:        "movie",
+			RuntimeMins:     120,
+			GenreTags:       []string{"Thriller"},
+			CoverPath:       "_attachments/markerless-cover.jpg",
+			ContentMarkdown: "## Appended Overview\nReplacement content should not remove notes.",
+		}
+
+		note.AddTMDBData(tmdbData)
+		result := note.BuildMarkdown(originalContent, tmdbData, false)
+
+		updated, err := parseNote(result)
+		require.NoError(t, err)
+
+		body := updated.OriginalBody
+		require.Contains(t, body, "Just me writing notes.")
+		require.Contains(t, body, content.TMDBDataStart)
+		require.Contains(t, body, content.TMDBDataEnd)
+		require.Contains(t, body, tmdbData.ContentMarkdown)
+
+		originalIdx := strings.Index(body, "Just me writing notes.")
+		tmdbIdx := strings.Index(body, tmdbData.ContentMarkdown)
+		require.NotEqual(t, -1, originalIdx)
+		require.NotEqual(t, -1, tmdbIdx)
+		require.Less(t, originalIdx, tmdbIdx, "TMDB block should be appended after original content")
+	})
 }
 
 // Helper function for substring checking
@@ -389,10 +510,10 @@ func TestNeedsMetadata(t *testing.T) {
 				TMDBID: 12345,
 				Type:   "tv",
 				RawFrontmatter: map[string]interface{}{
-					"title":   "Test Show",
-					"tmdb_id": 12345,
-					"runtime": 45,
-					"tags":    []string{"Drama"},
+					"title":          "Test Show",
+					"tmdb_id":        12345,
+					"total_episodes": 22,
+					"tags":           []string{"Drama"},
 				},
 			},
 			want: false,
@@ -456,7 +577,7 @@ func TestGetMediaIDs(t *testing.T) {
 			name: "TMDB ID only",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 tmdb_id: 949
 ---
@@ -468,7 +589,7 @@ Content here.`,
 			name: "IMDB ID only",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 imdb_id: "tt0113277"
 ---
@@ -480,7 +601,7 @@ Content here.`,
 			name: "Letterboxd ID only",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 letterboxd_id: "2bg8"
 ---
@@ -492,7 +613,7 @@ Content here.`,
 			name: "All IDs present",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 tmdb_id: 949
 imdb_id: "tt0113277"
@@ -510,7 +631,7 @@ Content here.`,
 			name: "No IDs",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 ---
 
@@ -550,7 +671,7 @@ func TestHasAnyID(t *testing.T) {
 			name: "TMDB ID only",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 tmdb_id: 949
 ---
@@ -562,7 +683,7 @@ Content here.`,
 			name: "IMDB ID only",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 imdb_id: "tt0113277"
 ---
@@ -574,7 +695,7 @@ Content here.`,
 			name: "Letterboxd ID only",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 letterboxd_id: "2bg8"
 ---
@@ -586,7 +707,7 @@ Content here.`,
 			name: "All IDs present",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 tmdb_id: 949
 imdb_id: "tt0113277"
@@ -600,7 +721,7 @@ Content here.`,
 			name: "No IDs",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 ---
 
@@ -634,7 +755,7 @@ func TestGetIDSummary(t *testing.T) {
 			name: "All IDs present",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 tmdb_id: 949
 imdb_id: "tt0113277"
@@ -648,7 +769,7 @@ Content here.`,
 			name: "TMDB and IMDB only",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 tmdb_id: 949
 imdb_id: "tt0113277"
@@ -661,7 +782,7 @@ Content here.`,
 			name: "IMDB only",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 imdb_id: "tt0113277"
 ---
@@ -673,7 +794,7 @@ Content here.`,
 			name: "No IDs",
 			content: `---
 title: "Test Movie"
-type: movie
+tmdb_type: movie
 year: 2021
 ---
 
@@ -701,7 +822,6 @@ func TestParseNoteWithHeatFile(t *testing.T) {
 	// Test with actual Heat (1995) file content
 	content := `---
 title: "Heat"
-type: movie
 year: 1995
 date_watched: "2019-04-12"
 letterboxd_rating: 8.3

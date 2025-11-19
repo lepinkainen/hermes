@@ -3,6 +3,7 @@ package enrichment
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -99,7 +100,9 @@ func TestEnrichFromTMDB_UsesExistingIDAndDownloadsCover(t *testing.T) {
 	restoreClient := withFakeClient(t, &fakeTMDBClient{
 		onMetadataByID: func(ctx context.Context, id int, mediaType string, force bool) (*tmdb.Metadata, bool, error) {
 			require.Equal(t, 949, id)
-			require.Equal(t, "movie", mediaType)
+			if mediaType == "tv" {
+				return nil, false, fmt.Errorf("not a TV show")
+			}
 			runtime := 170
 			return &tmdb.Metadata{Runtime: &runtime, GenreTags: []string{"Action", "Crime"}}, false, nil
 		},
@@ -203,7 +206,9 @@ func TestEnrichFromTMDB_CoverCacheHit(t *testing.T) {
 	restoreClient := withFakeClient(t, &fakeTMDBClient{
 		onMetadataByID: func(ctx context.Context, id int, mediaType string, force bool) (*tmdb.Metadata, bool, error) {
 			require.Equal(t, 12345, id)
-			require.Equal(t, "movie", mediaType)
+			if mediaType == "tv" {
+				return nil, false, fmt.Errorf("not a TV show")
+			}
 			runtime := 120
 			return &tmdb.Metadata{Runtime: &runtime, GenreTags: []string{"Action"}}, false, nil
 		},

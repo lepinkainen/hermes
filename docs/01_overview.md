@@ -66,3 +66,7 @@ Hermes is built with:
 ## Getting Started
 
 See the [Installation & Setup](02_installation_setup.md) guide to get started with Hermes.
+
+## Additional References
+
+- Building importers or writing agent workflows? Review the [Internal Package Guide for LLMs](internal_llm_reference.md) for a summary of reusable helpers inside `internal/`.

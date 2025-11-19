@@ -8,6 +8,7 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/content"
 	"github.com/lepinkainen/hermes/internal/enrichment"
+	fm "github.com/lepinkainen/hermes/internal/frontmatter"
 	"github.com/lepinkainen/hermes/internal/importer/mediaids"
 	"gopkg.in/yaml.v3"
 )
@@ -75,13 +76,8 @@ func parseNote(fileContent string) (*Note, error) {
 		note.Title = title
 	}
 
-	// Try to get type from explicit field first
-	if noteType, ok := frontmatter["type"].(string); ok {
-		note.Type = noteType
-	} else {
-		// Fall back to detecting from tags array
-		note.Type = detectTypeFromTags(frontmatter)
-	}
+	// Get type from tmdb_type field or detect from tags
+	note.Type = fm.DetectMediaType(frontmatter)
 
 	if year, ok := frontmatter["year"].(int); ok {
 		note.Year = year
@@ -123,9 +119,14 @@ func (n *Note) NeedsMetadata() bool {
 		return true
 	}
 
-	// Check if runtime is missing (for movies/TV shows)
-	if n.Type == "movie" || n.Type == "tv" {
+	// Check if runtime is missing (for movies) or total_episodes is missing (for TV shows)
+	switch n.Type {
+	case "movie":
 		if _, ok := n.RawFrontmatter["runtime"]; !ok {
+			return true
+		}
+	case "tv":
+		if _, ok := n.RawFrontmatter["total_episodes"]; !ok {
 			return true
 		}
 	}
@@ -242,42 +243,6 @@ func extractTitleFromPath(filePath string) string {
 	// Remove the .md extension
 	title := strings.TrimSuffix(filename, filepath.Ext(filename))
 	return title
-}
-
-// detectTypeFromTags attempts to detect if this is a movie or TV show from tags.
-func detectTypeFromTags(frontmatter map[string]interface{}) string {
-	tags, ok := frontmatter["tags"]
-	if !ok {
-		return ""
-	}
-
-	// Handle []interface{} (common YAML array representation)
-	if tagSlice, ok := tags.([]interface{}); ok {
-		for _, tag := range tagSlice {
-			if tagStr, ok := tag.(string); ok {
-				if tagStr == "movie" {
-					return "movie"
-				}
-				if tagStr == "tv" || tagStr == "tv-show" || tagStr == "series" {
-					return "tv"
-				}
-			}
-		}
-	}
-
-	// Handle []string
-	if tagSlice, ok := tags.([]string); ok {
-		for _, tag := range tagSlice {
-			if tag == "movie" {
-				return "movie"
-			}
-			if tag == "tv" || tag == "tv-show" || tag == "series" {
-				return "tv"
-			}
-		}
-	}
-
-	return ""
 }
 
 // GetMediaIDs extracts all external media IDs from the frontmatter.

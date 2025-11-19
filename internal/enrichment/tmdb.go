@@ -96,20 +96,45 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 	if existingTMDBID != 0 && !opts.Force {
 		slog.Debug("Using stored TMDB ID", "tmdb_id", existingTMDBID, "title", title)
 		tmdbID = existingTMDBID
-		// We don't know the media type yet, will be determined when fetching metadata
-		// For now, try movie first, then TV
-		metadata, _, err := client.CachedGetMetadataByID(ctx, tmdbID, "movie", false)
-		if err != nil {
-			// Try TV if movie fails
-			metadata, _, err = client.CachedGetMetadataByID(ctx, tmdbID, "tv", false)
-			if err != nil {
-				return nil, fmt.Errorf("failed to fetch TMDB metadata for ID %d: %w", tmdbID, err)
+		// Try both movie and TV endpoints, pick the one with better data
+		// (same ID can exist in both with different content)
+		movieMeta, _, movieErr := client.CachedGetMetadataByID(ctx, tmdbID, "movie", false)
+		tvMeta, _, tvErr := client.CachedGetMetadataByID(ctx, tmdbID, "tv", false)
+
+		if movieErr != nil && tvErr != nil {
+			return nil, fmt.Errorf("failed to fetch TMDB metadata for ID %d: %w", tmdbID, movieErr)
+		}
+
+		// Determine which endpoint returned better data
+		movieScore := 0
+		tvScore := 0
+		if movieErr == nil && movieMeta != nil {
+			if movieMeta.Runtime != nil && *movieMeta.Runtime > 0 {
+				movieScore += 10
 			}
+			if len(movieMeta.GenreTags) > 0 {
+				movieScore += 1
+			}
+		}
+		if tvErr == nil && tvMeta != nil {
+			if tvMeta.TotalEpisodes != nil && *tvMeta.TotalEpisodes > 0 {
+				tvScore += 10
+			}
+			if len(tvMeta.GenreTags) > 0 {
+				tvScore += 1
+			}
+		}
+
+		if tvScore > movieScore {
+			mediaType = "tv"
+		} else if movieScore > 0 {
+			mediaType = "movie"
+		} else if tvErr == nil {
 			mediaType = "tv"
 		} else {
 			mediaType = "movie"
 		}
-		_ = metadata // Will be fetched again below
+		slog.Debug("Determined media type from TMDB data", "tmdb_id", tmdbID, "type", mediaType, "movie_score", movieScore, "tv_score", tvScore)
 	} else {
 		// First try to find TMDB ID using IMDB ID if available
 		if imdbID != "" {

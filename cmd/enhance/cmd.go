@@ -95,20 +95,20 @@ func EnhanceNotes(opts Options) error {
 		needsContent := note.NeedsContent()
 		needsMetadata := note.NeedsMetadata()
 
-		// Skip if already has everything and not forcing
-		if !opts.Force && !needsCover && !needsContent && !needsMetadata {
+		// Skip if already has everything and not forcing/overwriting
+		if !opts.Force && !opts.Overwrite && !needsCover && !needsContent && !needsMetadata {
 			slog.Info("Skipping file (already has all TMDB data)", "path", file, "tmdb_id", note.TMDBID)
 			skipCount++
 			continue
 		}
-
-		// Skip if already has TMDB data and not overwriting (for backward compatibility)
-		if !opts.Overwrite && note.HasTMDBData() && !opts.Force {
-			slog.Info("Skipping file (already has TMDB data)", "path", file, "tmdb_id", note.TMDBID)
-			skipCount++
-			continue
-		}
-
+		/*
+			// Skip if already has TMDB data and not overwriting (for backward compatibility)
+			if !opts.Overwrite && note.HasTMDBData() && !opts.Force {
+				slog.Info("Skipping file (already has TMDB data)", "path", file, "tmdb_id", note.TMDBID)
+				skipCount++
+				continue
+			}
+		*/
 		if opts.DryRun {
 			slog.Info("Would enhance", "title", note.Title, "year", note.Year, "file", file,
 				"needs_cover", needsCover, "needs_content", needsContent, "needs_metadata", needsMetadata)
