@@ -33,7 +33,7 @@ func TestParseImdbWithParams(t *testing.T) {
 	}
 	defer func() { parseImdbFunc = ParseImdb }()
 
-	err := ParseImdbWithParams(csv, dir, true, filepath.Join(dir, "imdb.json"), true, true, true, true, false, []string{"overview"})
+	err := ParseImdbWithParams(csv, dir, true, filepath.Join(dir, "imdb.json"), true, true, true, true, false, []string{"overview"}, false, "")
 	if err != nil {
 		t.Fatalf("ParseImdbWithParams error = %v", err)
 	}

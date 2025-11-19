@@ -21,6 +21,9 @@ var (
 	tmdbGenerateContent bool
 	tmdbInteractive     bool
 	tmdbContentSections []string
+	// TMDB cover cache options
+	useTMDBCoverCache  bool
+	tmdbCoverCachePath string
 )
 
 var parseLetterboxdFunc = ParseLetterboxd
@@ -37,6 +40,8 @@ func ParseLetterboxdWithParams(
 	tmdbGenerateContentFlag bool,
 	tmdbInteractiveFlag bool,
 	tmdbContentSectionsFlag []string,
+	useTMDBCoverCacheFlag bool,
+	tmdbCoverCachePathFlag string,
 ) error {
 	// Set the global variables that ParseLetterboxd expects
 	csvFile = inputFile
@@ -49,6 +54,8 @@ func ParseLetterboxdWithParams(
 	tmdbGenerateContent = tmdbGenerateContentFlag
 	tmdbInteractive = tmdbInteractiveFlag
 	tmdbContentSections = tmdbContentSectionsFlag
+	useTMDBCoverCache = useTMDBCoverCacheFlag
+	tmdbCoverCachePath = tmdbCoverCachePathFlag
 
 	// Set up command config similar to PreRunE logic
 	cmdConfig = &cmdutil.BaseCommandConfig{

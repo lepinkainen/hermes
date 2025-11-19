@@ -274,6 +274,8 @@ func enrichFromTMDB(movie *Movie) (*enrichment.TMDBEnrichment, error) {
 		NoteDir:         outputDir,
 		Interactive:     tmdbInteractive,
 		MoviesOnly:      true, // Letterboxd only catalogs movies, not TV shows
+		UseCoverCache:   useTMDBCoverCache,
+		CoverCachePath:  tmdbCoverCachePath,
 	}
 
 	// Use context.Background() for enrichment

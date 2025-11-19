@@ -33,6 +33,10 @@ type Options struct {
 	Overwrite bool
 	// Force forces re-enrichment even when TMDB ID exists
 	Force bool
+	// UseTMDBCoverCache enables development cache for TMDB cover images
+	UseTMDBCoverCache bool
+	// TMDBCoverCachePath is the directory for cached cover images
+	TMDBCoverCachePath string
 }
 
 // EnhanceNotes processes markdown files and enriches them with TMDB data.
@@ -64,6 +68,14 @@ func EnhanceNotes(opts Options) error {
 		return fmt.Errorf("failed to create attachments directory: %w", err)
 	}
 
+	// Prepare cover cache directory if enabled
+	if opts.UseTMDBCoverCache {
+		if err := os.MkdirAll(opts.TMDBCoverCachePath, 0755); err != nil {
+			return fmt.Errorf("failed to create cover cache directory: %w", err)
+		}
+		slog.Info("Using TMDB cover cache", "path", opts.TMDBCoverCachePath)
+	}
+
 	successCount := 0
 	skipCount := 0
 	errorCount := 0
@@ -75,13 +87,6 @@ func EnhanceNotes(opts Options) error {
 		if err != nil {
 			slog.Warn("Failed to parse file", "path", file, "error", err)
 			errorCount++
-			continue
-		}
-
-		// Skip if not a movie or TV show
-		if note.Type != "movie" && note.Type != "tv" {
-			slog.Info("Skipping file (not a movie or TV show)", "path", file, "type", note.Type, "title", note.Title)
-			skipCount++
 			continue
 		}
 
@@ -122,6 +127,8 @@ func EnhanceNotes(opts Options) error {
 			NoteDir:         noteDir,
 			Interactive:     opts.TMDBInteractive,
 			Force:           opts.Force,
+			UseCoverCache:   opts.UseTMDBCoverCache,
+			CoverCachePath:  opts.TMDBCoverCachePath,
 		}
 
 		// Enrich with TMDB data (pass existing TMDB ID if present)

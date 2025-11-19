@@ -38,6 +38,10 @@ type CLI struct {
 	CacheDBFile string `help:"Path to cache SQLite database file" default:"./cache.db"`
 	CacheTTL    string `help:"Cache time-to-live duration (e.g., 720h for 30 days)" default:"720h"`
 
+	// TMDB cover cache flags (used by importers and enhance command)
+	UseTMDBCoverCache  bool   `help:"Use development cache for TMDB cover images to avoid repeated downloads" default:"false"`
+	TMDBCoverCachePath string `help:"Path to TMDB cover cache directory" default:"tmdb-cover-cache"`
+
 	Import  ImportCmd  `cmd:"" help:"Import data from various sources"`
 	Enhance EnhanceCmd `cmd:"" help:"Enhance existing markdown notes with TMDB data"`
 
@@ -99,7 +103,7 @@ type SteamCmd struct {
 
 // EnhanceCmd represents the enhance command
 type EnhanceCmd struct {
-	InputDir            string   `short:"d" help:"Directory containing markdown files to enhance" required:""`
+	InputDirs           []string `short:"d" help:"Directories containing markdown files to enhance (can specify multiple)" required:""`
 	Recursive           bool     `short:"r" help:"Scan subdirectories recursively" default:"false"`
 	DryRun              bool     `help:"Show what would be done without making changes" default:"false"`
 	OverwriteTMDB       bool     `help:"Overwrite existing TMDB content in notes" default:"false"`
@@ -187,6 +191,10 @@ func updateGlobalConfig(cli *CLI) {
 	// Update cache config
 	viper.Set("cache.dbfile", cli.CacheDBFile)
 	viper.Set("cache.ttl", cli.CacheTTL)
+
+	// Update TMDB cover cache config
+	viper.Set("tmdb.cover_cache.enabled", cli.UseTMDBCoverCache)
+	viper.Set("tmdb.cover_cache.path", cli.TMDBCoverCachePath)
 }
 
 // Run methods for each command
@@ -229,6 +237,8 @@ func (i *IMDBCmd) Run() error {
 		i.TMDBGenerateContent,
 		!i.TMDBNoInteractive, // Invert: default is interactive
 		i.TMDBContentSections,
+		viper.GetBool("tmdb.cover_cache.enabled"),
+		viper.GetString("tmdb.cover_cache.path"),
 	)
 }
 
@@ -255,6 +265,8 @@ func (l *LetterboxdCmd) Run() error {
 		l.TMDBGenerateContent,
 		!l.TMDBNoInteractive, // Invert: default is interactive
 		l.TMDBContentSections,
+		viper.GetBool("tmdb.cover_cache.enabled"),
+		viper.GetString("tmdb.cover_cache.path"),
 	)
 }
 
@@ -282,19 +294,27 @@ func (s *SteamCmd) Run() error {
 }
 
 func (e *EnhanceCmd) Run() error {
-	opts := enhance.Options{
-		InputDir:            e.InputDir,
-		Recursive:           e.Recursive,
-		DryRun:              e.DryRun,
-		Overwrite:           e.OverwriteTMDB,
-		Force:               e.Force,
-		TMDBDownloadCover:   true,                 // Always download covers
-		TMDBGenerateContent: true,                 // Always generate content
-		TMDBInteractive:     !e.TMDBNoInteractive, // Invert: default is interactive
-		TMDBContentSections: e.TMDBContentSections,
+	for _, inputDir := range e.InputDirs {
+		opts := enhance.Options{
+			InputDir:            inputDir,
+			Recursive:           e.Recursive,
+			DryRun:              e.DryRun,
+			Overwrite:           e.OverwriteTMDB,
+			Force:               e.Force,
+			TMDBDownloadCover:   true,                 // Always download covers
+			TMDBGenerateContent: true,                 // Always generate content
+			TMDBInteractive:     !e.TMDBNoInteractive, // Invert: default is interactive
+			TMDBContentSections: e.TMDBContentSections,
+			UseTMDBCoverCache:   viper.GetBool("tmdb.cover_cache.enabled"),
+			TMDBCoverCachePath:  viper.GetString("tmdb.cover_cache.path"),
+		}
+
+		if err := runEnhancement(opts); err != nil {
+			return err
+		}
 	}
 
-	return runEnhancement(opts)
+	return nil
 }
 
 func initLogging() {

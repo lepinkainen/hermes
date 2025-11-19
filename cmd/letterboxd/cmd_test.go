@@ -30,7 +30,7 @@ func TestParseLetterboxdWithParams(t *testing.T) {
 	}
 	defer func() { parseLetterboxdFunc = ParseLetterboxd }()
 
-	err := ParseLetterboxdWithParams(csv, dir, false, "", true, true, false, true, true, []string{"overview"})
+	err := ParseLetterboxdWithParams(csv, dir, false, "", true, true, false, true, true, []string{"overview"}, false, "")
 	if err != nil {
 		t.Fatalf("ParseLetterboxdWithParams error = %v", err)
 	}

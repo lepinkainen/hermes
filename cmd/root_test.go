@@ -101,11 +101,11 @@ func TestImportCommandsRequireInput(t *testing.T) {
 		t.Fatalf("goodreads parser should not be called")
 		return nil
 	}
-	parseIMDB = func(_, _ string, _ bool, _ string, _ bool, _ bool, _ bool, _ bool, _ bool, _ []string) error {
+	parseIMDB = func(_, _ string, _ bool, _ string, _ bool, _ bool, _ bool, _ bool, _ bool, _ []string, _ bool, _ string) error {
 		t.Fatalf("imdb parser should not be called")
 		return nil
 	}
-	parseLetterboxd = func(_, _ string, _ bool, _ string, _ bool, _ bool, _ bool, _ bool, _ bool, _ []string) error {
+	parseLetterboxd = func(_, _ string, _ bool, _ string, _ bool, _ bool, _ bool, _ bool, _ bool, _ []string, _ bool, _ string) error {
 		t.Fatalf("letterboxd parser should not be called")
 		return nil
 	}
@@ -177,11 +177,10 @@ func TestSteamRunUsesConfig(t *testing.T) {
 func TestEnhanceRunPassesOptions(t *testing.T) {
 	resetCmdState(t)
 
-	called := false
+	calledDirs := []string{}
 	orig := runEnhancement
 	runEnhancement = func(opts enhance.Options) error {
-		called = true
-		assert.Equal(t, "./notes", opts.InputDir)
+		calledDirs = append(calledDirs, opts.InputDir)
 		assert.True(t, opts.Recursive)
 		assert.True(t, opts.DryRun)
 		assert.True(t, opts.Overwrite)
@@ -191,10 +190,10 @@ func TestEnhanceRunPassesOptions(t *testing.T) {
 	}
 	t.Cleanup(func() { runEnhancement = orig })
 
-	cli, ctx := parseCLI(t, "enhance", "--input-dir", "./notes", "--recursive", "--dry-run", "--overwrite-tmdb", "--force", "--tmdb-content-sections", "cast")
+	cli, ctx := parseCLI(t, "enhance", "--input-dirs", "./notes", "--input-dirs", "./anime", "--recursive", "--dry-run", "--overwrite-tmdb", "--force", "--tmdb-content-sections", "cast")
 	updateGlobalConfig(cli)
 
 	err := ctx.Run()
 	require.NoError(t, err)
-	assert.True(t, called)
+	assert.Equal(t, []string{"./notes", "./anime"}, calledDirs)
 }

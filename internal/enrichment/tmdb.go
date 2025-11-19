@@ -4,6 +4,7 @@ package enrichment
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -51,6 +52,10 @@ type TMDBEnrichmentOptions struct {
 	Force bool
 	// MoviesOnly restricts search to movies only (excludes TV shows)
 	MoviesOnly bool
+	// UseCoverCache enables development cache for TMDB cover images
+	UseCoverCache bool
+	// CoverCachePath is the directory for cached cover images
+	CoverCachePath string
 }
 
 // TMDBEnrichment holds TMDB enrichment data.
@@ -213,29 +218,86 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 			coverFilename := fileutil.SanitizeFilename(title) + " - cover.jpg"
 			coverPath := filepath.Join(opts.AttachmentsDir, coverFilename)
 
-			// Check if cover already exists
-			if _, err := os.Stat(coverPath); err == nil {
-				slog.Debug("TMDB cover already exists, skipping download", "path", coverPath)
-				enrichment.CoverFilename = coverFilename
+			// Use caching if enabled
+			if opts.UseCoverCache && opts.CoverCachePath != "" {
+				// Use TMDB ID for cache filename (more stable than title)
+				cacheFilename := fmt.Sprintf("%s_%d.jpg", mediaType, tmdbID)
+				cachePath := filepath.Join(opts.CoverCachePath, cacheFilename)
 
-				// Calculate relative path from note to cover
-				if opts.NoteDir != "" {
-					relPath, err := fileutil.RelativeTo(opts.NoteDir, coverPath)
-					if err == nil {
-						enrichment.CoverPath = relPath
+				// Check cache for hit
+				if _, err := os.Stat(cachePath); err == nil {
+					// Cache hit
+					slog.Debug("TMDB cover cache hit", "cache_path", cachePath, "tmdb_id", tmdbID)
+
+					// Check if we need to copy to attachments
+					if _, err := os.Stat(coverPath); err == nil && !config.UpdateCovers {
+						slog.Debug("TMDB cover already exists in attachments, skipping copy", "path", coverPath)
+					} else {
+						// Copy from cache to attachments
+						if err := copyFile(cachePath, coverPath); err != nil {
+							slog.Warn("Failed to copy cover from cache", "error", err)
+						} else {
+							slog.Debug("Copied TMDB cover from cache", "cache_path", cachePath, "dest_path", coverPath)
+						}
+					}
+
+					enrichment.CoverFilename = coverFilename
+					if opts.NoteDir != "" {
+						relPath, err := fileutil.RelativeTo(opts.NoteDir, coverPath)
+						if err == nil {
+							enrichment.CoverPath = relPath
+						}
+					}
+				} else {
+					// Cache miss - download to cache, then copy to attachments
+					slog.Debug("TMDB cover cache miss", "cache_path", cachePath, "tmdb_id", tmdbID)
+
+					if err := client.DownloadAndResizeImage(ctx, coverURL, cachePath, 1000); err != nil {
+						slog.Warn("Failed to download TMDB cover to cache", "error", err)
+					} else {
+						slog.Info("Downloaded TMDB cover to cache", "cache_path", cachePath)
+
+						// Copy from cache to attachments
+						if err := copyFile(cachePath, coverPath); err != nil {
+							slog.Warn("Failed to copy cover from cache to attachments", "error", err)
+						} else {
+							slog.Debug("Copied TMDB cover to attachments", "path", coverPath)
+						}
+
+						enrichment.CoverFilename = coverFilename
+						if opts.NoteDir != "" {
+							relPath, err := fileutil.RelativeTo(opts.NoteDir, coverPath)
+							if err == nil {
+								enrichment.CoverPath = relPath
+							}
+						}
 					}
 				}
-			} else if err := client.DownloadAndResizeImage(ctx, coverURL, coverPath, 1000); err != nil {
-				slog.Warn("Failed to download TMDB cover", "error", err)
 			} else {
-				slog.Info("Downloaded TMDB cover", "path", coverPath)
-				enrichment.CoverFilename = coverFilename
+				// No caching - use original behavior
+				if _, err := os.Stat(coverPath); err == nil {
+					slog.Debug("TMDB cover already exists, skipping download", "path", coverPath)
+					enrichment.CoverFilename = coverFilename
 
-				// Calculate relative path from note to cover
-				if opts.NoteDir != "" {
-					relPath, err := fileutil.RelativeTo(opts.NoteDir, coverPath)
-					if err == nil {
-						enrichment.CoverPath = relPath
+					// Calculate relative path from note to cover
+					if opts.NoteDir != "" {
+						relPath, err := fileutil.RelativeTo(opts.NoteDir, coverPath)
+						if err == nil {
+							enrichment.CoverPath = relPath
+						}
+					}
+				} else if err := client.DownloadAndResizeImage(ctx, coverURL, coverPath, 1000); err != nil {
+					slog.Warn("Failed to download TMDB cover", "error", err)
+				} else {
+					slog.Info("Downloaded TMDB cover", "path", coverPath)
+					enrichment.CoverFilename = coverFilename
+
+					// Calculate relative path from note to cover
+					if opts.NoteDir != "" {
+						relPath, err := fileutil.RelativeTo(opts.NoteDir, coverPath)
+						if err == nil {
+							enrichment.CoverPath = relPath
+						}
 					}
 				}
 			}
@@ -338,4 +400,30 @@ func findExactMatch(results []tmdb.SearchResult, title string, year int) *tmdb.S
 	}
 
 	return match
+}
+
+// copyFile copies a file from src to dst
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("failed to open source file: %w", err)
+	}
+	defer func() { _ = srcFile.Close() }()
+
+	// Create destination directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer func() { _ = dstFile.Close() }()
+
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return fmt.Errorf("failed to copy file contents: %w", err)
+	}
+
+	return nil
 }

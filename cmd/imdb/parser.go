@@ -284,6 +284,8 @@ func enrichFromTMDB(movie *MovieSeen) (*enrichment.TMDBEnrichment, error) {
 		AttachmentsDir:  attachmentsDir,
 		NoteDir:         outputDir,
 		Interactive:     tmdbInteractive,
+		UseCoverCache:   useTMDBCoverCache,
+		CoverCachePath:  tmdbCoverCachePath,
 	}
 
 	// Use context.Background() for enrichment
