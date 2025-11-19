@@ -188,3 +188,167 @@ func TestWriteFileWithOverwrite(t *testing.T) {
 		})
 	}
 }
+
+func TestWriteMarkdownFile_NewFile(t *testing.T) {
+	// Create a temporary directory
+	tempDir, err := os.MkdirTemp("", "test-markdown-*")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	filePath := filepath.Join(tempDir, "test.md")
+	content := "# Test\n\nThis is a test."
+
+	err = WriteMarkdownFile(filePath, content, false)
+	require.NoError(t, err)
+
+	// Verify file was created with correct content
+	actualContent, err := os.ReadFile(filePath)
+	require.NoError(t, err)
+	assert.Equal(t, content, string(actualContent))
+}
+
+func TestWriteMarkdownFile_ExistingWithOverwrite(t *testing.T) {
+	// Create a temporary directory
+	tempDir, err := os.MkdirTemp("", "test-markdown-*")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	filePath := filepath.Join(tempDir, "existing.md")
+	oldContent := "# Old Content"
+	newContent := "# New Content"
+
+	// Create existing file
+	err = os.WriteFile(filePath, []byte(oldContent), 0644)
+	require.NoError(t, err)
+
+	// Write with overwrite = true
+	err = WriteMarkdownFile(filePath, newContent, true)
+	require.NoError(t, err)
+
+	// Verify file was overwritten
+	actualContent, err := os.ReadFile(filePath)
+	require.NoError(t, err)
+	assert.Equal(t, newContent, string(actualContent))
+}
+
+func TestWriteMarkdownFile_ExistingWithoutOverwrite(t *testing.T) {
+	// Create a temporary directory
+	tempDir, err := os.MkdirTemp("", "test-markdown-*")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	filePath := filepath.Join(tempDir, "existing.md")
+	oldContent := "# Old Content"
+	newContent := "# New Content"
+
+	// Create existing file
+	err = os.WriteFile(filePath, []byte(oldContent), 0644)
+	require.NoError(t, err)
+
+	// Write with overwrite = false
+	err = WriteMarkdownFile(filePath, newContent, false)
+	require.NoError(t, err)
+
+	// Verify file was NOT overwritten
+	actualContent, err := os.ReadFile(filePath)
+	require.NoError(t, err)
+	assert.Equal(t, oldContent, string(actualContent))
+}
+
+func TestWriteMarkdownFile_CreatesDirectories(t *testing.T) {
+	// Create a temporary directory
+	tempDir, err := os.MkdirTemp("", "test-markdown-*")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	// Create path with nested directories that don't exist
+	filePath := filepath.Join(tempDir, "nested", "dirs", "test.md")
+	content := "# Test"
+
+	err = WriteMarkdownFile(filePath, content, false)
+	require.NoError(t, err)
+
+	// Verify file was created
+	assert.True(t, FileExists(filePath))
+	actualContent, err := os.ReadFile(filePath)
+	require.NoError(t, err)
+	assert.Equal(t, content, string(actualContent))
+}
+
+func TestWriteMarkdownFile_DelegationBehavior(t *testing.T) {
+	// This test verifies that WriteMarkdownFile correctly delegates to WriteFileWithOverwrite
+	// by testing the same behavior patterns
+
+	testCases := []struct {
+		name          string
+		setupExisting bool
+		overwrite     bool
+		expectWrite   bool
+	}{
+		{
+			name:          "new file always writes",
+			setupExisting: false,
+			overwrite:     false,
+			expectWrite:   true,
+		},
+		{
+			name:          "existing file with overwrite writes",
+			setupExisting: true,
+			overwrite:     true,
+			expectWrite:   true,
+		},
+		{
+			name:          "existing file without overwrite skips",
+			setupExisting: true,
+			overwrite:     false,
+			expectWrite:   false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempDir, err := os.MkdirTemp("", "test-delegation-*")
+			require.NoError(t, err)
+			defer func() { _ = os.RemoveAll(tempDir) }()
+
+			filePath := filepath.Join(tempDir, "test.md")
+			oldContent := "old"
+			newContent := "new"
+
+			if tc.setupExisting {
+				err = os.WriteFile(filePath, []byte(oldContent), 0644)
+				require.NoError(t, err)
+			}
+
+			err = WriteMarkdownFile(filePath, newContent, tc.overwrite)
+			require.NoError(t, err)
+
+			actualContent, err := os.ReadFile(filePath)
+			require.NoError(t, err)
+
+			if tc.expectWrite {
+				assert.Equal(t, newContent, string(actualContent))
+			} else {
+				assert.Equal(t, oldContent, string(actualContent))
+			}
+		})
+	}
+}
+
+func TestWriteMarkdownFile_EmptyContent(t *testing.T) {
+	// Create a temporary directory
+	tempDir, err := os.MkdirTemp("", "test-markdown-*")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	filePath := filepath.Join(tempDir, "empty.md")
+
+	err = WriteMarkdownFile(filePath, "", false)
+	require.NoError(t, err)
+
+	// Verify empty file was created
+	assert.True(t, FileExists(filePath))
+	actualContent, err := os.ReadFile(filePath)
+	require.NoError(t, err)
+	assert.Equal(t, "", string(actualContent))
+}
