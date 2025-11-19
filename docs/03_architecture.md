@@ -8,28 +8,29 @@ Hermes follows a modular architecture with clear separation of concerns:
 
 ```
 hermes/
-├── cmd/                  # Command implementations
-│   ├── root.go           # Root command and global flags
-│   ├── import.go         # Parent import command
-│   ├── goodreads/        # Goodreads importer
-│   ├── imdb/             # IMDb importer
-│   ├── letterboxd/       # Letterboxd importer
-│   └── steam/            # Steam importer
-├── internal/             # Internal shared packages
-│   ├── cmdutil/          # Command utilities
-│   ├── config/           # Configuration handling
-│   ├── datastore/        # Local SQLite integration for Datasette
-│   ├── errors/           # Custom error types
-│   └── fileutil/         # File operations utilities
-├── build/                # Build artifacts
-├── cache/                # API response cache
-├── json/                 # JSON output directory
-├── markdown/             # Markdown output directory
-├── main.go               # Application entry point
-├── go.mod                # Go module definition
-├── go.sum                # Go module checksums
-├── config.yaml           # Configuration file
-└── Taskfile.yml          # Task runner configuration
+├── cmd/                      # CLI entrypoints
+│   ├── root.go               # Root command + global flags
+│   ├── enhance/              # Enhance command implementation
+│   ├── goodreads/            # Goodreads importer
+│   ├── imdb/                 # IMDb importer
+│   ├── letterboxd/           # Letterboxd importer
+│   └── steam/                # Steam importer
+├── internal/                 # Shared services
+│   ├── cmdutil/              # Command helpers (output dirs, Kong wiring)
+│   ├── config/               # Global configuration state
+│   ├── content/              # Markdown content builders (TMDB sections)
+│   ├── enrichment/           # TMDB orchestrator used by enhance/importers
+│   ├── importer/             # Reusable importer helpers (media IDs, enrichment glue)
+│   ├── datastore/            # SQLite/Datasette writer
+│   ├── errors/, fileutil/, … # Support packages
+│   └── tmdb/                 # Low-level TMDB API client + caching
+├── llm-shared/               # Utility CLIs/tests shared with AI tooling
+├── docs/                     # Project documentation (this folder)
+├── history/                  # Scratch space for planning documents
+├── build/, json/, markdown/  # Generated outputs
+├── config.yml                # Sample configuration
+├── Taskfile.yml              # Task runner recipes
+└── main.go                   # CLI entry point
 ```
 
 ## Core Components
@@ -38,9 +39,10 @@ hermes/
 
 Hermes uses the Kong library to implement its command-line interface:
 
-- **Root Command** (`cmd/root.go`): Defines global flags and configuration
-- **Import Command Structure**: Import commands are organized as nested subcommands in the Kong CLI structure
-- **Importer Commands** (`cmd/{source}/cmd.go`): Source-specific import commands
+- **Root Command** (`cmd/root.go`): Defines global flags, configuration bootstrap, and shared options (datasette and cache settings)
+- **Import Command Group** (`hermes import ...`): Contains source-specific commands (`goodreads`, `imdb`, `letterboxd`, `steam`), each of which wires CLI flags into its package-level parser
+- **Enhance Command** (`hermes enhance ...`): Walks existing Markdown notes and invokes the TMDB enrichment pipeline to backfill metadata/content
+- Each importer exposes a `Parse{Source}WithParams` function that the Kong bindings call, which keeps CLI plumbing decoupled from parser logic and now exposes test hooks for coverage
 
 ### Configuration Management
 
@@ -51,20 +53,19 @@ Configuration is handled using Kong's built-in configuration system:
 - Source-specific settings are defined in their respective command structures
 - Datasette configuration options are available globally
 
-### Importer Architecture
+### Importer & Enhance Architecture
 
 Each importer follows a similar structure:
 
 ```plain
 cmd/{source}/
-├── cmd.go          # Command registration and execution
-├── parser.go       # Data parsing logic
-├── types.go        # Data models
-├── api.go          # External API integration
-├── cache.go        # Caching implementation
-├── json.go         # JSON output formatter
-├── markdown.go     # Markdown output formatter
-└── testdata/       # Test files
+├── cmd.go              # Command registration and execution (Kong wrapper)
+├── parser.go           # Data parsing logic
+├── api/openlibrary.go  # External API integration (where applicable)
+├── cache.go            # Cache lookups using internal/cache helpers
+├── json.go / markdown.go
+├── cmd_test.go, *_test.go
+└── testdata/           # CSV or fixture files
 ```
 
 The typical data flow within an importer is:
@@ -74,18 +75,22 @@ The typical data flow within an importer is:
 3. **Data Enrichment** (e.g., `openlibrary.go`, `omdb.go`): Fetches additional metadata from external APIs
 4. **Output Generation** (`json.go`, `markdown.go`): Formats the enriched data for output
 
+The `enhance` command reuses the same enrichment pipeline but starts from parsed Markdown files, leveraging `internal/importer/mediaids` to load existing IDs, `internal/enrichment` to query TMDB, and `internal/content` to splice new sections into the body.
+
 ### Shared Utilities
 
 The `internal/` directory contains shared utilities used across importers:
 
-- **cmdutil**: Helper functions for setting up commands
-- **config**: Configuration handling utilities
+- **cmdutil/config**: Helper functions for output directories and global config state
+- **content**: Build standardized TMDB content sections/markers used by both importers and enhance
+- **enrichment**: Wraps TMDB lookups, cover downloads, and content generation
+- **importer/**: Shared enrichment helpers (`mediaids`, `enrich` smart pipeline)
 - **errors**: Custom error types (e.g., rate limit errors)
 - **fileutil**: File operations, including Markdown and JSON formatting
 
 ## Datastore & Datasette Integration
 
-Hermes exports data to a local SQLite database (default: `hermes.db`) for exploration in Datasette. The `internal/datastore` package provides the SQLite store used by all importers.
+Hermes exports data to a local SQLite database (default: `hermes.db`) for exploration in Datasette. The `internal/datastore` package provides the SQLite store used by all importers, and datasette flags/config values live at the root CLI/config layer.
 
 ## Data Flow
 

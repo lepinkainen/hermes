@@ -49,7 +49,7 @@ The importer enriches the basic IMDb data with additional information from the [
 
 ### Configuration
 
-In your `config.yaml` file:
+In your `config.yml` (or `config.yaml`) file:
 
 ```yaml
 imdb:
@@ -219,4 +219,4 @@ To use the IMDb importer, you need an OMDb API key:
 1. Go to [OMDb API](http://www.omdbapi.com/apikey.aspx)
 2. Request a free API key (1,000 requests per day)
 3. Activate the key via the email you receive
-4. Add the key to your `config.yaml` file or use the `--apikey` flag
+4. Add the key to your `config.yml` (or `config.yaml`) file or use the `--apikey` flag

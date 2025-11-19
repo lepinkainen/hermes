@@ -49,7 +49,7 @@ The importer enriches the basic Goodreads data with additional information from 
 
 ### Configuration
 
-In your `config.yaml` file:
+In your `config.yml` (or `config.yaml`) file:
 
 ```yaml
 goodreads:

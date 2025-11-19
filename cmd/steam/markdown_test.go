@@ -1,22 +1,19 @@
 package steam
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/fileutil"
-	"github.com/stretchr/testify/assert"
+	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCreateMarkdownFile(t *testing.T) {
-	// Setup test directory
-	testDir := t.TempDir()
-
-	// Force overwrite for testing
-	config.SetOverwriteFiles(true)
+	// Setup test environment with automatic config management
+	env := testutil.NewTestEnv(t)
+	testutil.SetTestConfig(t)
+	golden := testutil.NewGoldenHelper(t, "testdata")
 
 	// Create test cases
 	testCases := []struct {
@@ -147,32 +144,16 @@ func TestCreateMarkdownFile(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create golden file path
-			goldenFilePath := filepath.Join("testdata", tc.wantFile)
-
 			// Write game to markdown in test directory
-			err := CreateMarkdownFile(tc.game, tc.details, testDir)
+			err := CreateMarkdownFile(tc.game, tc.details, env.RootDir())
 			require.NoError(t, err)
 
 			// Read the generated file
-			generatedFilePath := filepath.Join(testDir, fileutil.SanitizeFilename(tc.game.Name)+".md")
-			generated, err := os.ReadFile(generatedFilePath)
-			require.NoError(t, err)
+			generatedFilePath := filepath.Join(env.RootDir(), fileutil.SanitizeFilename(tc.game.Name)+".md")
+			generated := env.ReadFile(generatedFilePath[len(env.RootDir())+1:])
 
-			// Check if we need to update golden files (useful during development)
-			if os.Getenv("UPDATE_GOLDEN") == "true" {
-				err = os.MkdirAll(filepath.Dir(goldenFilePath), 0755)
-				require.NoError(t, err)
-				err = os.WriteFile(goldenFilePath, generated, 0644)
-				require.NoError(t, err)
-			}
-
-			// Read the golden file
-			golden, err := os.ReadFile(goldenFilePath)
-			require.NoError(t, err)
-
-			// Compare generated content with golden file
-			assert.Equal(t, string(golden), string(generated))
+			// Compare with golden file (handles UPDATE_GOLDEN automatically)
+			golden.AssertGolden(tc.wantFile, generated)
 		})
 	}
 }

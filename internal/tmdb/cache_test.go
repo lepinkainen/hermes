@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -38,13 +37,20 @@ func TestNormalizeQuery(t *testing.T) {
 func setupTMDBCache(t *testing.T) {
 	t.Helper()
 
-	viper.Reset()
-	t.Cleanup(viper.Reset)
-
-	tmpDir := filepath.Join(os.TempDir(), "hermes-tmdb-cache-tests")
-	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
-		t.Fatalf("Failed to create temp cache dir: %v", err)
+	// Reset any existing global cache to ensure isolation between tests
+	if err := cache.ResetGlobalCache(); err != nil {
+		t.Fatalf("Failed to reset global cache: %v", err)
 	}
+
+	viper.Reset()
+	t.Cleanup(func() {
+		// Clean up the global cache on test completion
+		_ = cache.ResetGlobalCache()
+		viper.Reset()
+	})
+
+	// Use t.TempDir() for automatic cleanup and isolation between tests
+	tmpDir := t.TempDir()
 
 	viper.Set("cache.dbfile", filepath.Join(tmpDir, "tmdb-cache.db"))
 	viper.Set("cache.ttl", "24h")

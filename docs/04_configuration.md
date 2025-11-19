@@ -4,43 +4,46 @@ This document details the configuration options available in Hermes, explaining 
 
 ## Configuration File
 
-Hermes uses a YAML configuration file (`config.yaml`) to store settings. By default, the application looks for this file in the current working directory, but you can specify a different location using the `--config` flag.
+Hermes uses a YAML configuration file (`config.yml`/`config.yaml`) to store settings. By default, the application looks for this file in the current working directory, but you can specify a different location using the `--config` flag.
 
 ## Global Configuration
 
 These settings apply to all importers:
 
 ```yaml
-# Output directories
-output:
-  markdown: "./markdown" # Directory for Markdown output
-  json: "./json" # Directory for JSON output
-
-# Whether to overwrite existing files
+markdownoutputdir: "./markdown"
+jsonoutputdir: "./json"
 overwrite: false
 
-# Logging level (debug, info, warn, error)
-loglevel: "info"
+datasette:
+  enabled: true
+  dbfile: "./hermes.db"
+
+cache:
+  dbfile: "./cache.db"
+  ttl: "720h"
 ```
 
 ### Output Directories
 
-- `output.markdown`: Directory where Markdown files will be written
-- `output.json`: Directory where JSON files will be written
+- `markdownoutputdir`: Root folder for Markdown output
+- `jsonoutputdir`: Root folder for JSON output
 
-These directories will be created if they don't exist. Each importer will create its own subdirectory within these directories (e.g., `markdown/goodreads/`, `json/imdb/`).
+Each importer creates a subdirectory under these roots (e.g., `markdown/imdb/`), and the enhance command rewrites files in place under the provided directory.
 
 ### Overwrite Flag
 
-- `overwrite`: When set to `true`, existing files will be overwritten. When `false`, the importer will skip files that already exist.
+- `overwrite`: When set to `true`, importers overwrite existing files; otherwise they skip files that already exist.
 
-### Log Level
+### Datasette
 
-- `loglevel`: Controls the verbosity of logging using the standard Go `slog` library. Valid values are:
-  - `debug`: Detailed debugging information
-  - `info`: General information about progress
-  - `warn`: Warning messages
-  - `error`: Error messages only
+- `datasette.enabled`: Toggle writing to SQLite for Datasette
+- `datasette.dbfile`: Path to the SQLite database (default `./hermes.db`)
+
+### Cache Settings
+
+- `cache.dbfile`: Path to the shared cache database (default `./cache.db`)
+- `cache.ttl`: TTL string (e.g., `720h`), applied to TMDB/OMDB/OpenLibrary cache entries
 
 ## Importer-Specific Configuration
 
@@ -69,8 +72,8 @@ imdb:
   # Path to the IMDb CSV export file
   csvfile: "./path/to/imdb_ratings.csv"
 
-  # OMDB API key for data enrichment (you can also set global omdb.api_key)
-  apikey: "your_omdb_api_key"
+  # OMDB API key for data enrichment
+  omdb_api_key: "your_omdb_api_key"
 
   # Whether to enrich data with OMDB API
   enrich: true
@@ -89,7 +92,7 @@ letterboxd:
   csvfile: "./path/to/letterboxd_export.csv"
 
   # OMDB API key for data enrichment
-  apikey: "your_omdb_api_key"
+  omdb_api_key: "your_omdb_api_key"
 
   # Whether to enrich data with OMDB API
   enrich: true
@@ -119,9 +122,19 @@ steam:
     json: "./json/games"
 ```
 
+### Enhance
+
+The enhance command primarily relies on CLI flags/environment variables, but you must supply a TMDB API key (typically via `TMDB_API_KEY`). Optional config keys include:
+
+```yaml
+tmdbapikey: "your_tmdb_key"
+```
+
+Enhance-specific flags (`--recursive`, `--overwrite-tmdb`, `--force`, `--tmdb-content-sections`) are set per run rather than via config.
+
 ## Datasette Integration
 
-Hermes exports to a local SQLite database (default: `hermes.db`) for Datasette. Configure this in your `config.yaml`:
+Hermes exports to a local SQLite database (default: `hermes.db`) for Datasette. Configure this in your config file:
 
 ```yaml
 datasette:
@@ -184,14 +197,15 @@ Environment variables are prefixed with `HERMES_` and use underscores instead of
 - `HERMES_OUTPUT_JSON`: Directory for JSON output
 - `HERMES_OVERWRITE`: Whether to overwrite existing files
 - `HERMES_LOGLEVEL`: Logging level
+- `TMDB_API_KEY`: TMDB API key (used by the enhance command and TMDB enrichment)
 
 Importer-specific environment variables:
 
 - `HERMES_GOODREADS_CSVFILE`: Path to the Goodreads CSV export file
 - `HERMES_IMDB_CSVFILE`: Path to the IMDb CSV export file
-- `HERMES_IMDB_APIKEY`: OMDB API key
+- `HERMES_IMDB_OMDB_API_KEY`: OMDB API key
 - `HERMES_LETTERBOXD_CSVFILE`: Path to the Letterboxd CSV export file
-- `HERMES_LETTERBOXD_APIKEY`: OMDB API key
+- `HERMES_LETTERBOXD_OMDB_API_KEY`: OMDB API key
 - `HERMES_STEAM_APIKEY`: Steam API key
 - `HERMES_STEAM_STEAMID`: Steam user ID
 - `HERMES_DATASETTE_ENABLED`: Enable Datasette output
@@ -211,44 +225,33 @@ Hermes resolves configuration values in the following order (highest to lowest p
 
 ## Example Configuration File
 
-Here's a complete example of a `config.yaml` file:
-
 ```yaml
-# Global settings
-output:
-  markdown: "./markdown"
-  json: "./json"
+markdownoutputdir: "./markdown/"
+jsonoutputdir: "./json/"
 overwrite: false
-loglevel: "info"
 
-# Goodreads settings
-goodreads:
-  csvfile: "./data/goodreads_library_export.csv"
-  enrich: true
-
-# IMDb settings
-imdb:
-  csvfile: "./data/ratings.csv"
-  apikey: "your_omdb_api_key"
-  enrich: true
-
-# Letterboxd settings
-letterboxd:
-  csvfile: "./data/letterboxd_export.csv"
-  apikey: "your_omdb_api_key"
-  enrich: true
-
-# Steam settings
-steam:
-  apikey: "your_steam_api_key"
-  steamid: "your_steam_id"
-  fetchdetails: true
-
-# Datasette settings
 datasette:
   enabled: true
-  mode: "local"
   dbfile: "./hermes.db"
+
+cache:
+  dbfile: "./cache.db"
+  ttl: "720h"
+
+goodreads:
+  csvfile: "./data/goodreads_library_export.csv"
+
+imdb:
+  csvfile: "./data/ratings.csv"
+  omdb_api_key: "your_omdb_api_key"
+
+letterboxd:
+  csvfile: "./data/letterboxd_export.csv"
+  omdb_api_key: "your_omdb_api_key"
+
+steam:
+  steamid: "your_steam_id"
+  apikey: "your_steam_api_key"
 ```
 
 ## Next Steps

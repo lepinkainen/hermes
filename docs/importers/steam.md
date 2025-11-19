@@ -43,7 +43,7 @@ The importer enriches the basic Steam library data with additional information f
 
 ### Configuration
 
-In your `config.yaml` file:
+In your `config.yml` (or `config.yaml`) file:
 
 ```yaml
 steam:
@@ -260,7 +260,7 @@ To use the Steam importer, you need a Steam API key:
 2. Sign in with your Steam account
 3. Enter a domain name (can be any domain you own, or localhost for personal use)
 4. Agree to the terms and click "Register"
-5. Add the key to your `config.yaml` file or use the `--apikey` flag
+5. Add the key to your `config.yml` (or `config.yaml`) file or use the `--apikey` flag
 
 ## Rate Limiting Considerations
 

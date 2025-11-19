@@ -4,7 +4,7 @@ Hermes writes import results to a local SQLite database so you can browse and qu
 
 - Default database: `hermes.db`
 - Enabled by default; disable with `--datasette=false` if you only want files
-- Configure path via `--datasette-dbfile` or `datasette.dbfile` in `config.yaml`
+- Configure path via `--datasette-dbfile` or `datasette.dbfile` in `config.yml` (or `config.yaml`)
 - Cache data lives in `cache.db` and is separate from `hermes.db`
 
 ### Running Datasette

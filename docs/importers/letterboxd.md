@@ -48,7 +48,7 @@ The importer enriches the basic Letterboxd data with additional information from
 
 ### Configuration
 
-In your `config.yaml` file:
+In your `config.yml` (or `config.yaml`) file:
 
 ```yaml
 letterboxd:
@@ -223,6 +223,6 @@ To use the Letterboxd importer with data enrichment, you need an OMDb API key:
 1. Go to [OMDb API](http://www.omdbapi.com/apikey.aspx)
 2. Request a free API key (1,000 requests per day)
 3. Activate the key via the email you receive
-4. Add the key to your `config.yaml` file or use the `--apikey` flag
+4. Add the key to your `config.yml` (or `config.yaml`) file or use the `--apikey` flag
 
 Note that the Letterboxd importer can use the same OMDb API key as the IMDb importer, so you only need to obtain one key for both importers.

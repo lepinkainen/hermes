@@ -249,7 +249,7 @@ Example user-facing error message:
 ```
 Error: Failed to authenticate with Steam API: invalid API key
 
-Please check your API key in config.yaml or provide a valid key using the --apikey flag.
+Please check your API key in config.yml (or config.yaml) or provide a valid key using the --apikey flag.
 See docs/02_installation_setup.md for instructions on obtaining a Steam API key.
 ```
 

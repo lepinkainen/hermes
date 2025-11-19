@@ -34,10 +34,11 @@ The general workflow of Hermes follows these steps:
 
 Hermes currently supports the following data sources:
 
-- **IMDb** - Import your movie and TV show ratings, enriched with data from OMDB API
-- **Letterboxd** - Import your film diary and watchlist, enriched with data from OMDB API
-- **Goodreads** - Import your book ratings and reviews, enriched with data from OpenLibrary
-- **Steam** - Import your game library, enriched with data from the Steam API
+- **IMDb** – Imports movie and TV ratings, optionally enriched with OMDB and TMDB metadata
+- **Letterboxd** – Imports diary entries and ratings, with OMDB/TMDB enrichment and cover downloads
+- **Goodreads** – Imports book ratings/reviews, enriched with OpenLibrary metadata and covers
+- **Steam** – Imports your Steam library with store metadata and cover art
+- **Enhance** – Re-processes existing Markdown notes to inject TMDB metadata/content when TMDB IDs are present or discoverable
 
 Future planned importers include:
 
@@ -58,7 +59,8 @@ Hermes is built with:
 
 - **Go** - For performance, simplicity, and cross-platform compatibility
 - **Kong** - For command-line interface and configuration management
-- **Public APIs** - For data enrichment (OMDB, OpenLibrary, Steam)
+- **Viper** - For layered configuration files, environment variables, and overrides
+- **Public APIs** - For data enrichment (TMDB, OMDB, OpenLibrary, Steam)
 - **Local caching** - To respect API rate limits and improve performance
 
 ## Getting Started

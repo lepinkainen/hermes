@@ -28,6 +28,20 @@ var (
 	globalCacheOnce sync.Once
 )
 
+// ResetGlobalCache closes the current global cache and resets the singleton
+// so the next call to GetGlobalCache will create a new instance.
+// This is primarily for testing purposes.
+func ResetGlobalCache() error {
+	if globalCache != nil {
+		if err := globalCache.Close(); err != nil {
+			return err
+		}
+	}
+	globalCache = nil
+	globalCacheOnce = sync.Once{}
+	return nil
+}
+
 // GetGlobalCache returns the singleton cache database instance
 func GetGlobalCache() (*CacheDB, error) {
 	var initErr error
