@@ -23,6 +23,8 @@ var (
 	tmdbContentSections []string
 )
 
+var parseLetterboxdFunc = ParseLetterboxd
+
 // ParseLetterboxdWithParams allows calling letterboxd parsing with specific parameters
 // This is used by the Kong-based CLI implementation
 func ParseLetterboxdWithParams(
@@ -68,5 +70,5 @@ func ParseLetterboxdWithParams(
 	overwrite = cmdConfig.Overwrite
 
 	// Call the existing parser
-	return ParseLetterboxd()
+	return parseLetterboxdFunc()
 }

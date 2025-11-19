@@ -21,6 +21,8 @@ var (
 	tmdbContentSections []string
 )
 
+var parseImdbFunc = ParseImdb
+
 // ParseImdbWithParams allows calling imdb parsing with specific parameters
 // This is used by the Kong-based CLI implementation
 func ParseImdbWithParams(
@@ -65,5 +67,5 @@ func ParseImdbWithParams(
 	overwrite = cmdConfig.Overwrite
 
 	// Call the existing parser
-	return ParseImdb()
+	return parseImdbFunc()
 }

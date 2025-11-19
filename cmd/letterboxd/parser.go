@@ -15,8 +15,8 @@ import (
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/errors"
 	"github.com/lepinkainen/hermes/internal/fileutil"
-	"github.com/lepinkainen/hermes/internal/frontmatter"
 	"github.com/lepinkainen/hermes/internal/importer/enrich"
+	"github.com/lepinkainen/hermes/internal/importer/mediaids"
 	"github.com/lepinkainen/hermes/internal/omdb"
 	"github.com/spf13/viper"
 )
@@ -331,31 +331,23 @@ func loadExistingTMDBID(movie *Movie, directory string) {
 	title := fmt.Sprintf("%s (%d)", movie.Name, movie.Year)
 	filePath := fileutil.GetMarkdownFilePath(title, directory)
 
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return
-	}
-
-	note, err := frontmatter.ParseMarkdown(data)
+	ids, err := mediaids.FromFile(filePath)
 	if err != nil {
 		return
 	}
 
 	// Prefer stored IMDb ID when CSV is missing it
 	if movie.ImdbID == "" {
-		movie.ImdbID = note.GetString("imdb_id")
+		movie.ImdbID = ids.IMDBID
 	}
 
-	existingID := note.GetInt("tmdb_id")
-	if existingID <= 0 {
+	if ids.TMDBID <= 0 {
 		return
 	}
-
-	tmdbType := note.GetString("tmdb_type")
 
 	if movie.TMDBEnrichment == nil {
 		movie.TMDBEnrichment = &enrichment.TMDBEnrichment{}
 	}
-	movie.TMDBEnrichment.TMDBID = existingID
-	movie.TMDBEnrichment.TMDBType = tmdbType
+	movie.TMDBEnrichment.TMDBID = ids.TMDBID
+	movie.TMDBEnrichment.TMDBType = ids.TMDBType
 }

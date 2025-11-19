@@ -14,6 +14,8 @@ var (
 	cmdConfig  *cmdutil.BaseCommandConfig
 )
 
+var parseSteamFunc = ParseSteam
+
 // ParseSteamWithParams allows calling steam parsing with specific parameters
 // This is used by the Kong-based CLI implementation
 func ParseSteamWithParams(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string, overwriteParam bool) error {
@@ -41,5 +43,5 @@ func ParseSteamWithParams(steamIDParam, apiKeyParam, outputDirParam string, writ
 	overwrite = cmdConfig.Overwrite
 
 	// Call the existing parser
-	return ParseSteam()
+	return parseSteamFunc()
 }

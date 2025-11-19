@@ -10,16 +10,21 @@ import (
 
 // Global HTTP client for reuse
 var (
-	httpClient *http.Client
-	clientOnce sync.Once
+	httpClient    *http.Client
+	clientOnce    sync.Once
+	httpClientNew = func() *http.Client {
+		return &http.Client{
+			Timeout: 10 * time.Second,
+		}
+	}
 )
+
+var openLibraryBaseURL = "https://openlibrary.org"
 
 // getHTTPClient returns a singleton HTTP client
 func getHTTPClient() *http.Client {
 	clientOnce.Do(func() {
-		httpClient = &http.Client{
-			Timeout: 10 * time.Second,
-		}
+		httpClient = httpClientNew()
 	})
 	return httpClient
 }
@@ -29,7 +34,7 @@ func fetchBookData(isbn string) (*Book, *OpenLibraryBook, error) {
 	client := getHTTPClient()
 
 	// Use jscmd=data for more comprehensive data
-	url := fmt.Sprintf("https://openlibrary.org/api/books?bibkeys=ISBN:%s&format=json&jscmd=data", isbn)
+	url := fmt.Sprintf("%s/api/books?bibkeys=ISBN:%s&format=json&jscmd=data", openLibraryBaseURL, isbn)
 	resp, err := client.Get(url)
 	if err != nil {
 		return nil, nil, fmt.Errorf("OpenLibrary API request failed: %w", err)
@@ -80,7 +85,7 @@ func fetchEditionData(isbn string) (*OpenLibraryEdition, error) {
 	client := getHTTPClient()
 
 	// Use the books endpoint for edition-specific data
-	url := fmt.Sprintf("https://openlibrary.org/isbn/%s.json", isbn)
+	url := fmt.Sprintf("%s/isbn/%s.json", openLibraryBaseURL, isbn)
 	resp, err := client.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("edition data request failed: %w", err)

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/lepinkainen/hermes/internal/enrichment"
+	"github.com/lepinkainen/hermes/internal/importer/mediaids"
 )
 
 func TestParseNote(t *testing.T) {
@@ -449,7 +450,7 @@ func TestGetMediaIDs(t *testing.T) {
 	tests := []struct {
 		name    string
 		content string
-		want    MediaIDs
+		want    mediaids.MediaIDs
 	}{
 		{
 			name: "TMDB ID only",
@@ -461,7 +462,7 @@ tmdb_id: 949
 ---
 
 Content here.`,
-			want: MediaIDs{TMDBID: 949},
+			want: mediaids.MediaIDs{TMDBID: 949},
 		},
 		{
 			name: "IMDB ID only",
@@ -473,7 +474,7 @@ imdb_id: "tt0113277"
 ---
 
 Content here.`,
-			want: MediaIDs{IMDBID: "tt0113277"},
+			want: mediaids.MediaIDs{IMDBID: "tt0113277"},
 		},
 		{
 			name: "Letterboxd ID only",
@@ -485,7 +486,7 @@ letterboxd_id: "2bg8"
 ---
 
 Content here.`,
-			want: MediaIDs{LetterboxdID: "2bg8"},
+			want: mediaids.MediaIDs{LetterboxdID: "2bg8"},
 		},
 		{
 			name: "All IDs present",
@@ -499,7 +500,7 @@ letterboxd_id: "2bg8"
 ---
 
 Content here.`,
-			want: MediaIDs{
+			want: mediaids.MediaIDs{
 				TMDBID:       949,
 				IMDBID:       "tt0113277",
 				LetterboxdID: "2bg8",
@@ -514,7 +515,7 @@ year: 2021
 ---
 
 Content here.`,
-			want: MediaIDs{},
+			want: mediaids.MediaIDs{},
 		},
 	}
 

@@ -13,7 +13,9 @@ import (
 	"github.com/lepinkainen/hermes/internal/datastore"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/errors"
+	"github.com/lepinkainen/hermes/internal/fileutil"
 	"github.com/lepinkainen/hermes/internal/importer/enrich"
+	"github.com/lepinkainen/hermes/internal/importer/mediaids"
 	"github.com/lepinkainen/hermes/internal/omdb"
 	"github.com/spf13/viper"
 )
@@ -286,12 +288,46 @@ func enrichFromTMDB(movie *MovieSeen) (*enrichment.TMDBEnrichment, error) {
 
 	// Use context.Background() for enrichment
 	ctx := context.Background()
-	return enrichment.EnrichFromTMDB(ctx, movie.Title, movie.Year, movie.ImdbId, 0, opts)
+	existingTMDBID := 0
+	if movie.TMDBEnrichment != nil {
+		existingTMDBID = movie.TMDBEnrichment.TMDBID
+	}
+
+	return enrichment.EnrichFromTMDB(ctx, movie.Title, movie.Year, movie.ImdbId, existingTMDBID, opts)
+}
+
+func loadExistingMediaIDs(movie *MovieSeen, directory string) {
+	if movie == nil {
+		return
+	}
+
+	filePath := fileutil.GetMarkdownFilePath(movie.Title, directory)
+
+	ids, err := mediaids.FromFile(filePath)
+	if err != nil {
+		return
+	}
+
+	if movie.ImdbId == "" {
+		movie.ImdbId = ids.IMDBID
+	}
+
+	if ids.TMDBID <= 0 {
+		return
+	}
+
+	if movie.TMDBEnrichment == nil {
+		movie.TMDBEnrichment = &enrichment.TMDBEnrichment{}
+	}
+	movie.TMDBEnrichment.TMDBID = ids.TMDBID
+	movie.TMDBEnrichment.TMDBType = ids.TMDBType
 }
 
 func writeMoviesToMarkdown(movies []MovieSeen, directory string) error {
 	for i := range movies {
 		slog.Info("Processing movie", "title", movies[i].Title)
+
+		loadExistingMediaIDs(&movies[i], directory)
 
 		// Enrich with OMDB data
 		if err := enrichMovieData(&movies[i]); err != nil {

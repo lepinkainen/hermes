@@ -18,6 +18,10 @@ const (
 	defaultListHeight = 20
 )
 
+var runProgram = func(m tea.Model) (tea.Model, error) {
+	return tea.NewProgram(m).Run()
+}
+
 // SelectionAction represents the user's action in the selection UI.
 type SelectionAction int
 
@@ -276,9 +280,7 @@ func Select(title string, results []tmdb.SearchResult) (SelectionResult, error) 
 		items[i] = tmdbItem{SearchResult: result}
 	}
 	m := newModel(title, items)
-	program := tea.NewProgram(m)
-
-	finalModel, err := program.Run()
+	finalModel, err := runProgram(m)
 	if err != nil {
 		return SelectionResult{}, err
 	}

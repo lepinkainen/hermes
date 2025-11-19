@@ -1,8 +1,11 @@
 package imdb
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	internalerrors "github.com/lepinkainen/hermes/internal/errors"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -141,4 +144,65 @@ func TestGetOMDBAPIKey(t *testing.T) {
 			assert.Equal(t, tc.wantKey, got)
 		})
 	}
+}
+
+func TestFetchMovieDataSuccess(t *testing.T) {
+	viper.Reset()
+	viper.Set("omdb.api_key", "test")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"Title":"Heat",
+			"imdbID":"tt0113277",
+			"Type":"movie",
+			"imdbRating":"8.2",
+			"Runtime":"170 min",
+			"Genre":"Crime, Drama",
+			"Director":"Michael Mann",
+			"Plot":"Bank heist.",
+			"Poster":"poster.jpg",
+			"Rated":"R",
+			"Awards":"Oscar"
+		}`))
+	}))
+	defer server.Close()
+
+	origBase := omdbBaseURL
+	origGet := omdbHTTPGet
+	defer func() {
+		omdbBaseURL = origBase
+		omdbHTTPGet = origGet
+	}()
+	omdbBaseURL = server.URL
+	omdbHTTPGet = server.Client().Get
+
+	movie, err := fetchMovieData("tt0113277")
+	require.NoError(t, err)
+	require.Equal(t, "Heat", movie.Title)
+	require.Equal(t, 170, movie.RuntimeMins)
+	require.Equal(t, "Michael Mann", movie.Directors[0])
+}
+
+func TestFetchMovieDataRateLimit(t *testing.T) {
+	viper.Reset()
+	viper.Set("omdb.api_key", "test")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"Response":"False","Error":"Request limit reached!"}`))
+	}))
+	defer server.Close()
+
+	origBase := omdbBaseURL
+	origGet := omdbHTTPGet
+	defer func() {
+		omdbBaseURL = origBase
+		omdbHTTPGet = origGet
+	}()
+	omdbBaseURL = server.URL
+	omdbHTTPGet = server.Client().Get
+
+	_, err := fetchMovieData("tt0113277")
+	require.Error(t, err)
+	require.True(t, internalerrors.IsRateLimitError(err), "expected rate limit error")
 }

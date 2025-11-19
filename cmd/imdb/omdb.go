@@ -13,6 +13,13 @@ import (
 	"github.com/spf13/viper"
 )
 
+var (
+	omdbBaseURL = "http://www.omdbapi.com"
+	omdbHTTPGet = func(url string) (*http.Response, error) {
+		return http.Get(url)
+	}
+)
+
 func fetchMovieData(imdbID string) (*MovieSeen, error) {
 	apiKey, err := getOMDBAPIKey()
 	if err != nil {
@@ -21,9 +28,9 @@ func fetchMovieData(imdbID string) (*MovieSeen, error) {
 
 	slog.Info("Fetching movie data", "imdb_id", imdbID)
 
-	url := fmt.Sprintf("http://www.omdbapi.com/?i=%s&apikey=%s", imdbID, apiKey)
+	url := fmt.Sprintf("%s/?i=%s&apikey=%s", omdbBaseURL, imdbID, apiKey)
 
-	resp, err := http.Get(url)
+	resp, err := omdbHTTPGet(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}

@@ -18,6 +18,21 @@ import (
 	"github.com/lepinkainen/hermes/internal/tui"
 )
 
+type tmdbClient interface {
+	CachedGetMetadataByID(ctx context.Context, mediaID int, mediaType string, force bool) (*tmdb.Metadata, bool, error)
+	CachedSearchMovies(ctx context.Context, query string, year int, limit int) ([]tmdb.SearchResult, bool, error)
+	CachedSearchMulti(ctx context.Context, query string, year int, limit int) ([]tmdb.SearchResult, bool, error)
+	CachedFindByIMDBID(ctx context.Context, imdbID string) (int, string, bool, error)
+	GetCoverURLByID(ctx context.Context, mediaID int, mediaType string) (string, error)
+	DownloadAndResizeImage(ctx context.Context, imageURL, destPath string, maxWidth int) error
+	CachedGetFullMovieDetails(ctx context.Context, movieID int, force bool) (map[string]any, bool, error)
+	CachedGetFullTVDetails(ctx context.Context, tvID int, force bool) (map[string]any, bool, error)
+}
+
+var newTMDBClient = func(apiKey string) tmdbClient {
+	return tmdb.NewClient(apiKey)
+}
+
 // TMDBEnrichmentOptions holds options for TMDB enrichment.
 type TMDBEnrichmentOptions struct {
 	// DownloadCover determines whether to download the cover image
@@ -67,7 +82,7 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 		return nil, nil
 	}
 
-	client := tmdb.NewClient(config.TMDBAPIKey)
+	client := newTMDBClient(config.TMDBAPIKey)
 
 	var tmdbID int
 	var mediaType string
@@ -264,7 +279,7 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 }
 
 // findTMDBIDByIMDBID attempts to find TMDB ID using IMDB ID via the find endpoint.
-func findTMDBIDByIMDBID(ctx context.Context, client *tmdb.Client, imdbID string) (int, string) {
+func findTMDBIDByIMDBID(ctx context.Context, client tmdbClient, imdbID string) (int, string) {
 	tmdbID, mediaType, fromCache, err := client.CachedFindByIMDBID(ctx, imdbID)
 	if err != nil {
 		slog.Warn("Failed to find TMDB ID by IMDB ID", "imdb_id", imdbID, "error", err)

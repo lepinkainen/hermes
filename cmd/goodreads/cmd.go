@@ -13,6 +13,8 @@ var (
 	cmdConfig  *cmdutil.BaseCommandConfig
 )
 
+var parseGoodreadsFunc = ParseGoodreads
+
 // ParseGoodreadsWithParams allows calling goodreads parsing with specific parameters
 // This is used by the Kong-based CLI implementation
 func ParseGoodreadsWithParams(inputFile, outputDirParam string, writeJSONParam bool, jsonOutputParam string, overwriteParam bool) error {
@@ -39,5 +41,5 @@ func ParseGoodreadsWithParams(inputFile, outputDirParam string, writeJSONParam b
 	overwrite = cmdConfig.Overwrite
 
 	// Call the existing parser
-	return ParseGoodreads()
+	return parseGoodreadsFunc()
 }
