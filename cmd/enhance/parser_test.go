@@ -279,6 +279,8 @@ Personal wrap up after TMDB block.
 		note, err := parseNote(originalContent)
 		require.NoError(t, err)
 
+		// TMDB says show has ended, should overwrite the previous finished: false
+		finished := true
 		tmdbData := &enrichment.TMDBEnrichment{
 			TMDBID:          2024,
 			TMDBType:        "tv",
@@ -287,6 +289,7 @@ Personal wrap up after TMDB block.
 			GenreTags:       []string{"Action", "Drama"},
 			CoverPath:       "_attachments/new-cover.jpg",
 			ContentMarkdown: "## Fresh Overview\nNew TMDB summary.",
+			Finished:        &finished,
 		}
 
 		note.AddTMDBData(tmdbData)
@@ -311,7 +314,8 @@ Personal wrap up after TMDB block.
 		require.Equal(t, "plex", fm["service"])
 		require.Equal(t, "watching", fm["status"])
 		require.Equal(t, 5, fm["episodes"])
-		require.Equal(t, false, fm["finished"])
+		// finished should be overwritten from false to true based on TMDB data
+		require.Equal(t, true, fm["finished"])
 		require.Equal(t, "keep-me", fm["custom_field"])
 
 		body := updated.OriginalBody
@@ -1047,4 +1051,101 @@ func TestHasAnyRating(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAddTMDBDataFinishedField(t *testing.T) {
+	t.Run("setsFinishedTrueForEndedTVShow", func(t *testing.T) {
+		note := &Note{
+			Title: "Ended Show",
+			Type:  "tv",
+			RawFrontmatter: map[string]interface{}{
+				"title":     "Ended Show",
+				"tmdb_type": "tv",
+			},
+		}
+
+		finished := true
+		tmdbData := &enrichment.TMDBEnrichment{
+			TMDBID:        12345,
+			TMDBType:      "tv",
+			RuntimeMins:   45,
+			TotalEpisodes: 100,
+			Finished:      &finished,
+		}
+
+		note.AddTMDBData(tmdbData)
+
+		require.Equal(t, true, note.RawFrontmatter["finished"])
+	})
+
+	t.Run("setsFinishedFalseForOngoingTVShow", func(t *testing.T) {
+		note := &Note{
+			Title: "Ongoing Show",
+			Type:  "tv",
+			RawFrontmatter: map[string]interface{}{
+				"title":     "Ongoing Show",
+				"tmdb_type": "tv",
+			},
+		}
+
+		finished := false
+		tmdbData := &enrichment.TMDBEnrichment{
+			TMDBID:        12346,
+			TMDBType:      "tv",
+			RuntimeMins:   45,
+			TotalEpisodes: 50,
+			Finished:      &finished,
+		}
+
+		note.AddTMDBData(tmdbData)
+
+		require.Equal(t, false, note.RawFrontmatter["finished"])
+	})
+
+	t.Run("doesNotSetFinishedForMovie", func(t *testing.T) {
+		note := &Note{
+			Title: "Test Movie",
+			Type:  "movie",
+			RawFrontmatter: map[string]interface{}{
+				"title":     "Test Movie",
+				"tmdb_type": "movie",
+			},
+		}
+
+		tmdbData := &enrichment.TMDBEnrichment{
+			TMDBID:      12347,
+			TMDBType:    "movie",
+			RuntimeMins: 120,
+			Finished:    nil, // Movies don't have this field
+		}
+
+		note.AddTMDBData(tmdbData)
+
+		_, exists := note.RawFrontmatter["finished"]
+		require.False(t, exists, "finished field should not be set for movies")
+	})
+
+	t.Run("doesNotSetFinishedWhenStatusNotAvailable", func(t *testing.T) {
+		note := &Note{
+			Title: "Show Without Status",
+			Type:  "tv",
+			RawFrontmatter: map[string]interface{}{
+				"title":     "Show Without Status",
+				"tmdb_type": "tv",
+			},
+		}
+
+		tmdbData := &enrichment.TMDBEnrichment{
+			TMDBID:      12348,
+			TMDBType:    "tv",
+			RuntimeMins: 30,
+			Finished:    nil, // Status not available from TMDB
+		}
+
+		note.AddTMDBData(tmdbData)
+
+		// Should not set finished field when TMDB status is not available
+		_, exists := note.RawFrontmatter["finished"]
+		require.False(t, exists, "finished field should not be set when TMDB status is unavailable")
+	})
 }

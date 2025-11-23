@@ -182,6 +182,11 @@ func (n *Note) AddTMDBData(tmdbData *enrichment.TMDBEnrichment) {
 		n.RawFrontmatter["cover"] = tmdbData.CoverPath
 	}
 
+	// Set finished flag for TV shows based on TMDB status
+	if tmdbData.Finished != nil {
+		n.RawFrontmatter["finished"] = *tmdbData.Finished
+	}
+
 	// Set seen flag if movie has any rating but seen field is not already set
 	if !n.hasSeenField() && n.hasAnyRating() {
 		n.RawFrontmatter["seen"] = true

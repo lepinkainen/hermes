@@ -374,7 +374,6 @@ func CreateMovieMarkdown(movie Movie, outputDir string) error {
 }
 ```
 
-
 ---
 
 *Document created: 2025-04-30*

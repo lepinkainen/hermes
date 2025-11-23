@@ -188,7 +188,8 @@ The `enhance` command enriches existing markdown notes with TMDB data without re
 
 **API Integration:**
 
-- All API responses cached under `cache/{source}/` (organized by data source)
+- All API responses cached in SQLite database (`cache.db` in project root, configurable via `cache.dbfile`)
+- Cache TTL defaults to 720h (30 days), configurable via `cache.ttl`
 - Implement API client logic within relevant command package (e.g., `cmd/goodreads/openlibrary.go`)
 - Respect API rate limits using delays (`time.Sleep`) or by handling specific rate limit errors
 - Handle common API errors gracefully (log warnings for 404s, retry or fail on persistent errors)
@@ -245,4 +246,4 @@ The `enhance` command enriches existing markdown notes with TMDB data without re
 - Use `goimports -w .` after making changes (not gofmt)
 - Use shared utility functions from `internal/` packages
 - Build artifacts go to `build/` directory
-- Cache artifacts go to `cache/{source}/` directories
+- Cache stored in SQLite database (`cache.db`, safe to delete for cache invalidation)
