@@ -254,3 +254,9 @@ For example, a book titled "Harry Potter & the Philosopher's Stone" might be sav
 - See [Caching](06_caching.md) for details on the caching implementation
 - See [Logging & Error Handling](07_logging_error_handling.md) for information about logging and error handling
 - See the importer-specific documentation for details on the output formats for each importer
+
+
+---
+
+*Document created: 2025-04-30*
+*Last reviewed: 2025-11-18*

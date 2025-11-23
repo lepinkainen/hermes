@@ -220,3 +220,9 @@ To use the IMDb importer, you need an OMDb API key:
 2. Request a free API key (1,000 requests per day)
 3. Activate the key via the email you receive
 4. Add the key to your `config.yml` (or `config.yaml`) file or use the `--apikey` flag
+
+
+---
+
+*Document created: 2025-04-30*
+*Last reviewed: 2025-11-19*

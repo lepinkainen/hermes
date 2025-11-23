@@ -190,3 +190,9 @@ By contributing to Hermes, you agree that your contributions will be licensed un
 If you have any questions about contributing, please open an issue or contact the project maintainers.
 
 Thank you for contributing to Hermes!
+
+
+---
+
+*Document created: 2025-07-19*
+*Last reviewed: 2025-07-19*

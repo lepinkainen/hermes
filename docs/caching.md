@@ -44,3 +44,9 @@ Legacy file-based caches stored under `cache/` have been removed. All providers 
 - Stale results: delete `cache.db` or lower `cache.ttl` and rerun; tables recreate automatically.
 - Need a one-off refresh: use flags that trigger the provider’s force/re-enrich behaviour (e.g., `--force` for enhance) to bypass cached TMDB data.
 - Wrong cache location: set `CACHE_DBFILE=/custom/path/cache.db` or pass `--cache-db-file` to point Hermes at the right database.
+
+
+---
+
+*Document created: 2025-11-18*
+*Last reviewed: 2025-11-18*

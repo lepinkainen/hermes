@@ -272,3 +272,9 @@ Some tips for handling rate limits:
 2. Wait a few minutes before retrying after hitting a rate limit
 3. Ensure you're using the cache system effectively by not clearing the cache between runs
 4. Consider running imports during off-peak hours when the Steam API might be less busy
+
+
+---
+
+*Document created: 2025-04-30*
+*Last reviewed: 2025-11-19*

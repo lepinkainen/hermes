@@ -166,3 +166,9 @@ If cache files become corrupted, Hermes will typically log an error and fall bac
 
 - See [Logging & Error Handling](07_logging_error_handling.md) for information about logging and error handling
 - See the importer-specific documentation for details on the caching implementation for each importer
+
+
+---
+
+*Document created: 2025-04-30*
+*Last reviewed: 2025-04-30*

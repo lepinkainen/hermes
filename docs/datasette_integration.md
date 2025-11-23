@@ -27,3 +27,9 @@ datasette:
   enabled: true
   dbfile: "./hermes.db"
 ```
+
+
+---
+
+*Document created: 2025-11-19*
+*Last reviewed: 2025-11-19*

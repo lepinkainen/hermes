@@ -169,3 +169,9 @@ Hermes relies on several external dependencies:
 - See [Configuration](04_configuration.md) for detailed configuration options
 - See [Output Formats](05_output_formats.md) for information about the output formats
 - See [Caching](06_caching.md) for details on the caching implementation
+
+
+---
+
+*Document created: 2025-11-19*
+*Last reviewed: 2025-11-19*

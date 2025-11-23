@@ -226,3 +226,9 @@ To use the Letterboxd importer with data enrichment, you need an OMDb API key:
 4. Add the key to your `config.yml` (or `config.yaml`) file or use the `--apikey` flag
 
 Note that the Letterboxd importer can use the same OMDb API key as the IMDb importer, so you only need to obtain one key for both importers.
+
+
+---
+
+*Document created: 2025-04-30*
+*Last reviewed: 2025-11-19*

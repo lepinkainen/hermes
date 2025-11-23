@@ -215,3 +215,9 @@ func ParseSteam() error {
 | `JSONOutput`    | `string` | The path to the JSON output file                   |
 | `WriteJSON`     | `bool`   | Whether to write JSON output                       |
 | `Overwrite`     | `bool`   | Whether to overwrite existing files                |
+
+
+---
+
+*Document created: 2025-07-20*
+*Last reviewed: 2025-07-20*

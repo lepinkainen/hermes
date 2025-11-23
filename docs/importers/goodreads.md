@@ -213,3 +213,9 @@ OpenLibrary doesn't have strict rate limits, but the importer implements caching
 ### ISBN Format Issues
 
 Some Goodreads exports may have ISBN formatting issues. The importer attempts to clean up common formatting problems, but if you notice issues with specific books, check the ISBN format in the export file.
+
+
+---
+
+*Document created: 2025-07-19*
+*Last reviewed: 2025-11-19*

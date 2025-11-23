@@ -121,3 +121,9 @@ All new tests should rely on these helpers for isolation instead of duplicating 
 ---
 
 **TL;DR:** Before inventing a new helper, skim this document and the corresponding package. There’s likely already a function that reads CSVs, writes Markdown, downloads covers, parses frontmatter, or mediates API rate limits. Reuse them to stay aligned with the rest of Hermes.
+
+
+---
+
+*Document created: 2025-11-20*
+*Last reviewed: 2025-11-20*

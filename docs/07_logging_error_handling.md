@@ -268,3 +268,9 @@ When working with Hermes code, follow these best practices for logging and error
 
 - See the importer-specific documentation for details on error handling in each importer
 - See [Contributing](contributing.md) for guidelines on logging and error handling in contributions
+
+
+---
+
+*Document created: 2025-11-19*
+*Last reviewed: 2025-11-19*

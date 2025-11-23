@@ -209,3 +209,9 @@ func NewNotFoundError(resource, id string) *NotFoundError {
 | Method                        | Description                           |
 | ----------------------------- | ------------------------------------- |
 | `(e *RateLimitError) Error()` | Returns the error message as a string |
+
+
+---
+
+*Document created: 2025-07-20*
+*Last reviewed: 2025-07-20*

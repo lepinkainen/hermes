@@ -259,3 +259,9 @@ steam:
 - See [Output Formats](05_output_formats.md) for information about the output formats
 - See [Caching](06_caching.md) for details on the caching implementation
 - See [Logging & Error Handling](07_logging_error_handling.md) for information about logging and error handling
+
+
+---
+
+*Document created: 2025-11-19*
+*Last reviewed: 2025-11-19*

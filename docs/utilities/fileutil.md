@@ -373,3 +373,9 @@ func CreateMovieMarkdown(movie Movie, outputDir string) error {
     return nil
 }
 ```
+
+
+---
+
+*Document created: 2025-04-30*
+*Last reviewed: 2025-04-30*

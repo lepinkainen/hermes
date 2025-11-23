@@ -252,3 +252,9 @@ func importGoodreads(cmd *cobra.Command, args []string) error {
 | `MarkdownOutputDir` | `string` | `./markdown/` | Base directory for Markdown output files |
 | `JSONOutputDir`     | `string` | `./json/`     | Base directory for JSON output files     |
 | `OverwriteFiles`    | `bool`   | `false`       | Whether to overwrite existing files      |
+
+
+---
+
+*Document created: 2025-07-19*
+*Last reviewed: 2025-07-19*

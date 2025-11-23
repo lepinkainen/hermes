@@ -70,3 +70,8 @@ See the [Installation & Setup](02_installation_setup.md) guide to get started wi
 ## Additional References
 
 - Building importers or writing agent workflows? Review the [Internal Package Guide for LLMs](internal_llm_reference.md) for a summary of reusable helpers inside `internal/`.
+
+---
+
+*Document created: 2025-11-19*
+*Last reviewed: 2025-11-20*

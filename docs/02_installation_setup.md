@@ -164,3 +164,8 @@ rm -rf cache/{importer_name}/*
 
 - See [Architecture](03_architecture.md) for details on how Hermes is structured
 - See [Configuration](04_configuration.md) for advanced configuration options
+
+---
+
+*Document created: 2025-11-19*
+*Last reviewed: 2025-11-20*
