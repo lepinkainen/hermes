@@ -89,6 +89,19 @@ def build_tree(issues: list[dict[str, Any]]) -> tuple[list[str], dict[str, list[
     child_map: dict[str, list[str]] = {}
     child_ids_set: set[str] = set()
 
+    # Process dependents field (parent perspective - epics have this)
+    for issue in issues:
+        parent_id = issue["id"]
+        dependents = issue.get("dependents") or []
+        if dependents:
+            for dependent in dependents:
+                child_id = dependent["id"]
+                if parent_id not in child_map:
+                    child_map[parent_id] = []
+                child_map[parent_id].append(child_id)
+                child_ids_set.add(child_id)
+
+    # Also process dependencies field (child perspective - for backwards compatibility)
     for issue in issues:
         for dep in issue.get("dependencies") or []:
             if dep.get("dependency_type") == "parent-child":
@@ -96,20 +109,22 @@ def build_tree(issues: list[dict[str, Any]]) -> tuple[list[str], dict[str, list[
                 child_id = issue["id"]
                 if parent_id not in child_map:
                     child_map[parent_id] = []
-                child_map[parent_id].append(child_id)
+                if child_id not in child_map[parent_id]:  # Avoid duplicates
+                    child_map[parent_id].append(child_id)
                 child_ids_set.add(child_id)
 
-    # Top-level: epics OR issues that aren't children
+    # Top-level: issues that aren't children
     top_level = [
         issue["id"]
         for issue in issues
-        if issue.get("issue_type") == "epic" or issue["id"] not in child_ids_set
+        if issue["id"] not in child_ids_set
     ]
 
-    # Sort by priority, then type, then id
+    # Sort: epics first (by priority), then other issues (by priority)
     def sort_key(issue_id: str) -> tuple:
         issue = lookup[issue_id]
-        return (issue.get("priority", 2), issue.get("issue_type", ""), issue_id)
+        is_epic = 0 if issue.get("issue_type") == "epic" else 1
+        return (is_epic, issue.get("priority", 2), issue_id)
 
     top_level.sort(key=sort_key)
 
