@@ -39,6 +39,9 @@ type TMDBEnrichmentOptions struct {
 	Force bool
 	// MoviesOnly restricts search to movies only (excludes TV shows)
 	MoviesOnly bool
+	// ExpectedMediaType is an optional hint (movie or tv) used to resolve mismatches
+	// between cached TMDB IDs and the note's intended type.
+	ExpectedMediaType string
 	// UseCoverCache enables development cache for TMDB cover images
 	UseCoverCache bool
 	// CoverCachePath is the directory for cached cover images

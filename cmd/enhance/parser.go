@@ -111,43 +111,6 @@ func (n *Note) NeedsCover() bool {
 	return !ok || coverStr == ""
 }
 
-// NeedsMetadata checks if the note needs TMDB metadata fields.
-// Returns true if TMDB ID or runtime/genres are missing.
-func (n *Note) NeedsMetadata() bool {
-	// If no TMDB ID, definitely needs metadata
-	if n.TMDBID == 0 {
-		return true
-	}
-
-	// Check if runtime is missing (for movies) or total_episodes is missing (for TV shows)
-	switch n.Type {
-	case "movie":
-		if _, ok := n.RawFrontmatter["runtime"]; !ok {
-			return true
-		}
-	case "tv":
-		if _, ok := n.RawFrontmatter["total_episodes"]; !ok {
-			return true
-		}
-	}
-
-	// Check if genres/tags are missing
-	tags, ok := n.RawFrontmatter["tags"]
-	if !ok {
-		return true
-	}
-
-	// Check if tags array is empty
-	switch v := tags.(type) {
-	case []interface{}:
-		return len(v) == 0
-	case []string:
-		return len(v) == 0
-	default:
-		return true
-	}
-}
-
 // NeedsContent checks if the note needs TMDB content sections.
 // Returns true if TMDB content markers are missing from the body.
 func (n *Note) NeedsContent() bool {

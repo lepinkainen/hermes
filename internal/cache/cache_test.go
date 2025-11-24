@@ -401,3 +401,70 @@ type testError struct {
 func (e *testError) Error() string {
 	return e.msg
 }
+
+func TestCacheDB_InvalidateSource(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	// Add some test entries
+	_ = cache.Set("test_cache", "key1", `{"id":1}`)
+	_ = cache.Set("test_cache", "key2", `{"id":2}`)
+	_ = cache.Set("test_cache", "key3", `{"id":3}`)
+
+	// Verify entries exist
+	if !cache.CacheExists("test_cache", "key1") {
+		t.Error("Expected key1 to exist before invalidation")
+	}
+
+	// Invalidate the entire table
+	rowsDeleted, err := cache.InvalidateSource("test_cache")
+	if err != nil {
+		t.Fatalf("Failed to invalidate cache: %v", err)
+	}
+
+	// Should have deleted 3 rows
+	if rowsDeleted != 3 {
+		t.Errorf("Expected 3 rows deleted, got %d", rowsDeleted)
+	}
+
+	// Verify all entries were removed
+	if cache.CacheExists("test_cache", "key1") {
+		t.Error("Expected key1 to be invalidated")
+	}
+	if cache.CacheExists("test_cache", "key2") {
+		t.Error("Expected key2 to be invalidated")
+	}
+	if cache.CacheExists("test_cache", "key3") {
+		t.Error("Expected key3 to be invalidated")
+	}
+}
+
+func TestCacheDB_InvalidateSource_InvalidTable(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	// Try to invalidate an invalid table name
+	_, err := cache.InvalidateSource("invalid_table")
+	if err == nil {
+		t.Error("Expected error for invalid table name")
+	}
+}
+
+func TestCacheDB_InvalidateSource_EmptyTable(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	// Invalidate empty table
+	rowsDeleted, err := cache.InvalidateSource("test_cache")
+	if err != nil {
+		t.Fatalf("Failed to invalidate empty cache: %v", err)
+	}
+
+	// Should have deleted 0 rows
+	if rowsDeleted != 0 {
+		t.Errorf("Expected 0 rows deleted from empty table, got %d", rowsDeleted)
+	}
+}

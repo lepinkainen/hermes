@@ -267,15 +267,16 @@ func enrichFromTMDB(movie *Movie) (*enrichment.TMDBEnrichment, error) {
 	}
 
 	opts := enrichment.TMDBEnrichmentOptions{
-		DownloadCover:   tmdbDownloadCover,
-		GenerateContent: tmdbGenerateContent,
-		ContentSections: tmdbContentSections,
-		AttachmentsDir:  attachmentsDir,
-		NoteDir:         outputDir,
-		Interactive:     tmdbInteractive,
-		MoviesOnly:      true, // Letterboxd only catalogs movies, not TV shows
-		UseCoverCache:   useTMDBCoverCache,
-		CoverCachePath:  tmdbCoverCachePath,
+		DownloadCover:     tmdbDownloadCover,
+		GenerateContent:   tmdbGenerateContent,
+		ContentSections:   tmdbContentSections,
+		AttachmentsDir:    attachmentsDir,
+		NoteDir:           outputDir,
+		Interactive:       tmdbInteractive,
+		MoviesOnly:        true, // Letterboxd only catalogs movies, not TV shows
+		ExpectedMediaType: "movie",
+		UseCoverCache:     useTMDBCoverCache,
+		CoverCachePath:    tmdbCoverCachePath,
 	}
 
 	// Use context.Background() for enrichment

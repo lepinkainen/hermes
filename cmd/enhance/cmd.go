@@ -11,6 +11,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/fileutil"
+	fm "github.com/lepinkainen/hermes/internal/frontmatter"
 )
 
 // Options holds configuration for the enhance command.
@@ -93,42 +94,40 @@ func EnhanceNotes(opts Options) error {
 		// Smart needs detection: determine what needs to be updated
 		needsCover := note.NeedsCover()
 		needsContent := note.NeedsContent()
-		needsMetadata := note.NeedsMetadata()
 
 		// Skip if already has everything and not forcing/overwriting
-		if !opts.Force && !opts.Overwrite && !needsCover && !needsContent && !needsMetadata {
+		// Note: metadata is always fetched to ensure all fields are current (uses cache for efficiency)
+		if !opts.Force && !opts.Overwrite && !needsCover && !needsContent {
 			slog.Info("Skipping file (already has all TMDB data)", "path", file, "tmdb_id", note.TMDBID)
 			skipCount++
 			continue
 		}
-		/*
-			// Skip if already has TMDB data and not overwriting (for backward compatibility)
-			if !opts.Overwrite && note.HasTMDBData() && !opts.Force {
-				slog.Info("Skipping file (already has TMDB data)", "path", file, "tmdb_id", note.TMDBID)
-				skipCount++
-				continue
-			}
-		*/
+
 		if opts.DryRun {
 			slog.Info("Would enhance", "title", note.Title, "year", note.Year, "file", file,
-				"needs_cover", needsCover, "needs_content", needsContent, "needs_metadata", needsMetadata)
+				"needs_cover", needsCover, "needs_content", needsContent)
 			successCount++
 			continue
 		}
 
 		// Prepare enrichment options based on what's needed
 		noteDir := filepath.Dir(file)
+		expectedType := fm.DetectMediaTypeFromTags(note.RawFrontmatter)
+		if expectedType == "" {
+			expectedType = note.Type
+		}
 
 		enrichOpts := enrichment.TMDBEnrichmentOptions{
-			DownloadCover:   opts.TMDBDownloadCover && needsCover,
-			GenerateContent: opts.TMDBGenerateContent && needsContent,
-			ContentSections: opts.TMDBContentSections,
-			AttachmentsDir:  attachmentsDir,
-			NoteDir:         noteDir,
-			Interactive:     opts.TMDBInteractive,
-			Force:           opts.Force,
-			UseCoverCache:   opts.UseTMDBCoverCache,
-			CoverCachePath:  opts.TMDBCoverCachePath,
+			DownloadCover:     opts.TMDBDownloadCover && needsCover,
+			GenerateContent:   opts.TMDBGenerateContent && needsContent,
+			ContentSections:   opts.TMDBContentSections,
+			AttachmentsDir:    attachmentsDir,
+			NoteDir:           noteDir,
+			Interactive:       opts.TMDBInteractive,
+			Force:             opts.Force,
+			ExpectedMediaType: expectedType,
+			UseCoverCache:     opts.UseTMDBCoverCache,
+			CoverCachePath:    opts.TMDBCoverCachePath,
 		}
 
 		// Enrich with TMDB data (pass existing TMDB ID if present)

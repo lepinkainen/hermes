@@ -278,14 +278,15 @@ func enrichFromTMDB(movie *MovieSeen) (*enrichment.TMDBEnrichment, error) {
 	}
 
 	opts := enrichment.TMDBEnrichmentOptions{
-		DownloadCover:   tmdbDownloadCover,
-		GenerateContent: tmdbGenerateContent,
-		ContentSections: tmdbContentSections,
-		AttachmentsDir:  attachmentsDir,
-		NoteDir:         outputDir,
-		Interactive:     tmdbInteractive,
-		UseCoverCache:   useTMDBCoverCache,
-		CoverCachePath:  tmdbCoverCachePath,
+		DownloadCover:     tmdbDownloadCover,
+		GenerateContent:   tmdbGenerateContent,
+		ContentSections:   tmdbContentSections,
+		AttachmentsDir:    attachmentsDir,
+		NoteDir:           outputDir,
+		Interactive:       tmdbInteractive,
+		ExpectedMediaType: "movie",
+		UseCoverCache:     useTMDBCoverCache,
+		CoverCachePath:    tmdbCoverCachePath,
 	}
 
 	// Use context.Background() for enrichment

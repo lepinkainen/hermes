@@ -155,6 +155,14 @@ Need a quick tour of the shared helpers under `internal/`? Read `docs/internal_l
 - `docs/` is the canonical reference; update it alongside behaviour changes and new flags.
 - Generated build and coverage artifacts live in `build/` and `coverage/`; sample exports under `exports/` and `json/` support local runs but keep large fixtures out of commits.
 
+## Caching
+
+- Hermes caches provider responses in `cache.db` (SQLite) in the repo root; it is safe to delete and is separate from `hermes.db`.
+- Default TTL is `720h` (30 days); override with `--cache-db-file`, `--cache-ttl`, or env vars `CACHE_DBFILE`/`CACHE_TTL`.
+- Tables are created automatically per provider (`omdb_cache`, `openlibrary_cache`, `steam_cache`, `letterboxd_cache`, `tmdb_cache`); entries past TTL refresh on next use and malformed entries are retried.
+- Warm caches by running the relevant importer once; invalidate selectively with `hermes cache invalidate tmdb|omdb|steam|letterboxd|openlibrary` or delete `cache.db` to clear everything.
+- Legacy JSON caches under `cache/` are deprecated and can be removed; negative TMDB results are intentionally not cached to allow future discoveries.
+
 ## Build, Test, and Development Commands
 
 - `task build` runs lint, tests, and produces `build/hermes` with the current Git SHA embedded.

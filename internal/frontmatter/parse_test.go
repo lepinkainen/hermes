@@ -204,6 +204,11 @@ func TestDetectMediaType(t *testing.T) {
 			want: "movie",
 		},
 		{
+			name: "tv/ prefix beats movie/",
+			fm:   map[string]any{"tags": []any{"movie/Crime", "tv/Action-and-Adventure"}},
+			want: "tv",
+		},
+		{
 			name: "nil frontmatter",
 			fm:   nil,
 			want: "",
@@ -220,6 +225,44 @@ func TestDetectMediaType(t *testing.T) {
 			got := DetectMediaType(tt.fm)
 			if got != tt.want {
 				t.Errorf("DetectMediaType() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDetectMediaTypeFromTags(t *testing.T) {
+	tests := []struct {
+		name string
+		fm   map[string]any
+		want string
+	}{
+		{
+			name: "picks tv from tags even if tmdb_type movie",
+			fm:   map[string]any{"tmdb_type": "movie", "tags": []any{"tv", "to-watch"}},
+			want: "tv",
+		},
+		{
+			name: "returns movie from string slice tags",
+			fm:   map[string]any{"tags": []string{"movie", "classic"}},
+			want: "movie",
+		},
+		{
+			name: "tv prefix wins over movie prefix",
+			fm:   map[string]any{"tags": []string{"movie/Comedy", "tv/Animation"}},
+			want: "tv",
+		},
+		{
+			name: "empty when no tags",
+			fm:   map[string]any{"title": "Example"},
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DetectMediaTypeFromTags(tt.fm)
+			if got != tt.want {
+				t.Errorf("DetectMediaTypeFromTags() = %q, want %q", got, tt.want)
 			}
 		})
 	}

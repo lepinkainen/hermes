@@ -113,6 +113,34 @@ func (c *CacheDB) Close() error {
 	return nil
 }
 
+// InvalidateSource deletes all entries from the specified cache table
+// tableName must be one of the valid cache table names (e.g., "tmdb_cache", "omdb_cache")
+// Returns the number of rows deleted
+func (c *CacheDB) InvalidateSource(tableName string) (int64, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Validate table name to prevent SQL injection
+	if err := validateTableName(tableName); err != nil {
+		return 0, err
+	}
+
+	// Delete all rows from the specified table
+	query := fmt.Sprintf("DELETE FROM %s", tableName)
+	result, err := c.db.Exec(query)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete cache entries: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	slog.Debug("Cache table cleared", "table", tableName, "rows_deleted", rowsAffected)
+	return rowsAffected, nil
+}
+
 // validateTableName checks if the table name is in the whitelist
 // to prevent SQL injection attacks
 func validateTableName(tableName string) error {

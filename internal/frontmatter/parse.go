@@ -107,6 +107,15 @@ func DetectMediaType(fm map[string]any) string {
 	return detectTypeFromTags(fm)
 }
 
+// DetectMediaTypeFromTags determines the media type using only tag values.
+// Returns "movie", "tv", or empty string if no tag hints are present.
+func DetectMediaTypeFromTags(fm map[string]any) string {
+	if fm == nil {
+		return ""
+	}
+	return detectTypeFromTags(fm)
+}
+
 // detectTypeFromTags attempts to determine media type from the tags array.
 func detectTypeFromTags(fm map[string]any) string {
 	tags, ok := fm["tags"]
@@ -114,16 +123,25 @@ func detectTypeFromTags(fm map[string]any) string {
 		return ""
 	}
 
+	moviePresent := false
+	tvPresent := false
+
+	// helper checks a single tag string
+	checkTag := func(tagStr string) {
+		tag := strings.ToLower(strings.TrimSpace(tagStr))
+		switch {
+		case tag == "movie" || strings.HasPrefix(tag, "movie/"):
+			moviePresent = true
+		case tag == "tv" || tag == "tv-show" || tag == "series" || strings.HasPrefix(tag, "tv/"):
+			tvPresent = true
+		}
+	}
+
 	// Handle []any (common YAML array representation)
 	if tagSlice, ok := tags.([]any); ok {
 		for _, tag := range tagSlice {
 			if tagStr, ok := tag.(string); ok {
-				if tagStr == "movie" {
-					return "movie"
-				}
-				if tagStr == "tv" || tagStr == "tv-show" || tagStr == "series" {
-					return "tv"
-				}
+				checkTag(tagStr)
 			}
 		}
 	}
@@ -131,14 +149,16 @@ func detectTypeFromTags(fm map[string]any) string {
 	// Handle []string
 	if tagSlice, ok := tags.([]string); ok {
 		for _, tag := range tagSlice {
-			if tag == "movie" {
-				return "movie"
-			}
-			if tag == "tv" || tag == "tv-show" || tag == "series" {
-				return "tv"
-			}
+			checkTag(tag)
 		}
 	}
 
-	return ""
+	switch {
+	case tvPresent:
+		return "tv"
+	case moviePresent:
+		return "movie"
+	default:
+		return ""
+	}
 }

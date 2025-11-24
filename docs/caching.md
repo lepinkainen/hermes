@@ -39,10 +39,30 @@ The cache warms itself on demand—whenever a provider fetches data, the respons
 
 Legacy file-based caches stored under `cache/` have been removed. All providers now use `cache.db`. If you still have a stale `cache/` directory, it can be deleted safely.
 
+## Cache invalidation
+
+You can invalidate (clear) the cache for a specific source without affecting other caches:
+
+```bash
+# Invalidate TMDB cache (for example, when new fields are added to TMDB metadata)
+hermes cache invalidate tmdb
+
+# Invalidate other sources
+hermes cache invalidate omdb
+hermes cache invalidate steam
+hermes cache invalidate letterboxd
+hermes cache invalidate openlibrary
+```
+
+This is useful when:
+- New metadata fields are added to the application (e.g., the `finished` field for TV shows)
+- You want to force a re-fetch from a specific API without clearing all caches
+- TMDB data has been updated and you want to refresh it
+
 ## Troubleshooting
 
-- Stale results: delete `cache.db` or lower `cache.ttl` and rerun; tables recreate automatically.
-- Need a one-off refresh: use flags that trigger the provider’s force/re-enrich behaviour (e.g., `--force` for enhance) to bypass cached TMDB data.
+- Stale results: use `hermes cache invalidate <source>` to clear a specific cache, or delete `cache.db` to clear all caches; tables recreate automatically.
+- Need a one-off refresh: use flags that trigger the provider's force/re-enrich behaviour (e.g., `--force` for enhance) to bypass cached TMDB data.
 - Wrong cache location: set `CACHE_DBFILE=/custom/path/cache.db` or pass `--cache-db-file` to point Hermes at the right database.
 
 

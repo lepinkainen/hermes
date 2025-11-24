@@ -438,101 +438,6 @@ func TestNeedsCover(t *testing.T) {
 	}
 }
 
-func TestNeedsMetadata(t *testing.T) {
-	tests := []struct {
-		name string
-		note *Note
-		want bool
-	}{
-		{
-			name: "no tmdb_id",
-			note: &Note{
-				TMDBID: 0,
-				Type:   "movie",
-				RawFrontmatter: map[string]interface{}{
-					"title": "Test Movie",
-				},
-			},
-			want: true,
-		},
-		{
-			name: "has tmdb_id but no runtime",
-			note: &Note{
-				TMDBID: 12345,
-				Type:   "movie",
-				RawFrontmatter: map[string]interface{}{
-					"title":   "Test Movie",
-					"tmdb_id": 12345,
-				},
-			},
-			want: true,
-		},
-		{
-			name: "has tmdb_id and runtime but no tags",
-			note: &Note{
-				TMDBID: 12345,
-				Type:   "movie",
-				RawFrontmatter: map[string]interface{}{
-					"title":   "Test Movie",
-					"tmdb_id": 12345,
-					"runtime": 120,
-				},
-			},
-			want: true,
-		},
-		{
-			name: "has tmdb_id, runtime, and empty tags",
-			note: &Note{
-				TMDBID: 12345,
-				Type:   "movie",
-				RawFrontmatter: map[string]interface{}{
-					"title":   "Test Movie",
-					"tmdb_id": 12345,
-					"runtime": 120,
-					"tags":    []string{},
-				},
-			},
-			want: true,
-		},
-		{
-			name: "has all metadata",
-			note: &Note{
-				TMDBID: 12345,
-				Type:   "movie",
-				RawFrontmatter: map[string]interface{}{
-					"title":   "Test Movie",
-					"tmdb_id": 12345,
-					"runtime": 120,
-					"tags":    []string{"Action", "Adventure"},
-				},
-			},
-			want: false,
-		},
-		{
-			name: "tv show with all metadata",
-			note: &Note{
-				TMDBID: 12345,
-				Type:   "tv",
-				RawFrontmatter: map[string]interface{}{
-					"title":          "Test Show",
-					"tmdb_id":        12345,
-					"total_episodes": 22,
-					"tags":           []string{"Drama"},
-				},
-			},
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.note.NeedsMetadata(); got != tt.want {
-				t.Errorf("NeedsMetadata() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestNeedsContent(t *testing.T) {
 	tests := []struct {
 		name string
@@ -913,12 +818,6 @@ tmdb_type: "movie"
 		t.Logf("✓ Heat file needs TMDB content (no markers found)")
 	} else {
 		t.Errorf("Heat file should need TMDB content (no markers found)")
-	}
-
-	if !note.NeedsMetadata() {
-		t.Logf("✓ Heat file has all metadata (TMDB ID, runtime, tags)")
-	} else {
-		t.Logf("ℹ Heat file might need some metadata")
 	}
 }
 

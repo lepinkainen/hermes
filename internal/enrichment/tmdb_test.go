@@ -188,6 +188,88 @@ func TestEnrichFromTMDB_SearchesWhenNoExistingID(t *testing.T) {
 	require.Equal(t, "", enrichment.ContentMarkdown)
 }
 
+func TestEnrichFromTMDB_RequeriesWhenStoredTypeConflicts(t *testing.T) {
+	var searchedMulti bool
+	restoreClient := withFakeClient(t, &fakeTMDBClient{
+		onMetadataByID: func(ctx context.Context, id int, mediaType string, force bool) (*tmdb.Metadata, bool, error) {
+			switch {
+			case id == 101 && mediaType == "movie":
+				runtime := 100
+				return &tmdb.Metadata{Runtime: &runtime, TMDBType: "movie"}, false, nil
+			case id == 101 && mediaType == "tv":
+				return nil, false, fmt.Errorf("not a TV show")
+			case id == 303 && mediaType == "tv":
+				episodes := 140
+				return &tmdb.Metadata{TotalEpisodes: &episodes, TMDBType: "tv"}, false, nil
+			default:
+				return nil, false, fmt.Errorf("unexpected id/type combo %d/%s", id, mediaType)
+			}
+		},
+		onSearchMulti: func(ctx context.Context, query string, year int, limit int) ([]tmdb.SearchResult, bool, error) {
+			searchedMulti = true
+			return []tmdb.SearchResult{
+				{ID: 101, MediaType: "movie", Title: "Archer", VoteCount: 500},
+				{ID: 303, MediaType: "tv", Name: "Archer", VoteCount: 1500},
+			}, false, nil
+		},
+	})
+	defer restoreClient()
+	restoreKey := withTMDBAPIKey(t, "test-key")
+	defer restoreKey()
+
+	enrichment, err := EnrichFromTMDB(context.Background(), "Archer", 0, "", 101, TMDBEnrichmentOptions{
+		GenerateContent:   false,
+		Interactive:       false,
+		ExpectedMediaType: "tv",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, enrichment)
+
+	require.True(t, searchedMulti, "expected multi search to rerun when type mismatches")
+	require.Equal(t, 303, enrichment.TMDBID)
+	require.Equal(t, "tv", enrichment.TMDBType)
+}
+
+func TestEnrichFromTMDB_UsesExpectedTypeEvenWithLowVotes(t *testing.T) {
+	var searchedMulti bool
+	restoreClient := withFakeClient(t, &fakeTMDBClient{
+		onMetadataByID: func(ctx context.Context, id int, mediaType string, force bool) (*tmdb.Metadata, bool, error) {
+			switch mediaType {
+			case "movie":
+				runtime := 90
+				return &tmdb.Metadata{Runtime: &runtime, TMDBType: "movie"}, false, nil
+			case "tv":
+				episodes := 75
+				return &tmdb.Metadata{TotalEpisodes: &episodes, TMDBType: "tv"}, false, nil
+			default:
+				return nil, false, fmt.Errorf("unexpected media type %s", mediaType)
+			}
+		},
+		onSearchMulti: func(ctx context.Context, query string, year int, limit int) ([]tmdb.SearchResult, bool, error) {
+			searchedMulti = true
+			return []tmdb.SearchResult{
+				{ID: 111, MediaType: "movie", Title: "Hikaru no Go", VoteCount: 500},
+				{ID: 222, MediaType: "tv", Name: "Hikaru no Go", VoteCount: 44},
+			}, false, nil
+		},
+	})
+	defer restoreClient()
+	restoreKey := withTMDBAPIKey(t, "test-key")
+	defer restoreKey()
+
+	enrichment, err := EnrichFromTMDB(context.Background(), "Hikaru no Go", 0, "", 111, TMDBEnrichmentOptions{
+		GenerateContent:   false,
+		Interactive:       false,
+		ExpectedMediaType: "tv",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, enrichment)
+
+	require.True(t, searchedMulti, "expected multi search to run")
+	require.Equal(t, 222, enrichment.TMDBID)
+	require.Equal(t, "tv", enrichment.TMDBType)
+}
+
 func TestFindTMDBIDByIMDBIDHandlesErrors(t *testing.T) {
 	client := &fakeTMDBClient{
 		onFindByIMDBID: func(ctx context.Context, imdbID string) (int, string, bool, error) {

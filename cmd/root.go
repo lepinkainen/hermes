@@ -11,6 +11,7 @@ import (
 	"github.com/lepinkainen/hermes/cmd/imdb"
 	"github.com/lepinkainen/hermes/cmd/letterboxd"
 	"github.com/lepinkainen/hermes/cmd/steam"
+	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/humanlog"
 	"github.com/spf13/viper"
@@ -44,6 +45,7 @@ type CLI struct {
 
 	Import  ImportCmd  `cmd:"" help:"Import data from various sources"`
 	Enhance EnhanceCmd `cmd:"" help:"Enhance existing markdown notes with TMDB data"`
+	Cache   CacheCmd   `cmd:"" help:"Manage cache database"`
 
 	// Version command could be added here in the future
 }
@@ -110,6 +112,16 @@ type EnhanceCmd struct {
 	Force               bool     `short:"f" help:"Force re-enrichment even when TMDB ID exists in frontmatter" default:"false"`
 	TMDBNoInteractive   bool     `help:"Disable interactive TUI for TMDB selection (auto-select first result)" default:"false"`
 	TMDBContentSections []string `help:"Specific TMDB content sections to generate (empty = all)"`
+}
+
+// CacheCmd represents the cache management command
+type CacheCmd struct {
+	Invalidate InvalidateCacheCmd `cmd:"" help:"Invalidate (clear) cache for a specific source"`
+}
+
+// InvalidateCacheCmd represents the cache invalidate subcommand
+type InvalidateCacheCmd struct {
+	Source string `arg:"" help:"Cache source to invalidate: tmdb, omdb, steam, letterboxd, openlibrary" required:""`
 }
 
 // Execute runs the Kong-based CLI
@@ -314,6 +326,42 @@ func (e *EnhanceCmd) Run() error {
 		}
 	}
 
+	return nil
+}
+
+func (i *InvalidateCacheCmd) Run() error {
+	cacheDB := viper.GetString("cache.dbfile")
+
+	slog.Info("Invalidating cache", "source", i.Source, "database", cacheDB)
+
+	// Map source name to cache table name
+	tableName := i.Source + "_cache"
+
+	// Validate source
+	validSources := map[string]bool{
+		"tmdb":        true,
+		"omdb":        true,
+		"steam":       true,
+		"letterboxd":  true,
+		"openlibrary": true,
+	}
+
+	if !validSources[i.Source] {
+		return fmt.Errorf("invalid cache source '%s'; valid sources are: tmdb, omdb, steam, letterboxd, openlibrary", i.Source)
+	}
+
+	// Get or create cache database
+	cacheInstance, err := cache.GetGlobalCache()
+	if err != nil {
+		return fmt.Errorf("failed to open cache database: %w", err)
+	}
+
+	rowsDeleted, err := cacheInstance.InvalidateSource(tableName)
+	if err != nil {
+		return fmt.Errorf("failed to invalidate cache: %w", err)
+	}
+
+	slog.Info("Cache invalidated", "source", i.Source, "rows_deleted", rowsDeleted)
 	return nil
 }
 
