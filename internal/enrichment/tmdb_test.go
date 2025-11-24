@@ -133,6 +133,7 @@ func TestEnrichFromTMDB_UsesExistingIDAndDownloadsCover(t *testing.T) {
 		AttachmentsDir:  filepath.Join(tempDir, "attachments"),
 		NoteDir:         tempDir,
 		ContentSections: []string{"overview", "info"},
+		StoredMediaType: "movie",
 	}
 
 	enrichment, err := EnrichFromTMDB(context.Background(), "Heat", 1995, "tt0113277", 949, opts)
@@ -188,29 +189,18 @@ func TestEnrichFromTMDB_SearchesWhenNoExistingID(t *testing.T) {
 	require.Equal(t, "", enrichment.ContentMarkdown)
 }
 
-func TestEnrichFromTMDB_RequeriesWhenStoredTypeConflicts(t *testing.T) {
-	var searchedMulti bool
+func TestEnrichFromTMDB_UsesStoredIDAndTypeWithoutSearch(t *testing.T) {
+	searched := false
 	restoreClient := withFakeClient(t, &fakeTMDBClient{
 		onMetadataByID: func(ctx context.Context, id int, mediaType string, force bool) (*tmdb.Metadata, bool, error) {
-			switch {
-			case id == 101 && mediaType == "movie":
-				runtime := 100
-				return &tmdb.Metadata{Runtime: &runtime, TMDBType: "movie"}, false, nil
-			case id == 101 && mediaType == "tv":
-				return nil, false, fmt.Errorf("not a TV show")
-			case id == 303 && mediaType == "tv":
-				episodes := 140
-				return &tmdb.Metadata{TotalEpisodes: &episodes, TMDBType: "tv"}, false, nil
-			default:
-				return nil, false, fmt.Errorf("unexpected id/type combo %d/%s", id, mediaType)
-			}
+			require.Equal(t, 101, id)
+			require.Equal(t, "tv", mediaType)
+			episodes := 24
+			return &tmdb.Metadata{TotalEpisodes: &episodes, TMDBType: "tv"}, false, nil
 		},
 		onSearchMulti: func(ctx context.Context, query string, year int, limit int) ([]tmdb.SearchResult, bool, error) {
-			searchedMulti = true
-			return []tmdb.SearchResult{
-				{ID: 101, MediaType: "movie", Title: "Archer", VoteCount: 500},
-				{ID: 303, MediaType: "tv", Name: "Archer", VoteCount: 1500},
-			}, false, nil
+			searched = true
+			return nil, false, fmt.Errorf("search should not run")
 		},
 	})
 	defer restoreClient()
@@ -219,14 +209,14 @@ func TestEnrichFromTMDB_RequeriesWhenStoredTypeConflicts(t *testing.T) {
 
 	enrichment, err := EnrichFromTMDB(context.Background(), "Archer", 0, "", 101, TMDBEnrichmentOptions{
 		GenerateContent:   false,
-		Interactive:       false,
+		Interactive:       true,
+		StoredMediaType:   "tv",
 		ExpectedMediaType: "tv",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, enrichment)
-
-	require.True(t, searchedMulti, "expected multi search to rerun when type mismatches")
-	require.Equal(t, 303, enrichment.TMDBID)
+	require.False(t, searched, "should not search when stored ID/type provided")
+	require.Equal(t, 101, enrichment.TMDBID)
 	require.Equal(t, "tv", enrichment.TMDBType)
 }
 
@@ -257,7 +247,7 @@ func TestEnrichFromTMDB_UsesExpectedTypeEvenWithLowVotes(t *testing.T) {
 	restoreKey := withTMDBAPIKey(t, "test-key")
 	defer restoreKey()
 
-	enrichment, err := EnrichFromTMDB(context.Background(), "Hikaru no Go", 0, "", 111, TMDBEnrichmentOptions{
+	enrichment, err := EnrichFromTMDB(context.Background(), "Hikaru no Go", 0, "", 0, TMDBEnrichmentOptions{
 		GenerateContent:   false,
 		Interactive:       false,
 		ExpectedMediaType: "tv",
@@ -319,11 +309,12 @@ func TestEnrichFromTMDB_CoverCacheHit(t *testing.T) {
 	require.NoError(t, os.WriteFile(cachedCoverPath, []byte("cached cover content"), 0644))
 
 	opts := TMDBEnrichmentOptions{
-		DownloadCover:  true,
-		AttachmentsDir: attachmentsDir,
-		NoteDir:        tempDir,
-		UseCoverCache:  true,
-		CoverCachePath: cacheDir,
+		DownloadCover:   true,
+		AttachmentsDir:  attachmentsDir,
+		NoteDir:         tempDir,
+		UseCoverCache:   true,
+		CoverCachePath:  cacheDir,
+		StoredMediaType: "movie",
 	}
 
 	enrichment, err := EnrichFromTMDB(context.Background(), "Test Movie", 2024, "", 12345, opts)
@@ -353,11 +344,7 @@ func TestEnrichFromTMDB_CoverCacheMiss(t *testing.T) {
 	restoreClient := withFakeClient(t, &fakeTMDBClient{
 		onMetadataByID: func(ctx context.Context, id int, mediaType string, force bool) (*tmdb.Metadata, bool, error) {
 			require.Equal(t, 67890, id)
-			// When using existing TMDB ID, code tries "movie" first, then "tv"
-			// Return error for "movie" to force TV detection
-			if mediaType == "movie" {
-				return nil, false, errors.New("not found")
-			}
+			require.Equal(t, "tv", mediaType)
 			runtime := 45
 			return &tmdb.Metadata{Runtime: &runtime, GenreTags: []string{"Drama"}}, false, nil
 		},
@@ -384,11 +371,12 @@ func TestEnrichFromTMDB_CoverCacheMiss(t *testing.T) {
 	require.NoError(t, os.MkdirAll(attachmentsDir, 0755))
 
 	opts := TMDBEnrichmentOptions{
-		DownloadCover:  true,
-		AttachmentsDir: attachmentsDir,
-		NoteDir:        tempDir,
-		UseCoverCache:  true,
-		CoverCachePath: cacheDir,
+		DownloadCover:   true,
+		AttachmentsDir:  attachmentsDir,
+		NoteDir:         tempDir,
+		UseCoverCache:   true,
+		CoverCachePath:  cacheDir,
+		StoredMediaType: "tv",
 	}
 
 	enrichment, err := EnrichFromTMDB(context.Background(), "Test Show", 2024, "", 67890, opts)
@@ -442,11 +430,12 @@ func TestEnrichFromTMDB_NoCacheUsed(t *testing.T) {
 	require.NoError(t, os.MkdirAll(attachmentsDir, 0755))
 
 	opts := TMDBEnrichmentOptions{
-		DownloadCover:  true,
-		AttachmentsDir: attachmentsDir,
-		NoteDir:        tempDir,
-		UseCoverCache:  false, // Cache disabled
-		CoverCachePath: "",
+		DownloadCover:   true,
+		AttachmentsDir:  attachmentsDir,
+		NoteDir:         tempDir,
+		UseCoverCache:   false, // Cache disabled
+		CoverCachePath:  "",
+		StoredMediaType: "movie",
 	}
 
 	enrichment, err := EnrichFromTMDB(context.Background(), "No Cache Movie", 2024, "", 11111, opts)

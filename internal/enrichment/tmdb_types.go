@@ -39,6 +39,8 @@ type TMDBEnrichmentOptions struct {
 	Force bool
 	// MoviesOnly restricts search to movies only (excludes TV shows)
 	MoviesOnly bool
+	// StoredMediaType is the tmdb_type already present in the note (if any)
+	StoredMediaType string
 	// ExpectedMediaType is an optional hint (movie or tv) used to resolve mismatches
 	// between cached TMDB IDs and the note's intended type.
 	ExpectedMediaType string

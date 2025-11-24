@@ -266,6 +266,11 @@ func enrichFromTMDB(movie *Movie) (*enrichment.TMDBEnrichment, error) {
 		return nil, fmt.Errorf("failed to create attachments directory: %w", err)
 	}
 
+	storedType := ""
+	if movie.TMDBEnrichment != nil {
+		storedType = movie.TMDBEnrichment.TMDBType
+	}
+
 	opts := enrichment.TMDBEnrichmentOptions{
 		DownloadCover:     tmdbDownloadCover,
 		GenerateContent:   tmdbGenerateContent,
@@ -274,6 +279,7 @@ func enrichFromTMDB(movie *Movie) (*enrichment.TMDBEnrichment, error) {
 		NoteDir:           outputDir,
 		Interactive:       tmdbInteractive,
 		MoviesOnly:        true, // Letterboxd only catalogs movies, not TV shows
+		StoredMediaType:   storedType,
 		ExpectedMediaType: "movie",
 		UseCoverCache:     useTMDBCoverCache,
 		CoverCachePath:    tmdbCoverCachePath,

@@ -13,90 +13,23 @@ import (
 )
 
 func resolveTMDBID(ctx context.Context, client tmdbClient, title string, year int, imdbID string, existingTMDBID int, opts TMDBEnrichmentOptions) (int, string, error) {
-	forcePrompt := false
 	if existingTMDBID != 0 && !opts.Force {
-		slog.Debug("Using stored TMDB ID", "tmdb_id", existingTMDBID, "title", title)
-		mediaType, err := determineMediaTypeFromStoredID(ctx, client, existingTMDBID)
-		if err != nil {
-			return 0, "", err
+		mediaType := opts.StoredMediaType
+		if mediaType == "" {
+			mediaType = opts.ExpectedMediaType
 		}
-		if opts.ExpectedMediaType != "" && mediaType != opts.ExpectedMediaType {
-			forcePrompt = opts.Interactive
-			slog.Info("Stored TMDB type differs from expected; re-running TMDB search",
-				"title", title,
-				"tmdb_id", existingTMDBID,
-				"cached_type", mediaType,
-				"expected_type", opts.ExpectedMediaType,
-				"interactive", opts.Interactive,
-			)
-
-			tmdbID, resolvedType, err := searchTMDBID(ctx, client, title, year, imdbID, opts, forcePrompt)
-			if err != nil {
-				return 0, "", err
-			}
-			if tmdbID != 0 {
-				return tmdbID, resolvedType, nil
-			}
-
-			slog.Debug("Keeping stored TMDB ID after mismatch prompt", "tmdb_id", existingTMDBID)
+		if mediaType == "" {
+			return 0, "", fmt.Errorf("stored TMDB ID %d found but no media type information available (missing both stored and expected type); use --force to re-enrich", existingTMDBID)
 		}
+
+		slog.Debug("Using stored TMDB ID", "tmdb_id", existingTMDBID, "title", title, "type", mediaType)
 		return existingTMDBID, mediaType, nil
 	}
 
-	return searchTMDBID(ctx, client, title, year, imdbID, opts, forcePrompt)
+	return searchTMDBID(ctx, client, title, year, imdbID, opts)
 }
 
-func determineMediaTypeFromStoredID(ctx context.Context, client tmdbClient, tmdbID int) (string, error) {
-	movieMeta, _, movieErr := client.CachedGetMetadataByID(ctx, tmdbID, "movie", false)
-	tvMeta, _, tvErr := client.CachedGetMetadataByID(ctx, tmdbID, "tv", false)
-
-	if movieErr != nil && tvErr != nil {
-		return "", fmt.Errorf("failed to fetch TMDB metadata for ID %d: %w", tmdbID, movieErr)
-	}
-
-	movieScore := 0
-	if movieErr == nil && movieMeta != nil {
-		if movieMeta.Runtime != nil && *movieMeta.Runtime > 0 {
-			movieScore += 10
-		}
-		if len(movieMeta.GenreTags) > 0 {
-			movieScore++
-		}
-	}
-
-	tvScore := 0
-	if tvErr == nil && tvMeta != nil {
-		if tvMeta.TotalEpisodes != nil && *tvMeta.TotalEpisodes > 0 {
-			tvScore += 10
-		}
-		if len(tvMeta.GenreTags) > 0 {
-			tvScore++
-		}
-	}
-
-	var mediaType string
-	switch {
-	case tvScore > movieScore:
-		mediaType = "tv"
-	case movieScore > 0:
-		mediaType = "movie"
-	case tvErr == nil:
-		mediaType = "tv"
-	default:
-		mediaType = "movie"
-	}
-
-	slog.Debug("Determined media type from TMDB data",
-		"tmdb_id", tmdbID,
-		"type", mediaType,
-		"movie_score", movieScore,
-		"tv_score", tvScore,
-	)
-
-	return mediaType, nil
-}
-
-func searchTMDBID(ctx context.Context, client tmdbClient, title string, year int, imdbID string, opts TMDBEnrichmentOptions, forcePrompt bool) (int, string, error) {
+func searchTMDBID(ctx context.Context, client tmdbClient, title string, year int, imdbID string, opts TMDBEnrichmentOptions) (int, string, error) {
 	if imdbID != "" {
 		tmdbID, mediaType := findTMDBIDByIMDBID(ctx, client, imdbID)
 		if tmdbID != 0 {
@@ -139,7 +72,7 @@ func searchTMDBID(ctx context.Context, client tmdbClient, title string, year int
 		return 0, "", nil
 	}
 
-	selection, err := selectTMDBResult(filtered, title, year, opts.Interactive, forcePrompt)
+	selection, err := selectTMDBResult(filtered, title, year, opts.Interactive)
 	if err != nil {
 		return 0, "", err
 	}
@@ -150,16 +83,14 @@ func searchTMDBID(ctx context.Context, client tmdbClient, title string, year int
 	return selection.ID, selection.MediaType, nil
 }
 
-func selectTMDBResult(results []tmdb.SearchResult, title string, year int, interactive bool, forcePrompt bool) (*tmdb.SearchResult, error) {
+func selectTMDBResult(results []tmdb.SearchResult, title string, year int, interactive bool) (*tmdb.SearchResult, error) {
+	if len(results) == 1 {
+		return &results[0], nil
+	}
+
 	exact := findExactMatch(results, title, year)
 
 	if interactive {
-		// Only auto-select when there's exactly one result and it is an exact match
-		if !forcePrompt && len(results) == 1 && exact != nil {
-			slog.Debug("Auto-selected exact TMDB match", "title", title, "year", year, "tmdb_id", exact.ID)
-			return &results[0], nil
-		}
-
 		selection, err := tui.Select(title, results)
 		if err != nil {
 			return nil, fmt.Errorf("TUI selection failed: %w", err)
@@ -178,11 +109,7 @@ func selectTMDBResult(results []tmdb.SearchResult, title string, year int, inter
 	}
 
 	// Non-interactive: keep heuristic behavior
-	if len(results) == 1 {
-		return &results[0], nil
-	}
-
-	if exact != nil && !forcePrompt {
+	if exact != nil {
 		slog.Debug("Auto-selected exact TMDB match", "title", title, "year", year, "tmdb_id", exact.ID)
 		return exact, nil
 	}

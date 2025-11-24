@@ -277,6 +277,11 @@ func enrichFromTMDB(movie *MovieSeen) (*enrichment.TMDBEnrichment, error) {
 		return nil, fmt.Errorf("failed to create attachments directory: %w", err)
 	}
 
+	storedType := ""
+	if movie.TMDBEnrichment != nil {
+		storedType = movie.TMDBEnrichment.TMDBType
+	}
+
 	opts := enrichment.TMDBEnrichmentOptions{
 		DownloadCover:     tmdbDownloadCover,
 		GenerateContent:   tmdbGenerateContent,
@@ -284,6 +289,7 @@ func enrichFromTMDB(movie *MovieSeen) (*enrichment.TMDBEnrichment, error) {
 		AttachmentsDir:    attachmentsDir,
 		NoteDir:           outputDir,
 		Interactive:       tmdbInteractive,
+		StoredMediaType:   storedType,
 		ExpectedMediaType: "movie",
 		UseCoverCache:     useTMDBCoverCache,
 		CoverCachePath:    tmdbCoverCachePath,

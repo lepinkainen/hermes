@@ -116,6 +116,7 @@ func EnhanceNotes(opts Options) error {
 		if expectedType == "" {
 			expectedType = note.Type
 		}
+		storedType := fm.StringFromAny(note.RawFrontmatter["tmdb_type"])
 
 		enrichOpts := enrichment.TMDBEnrichmentOptions{
 			DownloadCover:     opts.TMDBDownloadCover && needsCover,
@@ -125,6 +126,7 @@ func EnhanceNotes(opts Options) error {
 			NoteDir:           noteDir,
 			Interactive:       opts.TMDBInteractive,
 			Force:             opts.Force,
+			StoredMediaType:   storedType,
 			ExpectedMediaType: expectedType,
 			UseCoverCache:     opts.UseTMDBCoverCache,
 			CoverCachePath:    opts.TMDBCoverCachePath,
