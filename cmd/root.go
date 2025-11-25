@@ -71,6 +71,7 @@ type GoodreadsCmd struct {
 	Headful           bool          `help:"Run automation with a visible browser window (default is headless)"`
 	DownloadDir       string        `help:"Directory for automated Goodreads export download (defaults to exports/)"`
 	AutomationTimeout time.Duration `help:"Timeout for Goodreads automation flow" default:"3m"`
+	DryRun            bool          `help:"Test automation without running the import (automation only)"`
 }
 
 // IMDBCmd represents the imdb import command
@@ -276,6 +277,7 @@ func (g *GoodreadsCmd) Run() error {
 		JSONOutput: g.JSONOutput,
 		WriteJSON:  g.JSON,
 		Automated:  g.Automated,
+		DryRun:     g.DryRun,
 		AutomationOptions: goodreads.AutomationOptions{
 			Email:       email,
 			Password:    password,

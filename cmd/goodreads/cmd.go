@@ -3,6 +3,7 @@ package goodreads
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/lepinkainen/hermes/internal/cmdutil"
@@ -17,6 +18,7 @@ type ParseParams struct {
 	JSONOutput        string
 	Overwrite         bool
 	Automated         bool
+	DryRun            bool
 	AutomationOptions AutomationOptions
 }
 
@@ -55,6 +57,11 @@ func ParseGoodreadsWithParams(params ParseParams) error {
 			return err
 		}
 		params.CSVPath = csvPath
+
+		if params.DryRun {
+			slog.Info("Dry-run mode: automation completed successfully", "csv_path", csvPath)
+			return nil
+		}
 	}
 
 	if params.CSVPath == "" {
