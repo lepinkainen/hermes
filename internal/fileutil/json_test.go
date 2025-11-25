@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/lepinkainen/hermes/internal/testutil"
 )
 
 type TestJSONData struct {
@@ -14,7 +16,8 @@ type TestJSONData struct {
 
 func TestWriteJSONFile_NewFile(t *testing.T) {
 	// Setup
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	filePath := filepath.Join(tempDir, "test.json")
 	testData := []TestJSONData{
 		{ID: 1, Name: "Test 1"},
@@ -58,7 +61,8 @@ func TestWriteJSONFile_NewFile(t *testing.T) {
 
 func TestWriteJSONFile_OverwriteTrue(t *testing.T) {
 	// Setup
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	filePath := filepath.Join(tempDir, "test.json")
 
 	// Create existing file
@@ -89,7 +93,8 @@ func TestWriteJSONFile_OverwriteTrue(t *testing.T) {
 
 func TestWriteJSONFile_OverwriteFalse(t *testing.T) {
 	// Setup
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	filePath := filepath.Join(tempDir, "test.json")
 
 	// Create existing file
@@ -120,7 +125,8 @@ func TestWriteJSONFile_OverwriteFalse(t *testing.T) {
 
 func TestWriteJSONFile_CreateDirectory(t *testing.T) {
 	// Setup
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	filePath := filepath.Join(tempDir, "subdir", "nested", "test.json")
 	testData := TestJSONData{ID: 1, Name: "Test"}
 
@@ -149,7 +155,8 @@ func TestWriteJSONFile_CreateDirectory(t *testing.T) {
 
 func TestWriteJSONFile_InvalidData(t *testing.T) {
 	// Setup
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	filePath := filepath.Join(tempDir, "test.json")
 
 	// Test with data that can't be marshaled (channel)
@@ -172,7 +179,8 @@ func TestWriteJSONFile_InvalidData(t *testing.T) {
 
 func TestWriteJSONFile_SingleObject(t *testing.T) {
 	// Setup
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	filePath := filepath.Join(tempDir, "single.json")
 	testData := TestJSONData{ID: 42, Name: "Single"}
 

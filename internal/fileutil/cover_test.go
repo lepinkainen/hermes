@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -61,9 +62,8 @@ func TestDownloadCover_Success(t *testing.T) {
 	defer server.Close()
 
 	// Create temp directory
-	tempDir, err := os.MkdirTemp("", "cover-test-*")
-	require.NoError(t, err)
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 
 	result, err := DownloadCover(CoverDownloadOptions{
 		URL:          server.URL,
@@ -92,12 +92,11 @@ func TestDownloadCover_SkipsExisting(t *testing.T) {
 	defer server.Close()
 
 	// Create temp directory with existing file
-	tempDir, err := os.MkdirTemp("", "cover-test-*")
-	require.NoError(t, err)
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 
 	attachmentsDir := filepath.Join(tempDir, "attachments")
-	err = os.MkdirAll(attachmentsDir, 0755)
+	err := os.MkdirAll(attachmentsDir, 0755)
 	require.NoError(t, err)
 
 	existingFile := filepath.Join(attachmentsDir, "existing-cover.jpg")
@@ -130,12 +129,11 @@ func TestDownloadCover_OverwritesExisting(t *testing.T) {
 	defer server.Close()
 
 	// Create temp directory with existing file
-	tempDir, err := os.MkdirTemp("", "cover-test-*")
-	require.NoError(t, err)
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 
 	attachmentsDir := filepath.Join(tempDir, "attachments")
-	err = os.MkdirAll(attachmentsDir, 0755)
+	err := os.MkdirAll(attachmentsDir, 0755)
 	require.NoError(t, err)
 
 	existingFile := filepath.Join(attachmentsDir, "existing-cover.jpg")
@@ -167,9 +165,8 @@ func TestDownloadCover_HTTPError(t *testing.T) {
 	defer server.Close()
 
 	// Create temp directory
-	tempDir, err := os.MkdirTemp("", "cover-test-*")
-	require.NoError(t, err)
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 
 	result, err := DownloadCover(CoverDownloadOptions{
 		URL:       server.URL,
@@ -212,9 +209,8 @@ func TestAddCoverToMarkdown_FallbackDownloadSuccess(t *testing.T) {
 	defer server.Close()
 
 	// Create temp directory
-	tempDir, err := os.MkdirTemp("", "cover-test-*")
-	require.NoError(t, err)
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 
 	mb := NewMarkdownBuilder()
 	mb.AddTitle("Test Movie")
@@ -245,9 +241,8 @@ func TestAddCoverToMarkdown_FallbackDownloadFailure(t *testing.T) {
 	defer server.Close()
 
 	// Create temp directory
-	tempDir, err := os.MkdirTemp("", "cover-test-*")
-	require.NoError(t, err)
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 
 	mb := NewMarkdownBuilder()
 	mb.AddTitle("Test Movie")
@@ -293,12 +288,11 @@ func TestAddCoverToMarkdown_UpdateCoversFlag(t *testing.T) {
 	defer server.Close()
 
 	// Create temp directory with existing cover
-	tempDir, err := os.MkdirTemp("", "cover-test-*")
-	require.NoError(t, err)
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 
 	attachmentsDir := filepath.Join(tempDir, "attachments")
-	err = os.MkdirAll(attachmentsDir, 0755)
+	err := os.MkdirAll(attachmentsDir, 0755)
 	require.NoError(t, err)
 
 	existingFile := filepath.Join(attachmentsDir, "Test Movie - cover.jpg")
