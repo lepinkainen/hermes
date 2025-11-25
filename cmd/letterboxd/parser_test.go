@@ -6,11 +6,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLoadExistingTMDBID(t *testing.T) {
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	filePath := filepath.Join(tempDir, "Heat (1995).md")
 
 	content := `---
@@ -43,7 +45,8 @@ Movie body
 }
 
 func TestWriteMoviesToJSON_UsesExistingTMDBIDWhenSkippingEnrich(t *testing.T) {
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	filePath := filepath.Join(tempDir, "Heat (1995).md")
 
 	content := `---
