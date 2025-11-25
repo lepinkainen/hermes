@@ -53,6 +53,12 @@ To fetch the export automatically (no manual CSV download):
 ./hermes import goodreads --automated --goodreads-email "$GOODREADS_EMAIL" --goodreads-password "$GOODREADS_PASSWORD"
 ```
 
+To test automation without running the full import:
+
+```bash
+./hermes import goodreads --automated --headful --dry-run
+```
+
 ### Configuration
 
 In your `config.yml` (or `config.yaml`) file:
@@ -84,6 +90,7 @@ The automation flow reads the email and password directly from `config.yml` (or 
 - `--headful`: Open Chrome instead of running headless (default: headless)
 - `--download-dir`: Directory for the automated CSV download (default: `exports/`)
 - `--automation-timeout`: How long to wait for Goodreads to generate the export (default: 3m)
+- `--dry-run`: Test automation without running the import (automation only)
 - `--overwrite`: Overwrite existing files (default: false)
 
 ### Automated Export

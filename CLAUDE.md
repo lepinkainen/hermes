@@ -58,6 +58,8 @@ Refer to llm-shared/project_tech_stack.md for core technology choices, build sys
 - `./build/hermes import goodreads --help` - View importer-specific options
 - `./build/hermes enhance --help` - View enhance command options
 - `go run . import goodreads -f goodreads_library_export.csv` - Run directly without building
+- `go run . import goodreads --automated --headful` - Automated Goodreads export download (Chrome required)
+- `go run . import goodreads --automated --dry-run` - Test automation without import
 - `go run . enhance -d markdown/imdb --tmdb-generate-content` - Enhance existing notes with TMDB data
 
 **Development workflow:**

@@ -136,3 +136,35 @@ type OpenLibraryWork struct {
 		} `json:"type,omitempty"`
 	} `json:"authors,omitempty"`
 }
+
+// GoogleBooksBook represents a single item from the Google Books API response
+type GoogleBooksBook struct {
+	VolumeInfo struct {
+		Title               string   `json:"title"`
+		Subtitle            string   `json:"subtitle"`
+		Authors             []string `json:"authors"`
+		Publisher           string   `json:"publisher"`
+		PublishedDate       string   `json:"publishedDate"`
+		Description         string   `json:"description"`
+		IndustryIdentifiers []struct {
+			Type       string `json:"type"`
+			Identifier string `json:"identifier"`
+		} `json:"industryIdentifiers"`
+		PageCount     int      `json:"pageCount"`
+		Categories    []string `json:"categories"`
+		AverageRating float64  `json:"averageRating"`
+		RatingsCount  int      `json:"ratingsCount"`
+		ImageLinks    struct {
+			Thumbnail      string `json:"thumbnail"`
+			SmallThumbnail string `json:"smallThumbnail"`
+		} `json:"imageLinks"`
+		Language string `json:"language"`
+		InfoLink string `json:"infoLink"`
+	} `json:"volumeInfo"`
+}
+
+// GoogleBooksResponse represents the API response wrapper from Google Books
+type GoogleBooksResponse struct {
+	TotalItems int               `json:"totalItems"`
+	Items      []GoogleBooksBook `json:"items"`
+}

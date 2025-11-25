@@ -58,6 +58,17 @@ CREATE TABLE IF NOT EXISTS tmdb_cache (
 CREATE INDEX IF NOT EXISTS idx_tmdb_cached_at ON tmdb_cache(cached_at);
 `
 
+// GoogleBooksCacheSchema defines the schema for Google Books API cache
+const GoogleBooksCacheSchema = `
+CREATE TABLE IF NOT EXISTS googlebooks_cache (
+	cache_key TEXT PRIMARY KEY NOT NULL,
+	data TEXT NOT NULL,
+	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_googlebooks_cached_at ON googlebooks_cache(cached_at);
+`
+
 // AllCacheSchemas contains all cache table schemas for easy initialization
 var AllCacheSchemas = []string{
 	OMDBCacheSchema,
@@ -65,6 +76,7 @@ var AllCacheSchemas = []string{
 	SteamCacheSchema,
 	LetterboxdCacheSchema,
 	TMDBCacheSchema,
+	GoogleBooksCacheSchema,
 }
 
 // ValidCacheTableNames is the whitelist of allowed cache table names
@@ -75,4 +87,5 @@ var ValidCacheTableNames = map[string]bool{
 	"steam_cache":       true,
 	"letterboxd_cache":  true,
 	"tmdb_cache":        true,
+	"googlebooks_cache": true,
 }

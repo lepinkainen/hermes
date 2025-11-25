@@ -71,3 +71,56 @@ func enrichBookFromOpenLibrary(book *Book) error {
 
 	return fmt.Errorf("failed to get book data: %v", err)
 }
+
+// enrichBookFromGoogleBooks enriches book data from Google Books API
+// Only fills in empty fields - never overwrites existing data
+func enrichBookFromGoogleBooks(book *Book) error {
+	// Try ISBN13 first, then ISBN
+	searchISBN := book.ISBN13
+	if searchISBN == "" {
+		searchISBN = book.ISBN
+	}
+
+	if searchISBN == "" {
+		return fmt.Errorf("no ISBN available")
+	}
+
+	// Try cache first
+	googleBook, cacheHit, err := getCachedGoogleBook(searchISBN)
+	if err != nil {
+		return fmt.Errorf("failed to get Google Books data: %w", err)
+	}
+
+	// Only fill in empty fields - never overwrite existing data
+	if book.Description == "" && googleBook.VolumeInfo.Description != "" {
+		book.Description = googleBook.VolumeInfo.Description
+	}
+
+	if book.Subtitle == "" && googleBook.VolumeInfo.Subtitle != "" {
+		book.Subtitle = googleBook.VolumeInfo.Subtitle
+	}
+
+	if book.Publisher == "" && googleBook.VolumeInfo.Publisher != "" {
+		book.Publisher = googleBook.VolumeInfo.Publisher
+	}
+
+	if book.NumberOfPages == 0 && googleBook.VolumeInfo.PageCount > 0 {
+		book.NumberOfPages = googleBook.VolumeInfo.PageCount
+	}
+
+	if book.CoverURL == "" && googleBook.VolumeInfo.ImageLinks.Thumbnail != "" {
+		book.CoverURL = googleBook.VolumeInfo.ImageLinks.Thumbnail
+	}
+
+	// Append categories to subjects if we don't have subjects yet
+	if len(book.Subjects) == 0 && len(googleBook.VolumeInfo.Categories) > 0 {
+		book.Subjects = googleBook.VolumeInfo.Categories
+	}
+
+	if !cacheHit {
+		// Add a small delay only when we had to make an API call
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	return nil
+}
