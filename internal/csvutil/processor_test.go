@@ -1,24 +1,23 @@
 package csvutil
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
+
+	"github.com/lepinkainen/hermes/internal/testutil"
 )
 
 func TestProcessCSV(t *testing.T) {
-	// Create a temporary CSV file for testing
-	tmpDir := t.TempDir()
-	csvPath := filepath.Join(tmpDir, "test.csv")
+	// Create a sandboxed test environment
+	env := testutil.NewTestEnv(t)
 
+	// Create a temporary CSV file for testing
 	csvContent := `name,age,city
 Alice,30,NYC
 Bob,25,LA
 Charlie,35,Chicago
 `
-	if err := os.WriteFile(csvPath, []byte(csvContent), 0644); err != nil {
-		t.Fatalf("failed to write test CSV: %v", err)
-	}
+	env.WriteFileString("test.csv", csvContent)
+	csvPath := env.Path("test.csv")
 
 	type Person struct {
 		Name string
@@ -58,12 +57,10 @@ Charlie,35,Chicago
 }
 
 func TestProcessCSV_EmptyFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	csvPath := filepath.Join(tmpDir, "empty.csv")
+	env := testutil.NewTestEnv(t)
 
-	if err := os.WriteFile(csvPath, []byte(""), 0644); err != nil {
-		t.Fatalf("failed to write test CSV: %v", err)
-	}
+	env.WriteFileString("empty.csv", "")
+	csvPath := env.Path("empty.csv")
 
 	parser := func(record []string) (string, error) {
 		return record[0], nil

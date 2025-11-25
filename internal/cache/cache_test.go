@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/spf13/viper"
 )
 
@@ -28,8 +29,9 @@ func setupTestCache(t *testing.T) (*CacheDB, string) {
 		delete(ValidCacheTableNames, "test_cache")
 	})
 
-	// Create temp directory and database file
-	tempDir := t.TempDir()
+	// Use testutil for sandboxed test environment
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	dbPath := filepath.Join(tempDir, "test_cache.db")
 
 	// Create cache database

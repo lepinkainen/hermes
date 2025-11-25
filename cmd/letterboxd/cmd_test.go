@@ -1,40 +1,32 @@
 package letterboxd
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/lepinkainen/hermes/internal/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseLetterboxdWithParams(t *testing.T) {
-	dir := t.TempDir()
-	csv := filepath.Join(dir, "log.csv")
-	if err := os.WriteFile(csv, []byte("Date,Name,Year\n"), 0644); err != nil {
-		t.Fatalf("write csv: %v", err)
-	}
+	env := testutil.NewTestEnv(t)
+
+	env.WriteFileString("log.csv", "Date,Name,Year\n")
+	csv := env.Path("log.csv")
+	dir := env.RootDir()
 
 	var called bool
 	parseLetterboxdFunc = func() error {
 		called = true
-		if csvFile != csv {
-			t.Fatalf("csvFile = %s, want %s", csvFile, csv)
-		}
-		if !strings.Contains(outputDir, dir) {
-			t.Fatalf("outputDir = %s, want to contain %s", outputDir, dir)
-		}
-		if !tmdbEnabled || !tmdbGenerateContent {
-			t.Fatalf("tmdb flags expected true")
-		}
+		require.Equal(t, csv, csvFile, "csvFile mismatch")
+		require.True(t, strings.Contains(outputDir, dir), "outputDir should contain %s", dir)
+		require.True(t, tmdbEnabled, "tmdbEnabled should be true")
+		require.True(t, tmdbGenerateContent, "tmdbGenerateContent should be true")
 		return nil
 	}
 	defer func() { parseLetterboxdFunc = ParseLetterboxd }()
 
 	err := ParseLetterboxdWithParams(csv, dir, false, "", true, true, false, true, true, []string{"overview"}, false, "")
-	if err != nil {
-		t.Fatalf("ParseLetterboxdWithParams error = %v", err)
-	}
-	if !called {
-		t.Fatalf("expected parser to run")
-	}
+	require.NoError(t, err, "ParseLetterboxdWithParams should not error")
+	require.True(t, called, "expected parser to run")
 }

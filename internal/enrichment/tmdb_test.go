@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/lepinkainen/hermes/internal/config"
+	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/lepinkainen/hermes/internal/tmdb"
 	"github.com/stretchr/testify/require"
 )
@@ -126,7 +127,8 @@ func TestEnrichFromTMDB_UsesExistingIDAndDownloadsCover(t *testing.T) {
 	restoreKey := withTMDBAPIKey(t, "test-key")
 	defer restoreKey()
 
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	opts := TMDBEnrichmentOptions{
 		DownloadCover:   true,
 		GenerateContent: true,
@@ -296,7 +298,8 @@ func TestEnrichFromTMDB_CoverCacheHit(t *testing.T) {
 	restoreKey := withTMDBAPIKey(t, "test-key")
 	defer restoreKey()
 
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	cacheDir := filepath.Join(tempDir, "cache")
 	attachmentsDir := filepath.Join(tempDir, "attachments")
 
@@ -362,7 +365,8 @@ func TestEnrichFromTMDB_CoverCacheMiss(t *testing.T) {
 	restoreKey := withTMDBAPIKey(t, "test-key")
 	defer restoreKey()
 
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	cacheDir := filepath.Join(tempDir, "cache")
 	attachmentsDir := filepath.Join(tempDir, "attachments")
 
@@ -425,7 +429,8 @@ func TestEnrichFromTMDB_NoCacheUsed(t *testing.T) {
 	restoreKey := withTMDBAPIKey(t, "test-key")
 	defer restoreKey()
 
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	attachmentsDir := filepath.Join(tempDir, "attachments")
 	require.NoError(t, os.MkdirAll(attachmentsDir, 0755))
 
@@ -450,15 +455,15 @@ func TestEnrichFromTMDB_NoCacheUsed(t *testing.T) {
 }
 
 func TestCopyFile(t *testing.T) {
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
 
 	// Create source file
-	srcPath := filepath.Join(tempDir, "source.txt")
 	content := []byte("test content for copy")
-	require.NoError(t, os.WriteFile(srcPath, content, 0644))
+	env.WriteFile("source.txt", content)
+	srcPath := env.Path("source.txt")
 
 	// Copy to nested destination (should create directory)
-	dstPath := filepath.Join(tempDir, "nested", "dir", "dest.txt")
+	dstPath := env.Path("nested", "dir", "dest.txt")
 	err := copyFile(srcPath, dstPath)
 	require.NoError(t, err)
 
@@ -469,8 +474,8 @@ func TestCopyFile(t *testing.T) {
 }
 
 func TestCopyFile_SourceNotFound(t *testing.T) {
-	tempDir := t.TempDir()
-	err := copyFile(filepath.Join(tempDir, "nonexistent"), filepath.Join(tempDir, "dest"))
+	env := testutil.NewTestEnv(t)
+	err := copyFile(env.Path("nonexistent"), env.Path("dest"))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to open source file")
 }

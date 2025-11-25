@@ -9,9 +9,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"sync/atomic"
 	"testing"
+
+	"github.com/lepinkainen/hermes/internal/testutil"
 )
 
 func TestGetCoverURLByID(t *testing.T) {
@@ -107,8 +108,8 @@ func TestDownloadAndResizeImage(t *testing.T) {
 
 	client := NewClient("key", WithHTTPClient(server.Client()))
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, "poster.png")
+	env := testutil.NewTestEnv(t)
+	path := env.Path("poster.png")
 
 	if err := client.DownloadAndResizeImage(context.Background(), server.URL, path, 0); err != nil {
 		t.Fatalf("DownloadAndResizeImage error = %v", err)

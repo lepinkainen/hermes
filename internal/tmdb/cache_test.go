@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/lepinkainen/hermes/internal/cache"
+	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/spf13/viper"
 )
 
@@ -49,8 +50,9 @@ func setupTMDBCache(t *testing.T) {
 		viper.Reset()
 	})
 
-	// Use t.TempDir() for automatic cleanup and isolation between tests
-	tmpDir := t.TempDir()
+	// Use testutil for sandboxed test environment
+	env := testutil.NewTestEnv(t)
+	tmpDir := env.RootDir()
 
 	viper.Set("cache.dbfile", filepath.Join(tmpDir, "tmdb-cache.db"))
 	viper.Set("cache.ttl", "24h")

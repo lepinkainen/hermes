@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
@@ -11,7 +12,8 @@ import (
 func TestSetupOutputDirCreatesMarkdownAndJSONPaths(t *testing.T) {
 	t.Cleanup(viper.Reset)
 
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	viper.Set("markdownoutputdir", filepath.Join(tempDir, "markdown"))
 	viper.Set("jsonoutputdir", filepath.Join(tempDir, "json"))
 
@@ -36,7 +38,8 @@ func TestSetupOutputDirCreatesMarkdownAndJSONPaths(t *testing.T) {
 func TestSetupOutputDirUsesProvidedOutputDir(t *testing.T) {
 	t.Cleanup(viper.Reset)
 
-	tempDir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
 	viper.Set("markdownoutputdir", tempDir)
 
 	cfg := &BaseCommandConfig{

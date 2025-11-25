@@ -1,48 +1,32 @@
 package goodreads
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/lepinkainen/hermes/internal/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseGoodreadsWithParams(t *testing.T) {
-	dir := t.TempDir()
-	csv := filepath.Join(dir, "books.csv")
-	requireNoError(t, os.WriteFile(csv, []byte("id,title\n1,Test\n"), 0644))
+	env := testutil.NewTestEnv(t)
+
+	env.WriteFileString("books.csv", "id,title\n1,Test\n")
+	csv := env.Path("books.csv")
+	dir := env.RootDir()
 
 	var called bool
 	parseGoodreadsFunc = func() error {
 		called = true
-		if csvFile != csv {
-			t.Fatalf("csvFile = %s, want %s", csvFile, csv)
-		}
-		if !strings.Contains(outputDir, dir) {
-			t.Fatalf("outputDir = %s, want to contain %s", outputDir, dir)
-		}
-		if !writeJSON {
-			t.Fatalf("writeJSON should be true")
-		}
-		if jsonOutput == "" {
-			t.Fatalf("jsonOutput should be set")
-		}
+		require.Equal(t, csv, csvFile, "csvFile mismatch")
+		require.True(t, strings.Contains(outputDir, dir), "outputDir should contain %s", dir)
+		require.True(t, writeJSON, "writeJSON should be true")
+		require.NotEmpty(t, jsonOutput, "jsonOutput should be set")
 		return nil
 	}
 	defer func() { parseGoodreadsFunc = ParseGoodreads }()
 
-	err := ParseGoodreadsWithParams(csv, dir, true, filepath.Join(dir, "books.json"), true)
-	if err != nil {
-		t.Fatalf("ParseGoodreadsWithParams error = %v", err)
-	}
-	if !called {
-		t.Fatalf("expected parseGoodreadsFunc to be called")
-	}
-}
-
-func requireNoError(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	err := ParseGoodreadsWithParams(csv, dir, true, env.Path("books.json"), true)
+	require.NoError(t, err, "ParseGoodreadsWithParams should not error")
+	require.True(t, called, "expected parseGoodreadsFunc to be called")
 }

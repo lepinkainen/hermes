@@ -1,10 +1,9 @@
 package mediaids
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
+	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,8 +25,7 @@ func TestFromFrontmatter(t *testing.T) {
 }
 
 func TestFromFile(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "Heat.md")
+	env := testutil.NewTestEnv(t)
 
 	content := `---
 title: "Heat"
@@ -39,8 +37,8 @@ letterboxd_id: 2bg8
 
 Body
 `
-	err := os.WriteFile(path, []byte(content), 0644)
-	require.NoError(t, err)
+	env.WriteFileString("Heat.md", content)
+	path := env.Path("Heat.md")
 
 	got, err := FromFile(path)
 	require.NoError(t, err)
@@ -49,7 +47,7 @@ Body
 	require.Equal(t, "tt0113277", got.IMDBID)
 	require.Equal(t, "2bg8", got.LetterboxdID)
 
-	_, err = FromFile(filepath.Join(dir, "missing.md"))
+	_, err = FromFile(env.Path("missing.md"))
 	require.Error(t, err)
 }
 

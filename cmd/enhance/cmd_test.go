@@ -1,23 +1,23 @@
 package enhance
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/lepinkainen/hermes/internal/enrichment"
+	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFindMarkdownFiles(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Movie.md"), []byte("ok"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Readme.txt"), []byte("ignore"), 0644))
+	env := testutil.NewTestEnv(t)
 
-	sub := filepath.Join(dir, "sub")
-	require.NoError(t, os.Mkdir(sub, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(sub, "Show.md"), []byte("ok"), 0644))
+	env.WriteFileString("Movie.md", "ok")
+	env.WriteFileString("Readme.txt", "ignore")
+	env.MkdirAll("sub")
+	env.WriteFileString("sub/Show.md", "ok")
 
+	dir := env.RootDir()
 	files, err := findMarkdownFiles(dir, false)
 	require.NoError(t, err)
 	require.Equal(t, []string{filepath.Join(dir, "Movie.md")}, files)
@@ -26,13 +26,13 @@ func TestFindMarkdownFiles(t *testing.T) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{
 		filepath.Join(dir, "Movie.md"),
-		filepath.Join(sub, "Show.md"),
+		filepath.Join(dir, "sub", "Show.md"),
 	}, files)
 }
 
 func TestUpdateNoteWithTMDBData(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "Heat.md")
+	env := testutil.NewTestEnv(t)
+
 	content := `---
 title: Heat
 tmdb_type: movie
@@ -40,7 +40,8 @@ year: 1995
 ---
 
 Body`
-	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	env.WriteFileString("Heat.md", content)
+	path := env.Path("Heat.md")
 
 	note, err := parseNoteFile(path)
 	require.NoError(t, err)
@@ -58,9 +59,7 @@ Body`
 	err = updateNoteWithTMDBData(path, note, tmdbData, true)
 	require.NoError(t, err)
 
-	updated, err := os.ReadFile(path)
-	require.NoError(t, err)
-	body := string(updated)
+	body := env.ReadFileString("Heat.md")
 	require.Contains(t, body, "tmdb_id: 949")
 	require.Contains(t, body, "runtime: 170")
 	require.Contains(t, body, "tags:")
@@ -73,8 +72,8 @@ Body`
 // search results, so filtering based on missing type would break anime and
 // other content that doesn't have a pre-set type.
 func TestUpdateNoteWithTMDBData_NoTypeField(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "Cowboy Bebop.md")
+	env := testutil.NewTestEnv(t)
+
 	// Note: intentionally NO type field - TMDB will detect it as TV
 	content := `---
 title: Cowboy Bebop
@@ -82,7 +81,8 @@ year: 1998
 ---
 
 An anime series.`
-	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	env.WriteFileString("Cowboy Bebop.md", content)
+	path := env.Path("Cowboy Bebop.md")
 
 	note, err := parseNoteFile(path)
 	require.NoError(t, err)
@@ -101,9 +101,7 @@ An anime series.`
 	err = updateNoteWithTMDBData(path, note, tmdbData, true)
 	require.NoError(t, err)
 
-	updated, err := os.ReadFile(path)
-	require.NoError(t, err)
-	body := string(updated)
+	body := env.ReadFileString("Cowboy Bebop.md")
 	require.Contains(t, body, "tmdb_id: 30991")
 	require.Contains(t, body, "tmdb_type: tv")
 	require.Contains(t, body, "total_episodes: 26")
