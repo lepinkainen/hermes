@@ -41,8 +41,9 @@ Comprehensive documentation is available in the `docs/` directory:
   - Data enriched from OMDB
 - ✅ Letterboxd using [data export](https://letterboxd.com/user/exportdata/)
   - Data enriched from OMDB
-- ✅Goodreads
+- ✅ Goodreads
   - Data enriched from openlibrary
+  - Automated export via `hermes import goodreads --automated` (Chrome/Chromium required)
 - ✅ Steam
   - Uses Steam API to fetch list of games you own (BYO Steam API key)
   - Game data enriched via Steam API

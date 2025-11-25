@@ -9,16 +9,40 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/cmdutil"
 	"github.com/lepinkainen/hermes/internal/csvutil"
-	"github.com/lepinkainen/hermes/internal/datastore"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/errors"
 	"github.com/lepinkainen/hermes/internal/fileutil"
 	"github.com/lepinkainen/hermes/internal/importer/enrich"
 	"github.com/lepinkainen/hermes/internal/importer/mediaids"
 	"github.com/lepinkainen/hermes/internal/omdb"
-	"github.com/spf13/viper"
 )
+
+const imdbMoviesSchema = `CREATE TABLE IF NOT EXISTS imdb_movies (
+		position INTEGER,
+		imdb_id TEXT PRIMARY KEY,
+		my_rating INTEGER,
+		date_rated TEXT,
+		created TEXT,
+		modified TEXT,
+		description TEXT,
+		title TEXT,
+		original_title TEXT,
+		url TEXT,
+		title_type TEXT,
+		imdb_rating REAL,
+		runtime_mins INTEGER,
+		year INTEGER,
+		genres TEXT,
+		num_votes INTEGER,
+		release_date TEXT,
+		directors TEXT,
+		plot TEXT,
+		content_rated TEXT,
+		awards TEXT,
+		poster_url TEXT
+	)`
 
 // Convert MovieSeen to map[string]any for database insertion
 func movieToMap(movie MovieSeen) map[string]any {
@@ -49,6 +73,15 @@ func movieToMap(movie MovieSeen) map[string]any {
 }
 
 func ParseImdb() error {
+	// Create output directories once before processing
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+	attachmentsDir := filepath.Join(outputDir, "attachments")
+	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create attachments directory: %w", err)
+	}
+
 	// Open and process CSV file
 	movies, err := processCSVFile(csvFile)
 	if err != nil {
@@ -77,60 +110,8 @@ func ParseImdb() error {
 	}
 
 	// Write to Datasette if enabled
-	if viper.GetBool("datasette.enabled") {
-		slog.Info("Writing to Datasette")
-
-		// Initialize local SQLite store
-		store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
-		if err := store.Connect(); err != nil {
-			slog.Error("Failed to connect to SQLite database", "error", err)
-			return err
-		}
-		defer func() { _ = store.Close() }()
-
-		// Create table schema
-		schema := `CREATE TABLE IF NOT EXISTS imdb_movies (
-				position INTEGER,
-				imdb_id TEXT PRIMARY KEY,
-				my_rating INTEGER,
-				date_rated TEXT,
-				created TEXT,
-				modified TEXT,
-				description TEXT,
-				title TEXT,
-				original_title TEXT,
-				url TEXT,
-				title_type TEXT,
-				imdb_rating REAL,
-				runtime_mins INTEGER,
-				year INTEGER,
-				genres TEXT,
-				num_votes INTEGER,
-				release_date TEXT,
-				directors TEXT,
-				plot TEXT,
-				content_rated TEXT,
-				awards TEXT,
-				poster_url TEXT
-			)`
-
-		if err := store.CreateTable(schema); err != nil {
-			slog.Error("Failed to create table", "error", err)
-			return err
-		}
-
-		// Convert movies to maps for insertion
-		records := make([]map[string]any, len(movies))
-		for i, movie := range movies {
-			records[i] = movieToMap(movie)
-		}
-
-		// Insert records
-		if err := store.BatchInsert("hermes", "imdb_movies", records); err != nil {
-			slog.Error("Failed to insert records", "error", err)
-			return err
-		}
-		slog.Info("Successfully wrote movies to SQLite database", "count", len(movies))
+	if err := cmdutil.WriteToDatastore(movies, imdbMoviesSchema, "imdb_movies", "IMDB movies", movieToMap); err != nil {
+		return err
 	}
 
 	slog.Info("Processed movies", "count", len(movies))
@@ -271,38 +252,22 @@ func enrichMovieData(movie *MovieSeen) error {
 
 // enrichFromTMDB enriches a movie with TMDB data
 func enrichFromTMDB(movie *MovieSeen) (*enrichment.TMDBEnrichment, error) {
-	// Prepare attachments directory
-	attachmentsDir := filepath.Join(outputDir, "attachments")
-	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create attachments directory: %w", err)
-	}
-
 	storedType := ""
-	if movie.TMDBEnrichment != nil {
-		storedType = movie.TMDBEnrichment.TMDBType
-	}
-
-	opts := enrichment.TMDBEnrichmentOptions{
-		DownloadCover:     tmdbDownloadCover,
-		GenerateContent:   tmdbGenerateContent,
-		ContentSections:   tmdbContentSections,
-		AttachmentsDir:    attachmentsDir,
-		NoteDir:           outputDir,
-		Interactive:       tmdbInteractive,
-		StoredMediaType:   storedType,
-		ExpectedMediaType: "movie",
-		UseCoverCache:     useTMDBCoverCache,
-		CoverCachePath:    tmdbCoverCachePath,
-	}
-
-	// Use context.Background() for enrichment
-	ctx := context.Background()
 	existingTMDBID := 0
 	if movie.TMDBEnrichment != nil {
+		storedType = movie.TMDBEnrichment.TMDBType
 		existingTMDBID = movie.TMDBEnrichment.TMDBID
 	}
 
-	return enrichment.EnrichFromTMDB(ctx, movie.Title, movie.Year, movie.ImdbId, existingTMDBID, opts)
+	opts := enrichment.NewTMDBOptionsBuilder(outputDir).
+		WithCover(tmdbDownloadCover).
+		WithContent(tmdbGenerateContent, tmdbContentSections).
+		WithInteractive(tmdbInteractive).
+		WithStoredType(storedType).
+		WithCoverCache(useTMDBCoverCache, tmdbCoverCachePath).
+		Build()
+
+	return enrichment.EnrichFromTMDB(context.Background(), movie.Title, movie.Year, movie.ImdbId, existingTMDBID, opts)
 }
 
 func loadExistingMediaIDs(movie *MovieSeen, directory string) {

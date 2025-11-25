@@ -3,7 +3,6 @@ package steam
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/config"
@@ -14,11 +13,6 @@ const defaultCoverWidth = 250
 
 // CreateMarkdownFile generates a markdown file for a Steam game
 func CreateMarkdownFile(game Game, details *GameDetails, directory string) error {
-	// Ensure the directory exists
-	if err := os.MkdirAll(directory, 0755); err != nil {
-		return fmt.Errorf("failed to create directory %s: %w", directory, err)
-	}
-
 	// Use the common function for file path
 	filename := fileutil.GetMarkdownFilePath(game.Name, directory)
 
@@ -183,11 +177,7 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 		return err
 	}
 
-	if !written {
-		slog.Debug("Skipped existing file", "file", filename)
-	} else {
-		slog.Info("Wrote file", "file", filename)
-	}
+	fileutil.LogFileWriteResult(written, filename)
 
 	return nil
 }

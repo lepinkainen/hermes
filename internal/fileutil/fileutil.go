@@ -88,13 +88,19 @@ func WriteMarkdownFile(filePath string, content string, overwrite bool) error {
 		return err
 	}
 
+	LogFileWriteResult(written, filePath)
+
+	return nil
+}
+
+// LogFileWriteResult logs the result of a file write operation using standardized keys.
+// This ensures consistent logging across all importers.
+func LogFileWriteResult(written bool, filePath string) {
 	if !written {
 		slog.Debug("Skipped existing file", "path", filePath)
 	} else {
 		slog.Info("Wrote file", "path", filePath)
 	}
-
-	return nil
 }
 
 // WriteJSONFile writes data as JSON to a file, respecting the overwrite flag
@@ -102,7 +108,7 @@ func WriteMarkdownFile(filePath string, content string, overwrite bool) error {
 func WriteJSONFile(data interface{}, filePath string, overwrite bool) (bool, error) {
 	// Check if file exists and we shouldn't overwrite
 	if FileExists(filePath) && !overwrite {
-		slog.Info("JSON file already exists, skipping", "filename", filePath, "overwrite", overwrite)
+		slog.Debug("Skipped existing JSON file", "path", filePath)
 		return false, nil
 	}
 
@@ -119,10 +125,10 @@ func WriteJSONFile(data interface{}, filePath string, overwrite bool) (bool, err
 	}
 
 	// Write the file
-	slog.Info("Writing JSON file", "filename", filePath, "overwrite", overwrite)
 	if err := os.WriteFile(filePath, jsonData, 0644); err != nil {
 		return false, fmt.Errorf("failed to write JSON file: %w", err)
 	}
 
+	slog.Info("Wrote JSON file", "path", filePath)
 	return true, nil
 }

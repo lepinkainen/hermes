@@ -7,10 +7,31 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lepinkainen/hermes/internal/datastore"
+	"github.com/lepinkainen/hermes/internal/cmdutil"
 	"github.com/lepinkainen/hermes/internal/errors"
 	"github.com/spf13/viper"
 )
+
+const steamGamesSchema = `CREATE TABLE IF NOT EXISTS steam_games (
+		appid INTEGER PRIMARY KEY,
+		name TEXT,
+		playtime_forever INTEGER,
+		playtime_recent INTEGER,
+		last_played TEXT,
+		details_fetched BOOLEAN,
+		description TEXT,
+		short_desc TEXT,
+		header_image TEXT,
+		screenshots TEXT,
+		developers TEXT,
+		publishers TEXT,
+		release_date TEXT,
+		coming_soon BOOLEAN,
+		categories TEXT,
+		genres TEXT,
+		metacritic_score INTEGER,
+		metacritic_url TEXT
+	)`
 
 // Convert GameDetails to map[string]any for database insertion
 func gameDetailsToMap(details GameDetails) map[string]any {
@@ -77,52 +98,8 @@ func ParseSteam() error {
 	}
 
 	// Datasette integration
-	if viper.GetBool("datasette.enabled") {
-		slog.Info("Writing Steam games to Datasette")
-
-		store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
-		if err := store.Connect(); err != nil {
-			slog.Error("Failed to connect to SQLite database", "error", err)
-			return err
-		}
-		defer func() { _ = store.Close() }()
-
-		schema := `CREATE TABLE IF NOT EXISTS steam_games (
-				appid INTEGER PRIMARY KEY,
-				name TEXT,
-				playtime_forever INTEGER,
-				playtime_recent INTEGER,
-				last_played TEXT,
-				details_fetched BOOLEAN,
-				description TEXT,
-				short_desc TEXT,
-				header_image TEXT,
-				screenshots TEXT,
-				developers TEXT,
-				publishers TEXT,
-				release_date TEXT,
-				coming_soon BOOLEAN,
-				categories TEXT,
-				genres TEXT,
-				metacritic_score INTEGER,
-				metacritic_url TEXT
-			)`
-
-		if err := store.CreateTable(schema); err != nil {
-			slog.Error("Failed to create table", "error", err)
-			return err
-		}
-
-		records := make([]map[string]any, len(processedGames))
-		for i, details := range processedGames {
-			records[i] = gameDetailsToMap(details)
-		}
-
-		if err := store.BatchInsert("hermes", "steam_games", records); err != nil {
-			slog.Error("Failed to insert records", "error", err)
-			return err
-		}
-		slog.Info("Successfully wrote games to SQLite database", "count", len(processedGames))
+	if err := cmdutil.WriteToDatastore(processedGames, steamGamesSchema, "steam_games", "Steam games", gameDetailsToMap); err != nil {
+		return err
 	}
 
 	// Write to JSON if enabled

@@ -2,9 +2,11 @@ package cmdutil
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
+	"github.com/lepinkainen/hermes/internal/datastore"
 	"github.com/spf13/viper"
 )
 
@@ -61,6 +63,42 @@ func SetupOutputDir(cfg *BaseCommandConfig) error {
 			return fmt.Errorf("failed to create JSON output directory: %w", err)
 		}
 	}
+
+	return nil
+}
+
+// WriteToDatastore writes items to the datasette SQLite database if enabled.
+// It handles connection, table creation, record conversion, and batch insertion.
+// The toMap function converts each item to a map for database insertion.
+func WriteToDatastore[T any](items []T, schema, tableName, logPrefix string, toMap func(T) map[string]any) error {
+	if !viper.GetBool("datasette.enabled") {
+		return nil
+	}
+
+	slog.Info("Writing "+logPrefix+" to Datasette", "count", len(items))
+
+	store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
+	if err := store.Connect(); err != nil {
+		slog.Error("Failed to connect to SQLite database", "error", err)
+		return err
+	}
+	defer func() { _ = store.Close() }()
+
+	if err := store.CreateTable(schema); err != nil {
+		slog.Error("Failed to create table", "error", err)
+		return err
+	}
+
+	records := make([]map[string]any, len(items))
+	for i, item := range items {
+		records[i] = toMap(item)
+	}
+
+	if err := store.BatchInsert("hermes", tableName, records); err != nil {
+		slog.Error("Failed to insert records", "error", err)
+		return err
+	}
+	slog.Info("Successfully wrote "+logPrefix+" to SQLite database", "count", len(items))
 
 	return nil
 }

@@ -40,13 +40,13 @@ func bookToMap(book Book) map[string]any {
 	}
 }
 
-func ParseGoodreads() error {
-	totalBooks, err := countBooksInCSV(csvFile)
+func ParseGoodreads(params ParseParams) error {
+	totalBooks, err := countBooksInCSV(params.CSVPath)
 	if err != nil {
 		return fmt.Errorf("failed to count books in CSV: %w", err)
 	}
 
-	books, err := loadBooksFromCSV(csvFile, totalBooks)
+	books, err := loadBooksFromCSV(params.CSVPath, totalBooks, params.OutputDir)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func ParseGoodreads() error {
 	}
 	slog.Info("Successfully processed all books", "processed", processedCount, "total", totalBooks, "percentage", percentage)
 
-	writeBooksToJSONIfEnabled(books)
+	writeBooksToJSONIfEnabled(books, params.WriteJSON, params.JSONOutput)
 
 	if err := writeBooksToDatasetteIfEnabled(books); err != nil {
 		return err

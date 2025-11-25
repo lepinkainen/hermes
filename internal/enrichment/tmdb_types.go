@@ -2,6 +2,7 @@ package enrichment
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/lepinkainen/hermes/internal/tmdb"
 )
@@ -48,6 +49,73 @@ type TMDBEnrichmentOptions struct {
 	UseCoverCache bool
 	// CoverCachePath is the directory for cached cover images
 	CoverCachePath string
+}
+
+// TMDBOptionsBuilder provides a fluent builder for TMDBEnrichmentOptions.
+// This reduces boilerplate in importers that configure TMDB enrichment.
+type TMDBOptionsBuilder struct {
+	opts TMDBEnrichmentOptions
+}
+
+// NewTMDBOptionsBuilder creates a new options builder with the given output directory.
+// It sets up AttachmentsDir as outputDir/attachments and NoteDir as outputDir.
+func NewTMDBOptionsBuilder(outputDir string) *TMDBOptionsBuilder {
+	return &TMDBOptionsBuilder{
+		opts: TMDBEnrichmentOptions{
+			AttachmentsDir:    filepath.Join(outputDir, "attachments"),
+			NoteDir:           outputDir,
+			ExpectedMediaType: "movie", // Default for most importers
+		},
+	}
+}
+
+// WithCover enables cover download.
+func (b *TMDBOptionsBuilder) WithCover(download bool) *TMDBOptionsBuilder {
+	b.opts.DownloadCover = download
+	return b
+}
+
+// WithContent enables content generation with optional sections.
+func (b *TMDBOptionsBuilder) WithContent(generate bool, sections []string) *TMDBOptionsBuilder {
+	b.opts.GenerateContent = generate
+	b.opts.ContentSections = sections
+	return b
+}
+
+// WithInteractive enables interactive TUI mode.
+func (b *TMDBOptionsBuilder) WithInteractive(interactive bool) *TMDBOptionsBuilder {
+	b.opts.Interactive = interactive
+	return b
+}
+
+// WithMoviesOnly restricts search to movies only (no TV shows).
+func (b *TMDBOptionsBuilder) WithMoviesOnly(moviesOnly bool) *TMDBOptionsBuilder {
+	b.opts.MoviesOnly = moviesOnly
+	return b
+}
+
+// WithStoredType sets the stored media type from an existing note.
+func (b *TMDBOptionsBuilder) WithStoredType(storedType string) *TMDBOptionsBuilder {
+	b.opts.StoredMediaType = storedType
+	return b
+}
+
+// WithExpectedType sets the expected media type hint.
+func (b *TMDBOptionsBuilder) WithExpectedType(expectedType string) *TMDBOptionsBuilder {
+	b.opts.ExpectedMediaType = expectedType
+	return b
+}
+
+// WithCoverCache enables the cover cache.
+func (b *TMDBOptionsBuilder) WithCoverCache(enabled bool, cachePath string) *TMDBOptionsBuilder {
+	b.opts.UseCoverCache = enabled
+	b.opts.CoverCachePath = cachePath
+	return b
+}
+
+// Build returns the configured options.
+func (b *TMDBOptionsBuilder) Build() TMDBEnrichmentOptions {
+	return b.opts
 }
 
 // TMDBEnrichment holds TMDB enrichment data.

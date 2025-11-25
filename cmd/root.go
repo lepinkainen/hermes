@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/lepinkainen/hermes/cmd/enhance"
@@ -60,10 +61,16 @@ type ImportCmd struct {
 
 // GoodreadsCmd represents the goodreads import command
 type GoodreadsCmd struct {
-	Input      string `short:"f" help:"Path to Goodreads library export CSV file"`
-	Output     string `short:"o" help:"Subdirectory under markdown output directory for Goodreads files" default:"goodreads"`
-	JSON       bool   `help:"Write data to JSON format"`
-	JSONOutput string `help:"Path to JSON output file (defaults to json/goodreads.json)"`
+	Input             string        `short:"f" help:"Path to Goodreads library export CSV file"`
+	Output            string        `short:"o" help:"Subdirectory under markdown output directory for Goodreads files" default:"goodreads"`
+	JSON              bool          `help:"Write data to JSON format"`
+	JSONOutput        string        `help:"Path to JSON output file (defaults to json/goodreads.json)"`
+	Automated         bool          `help:"Automatically download Goodreads export via browser automation"`
+	GoodreadsEmail    string        `help:"Goodreads account email for automation"`
+	GoodreadsPassword string        `help:"Goodreads account password for automation"`
+	Headful           bool          `help:"Run automation with a visible browser window (default is headless)"`
+	DownloadDir       string        `help:"Directory for automated Goodreads export download (defaults to exports/)"`
+	AutomationTimeout time.Duration `help:"Timeout for Goodreads automation flow" default:"3m"`
 }
 
 // IMDBCmd represents the imdb import command
@@ -163,10 +170,23 @@ func initConfig() {
 	viper.SetDefault("cache.dbfile", "./cache.db")
 	viper.SetDefault("cache.ttl", "720h") // 30 days
 
+	// Goodreads automation defaults
+	viper.SetDefault("goodreads.automation.timeout", "3m")
+	viper.SetDefault("goodreads.automation.download_dir", "exports")
+
 	// Enable environment variable support
 	viper.AutomaticEnv()
 	// Bind specific environment variables to config keys
 	if err := viper.BindEnv("TMDBAPIKey", "TMDB_API_KEY"); err != nil {
+		slog.Error("Failed to bind environment variable", "error", err)
+	}
+	if err := viper.BindEnv("goodreads.automation.headful", "GOODREADS_HEADFUL"); err != nil {
+		slog.Error("Failed to bind environment variable", "error", err)
+	}
+	if err := viper.BindEnv("goodreads.automation.download_dir", "GOODREADS_DOWNLOAD_DIR"); err != nil {
+		slog.Error("Failed to bind environment variable", "error", err)
+	}
+	if err := viper.BindEnv("goodreads.automation.timeout", "GOODREADS_AUTOMATION_TIMEOUT"); err != nil {
 		slog.Error("Failed to bind environment variable", "error", err)
 	}
 
@@ -214,16 +234,62 @@ func updateGlobalConfig(cli *CLI) {
 func (g *GoodreadsCmd) Run() error {
 	// Read from config if value not provided via flag
 	input := g.Input
-	if input == "" {
+	if input == "" && !g.Automated {
 		input = viper.GetString("goodreads.csvfile")
 	}
 
-	// Check if required value is still missing
-	if input == "" {
+	automationTimeout := g.AutomationTimeout
+	if automationTimeout == 0 {
+		automationTimeout = viper.GetDuration("goodreads.automation.timeout")
+		if automationTimeout == 0 {
+			automationTimeout = 3 * time.Minute
+		}
+	}
+
+	headful := g.Headful
+	if !headful && viper.IsSet("goodreads.automation.headful") {
+		headful = viper.GetBool("goodreads.automation.headful")
+	}
+
+	downloadDir := g.DownloadDir
+	if downloadDir == "" {
+		downloadDir = viper.GetString("goodreads.automation.download_dir")
+	}
+
+	email := g.GoodreadsEmail
+	if email == "" {
+		email = viper.GetString("goodreads.automation.email")
+	}
+	password := g.GoodreadsPassword
+	if password == "" {
+		password = viper.GetString("goodreads.automation.password")
+	}
+
+	// Check if required value is still missing when not automated
+	if input == "" && !g.Automated {
 		return fmt.Errorf("input CSV file is required (provide via --input flag or goodreads.csvfile in config)")
 	}
 
-	return parseGoodreads(input, g.Output, g.JSON, g.JSONOutput, false)
+	params := goodreads.ParseParams{
+		CSVPath:    input,
+		OutputDir:  g.Output,
+		JSONOutput: g.JSONOutput,
+		WriteJSON:  g.JSON,
+		Automated:  g.Automated,
+		AutomationOptions: goodreads.AutomationOptions{
+			Email:       email,
+			Password:    password,
+			DownloadDir: downloadDir,
+			Headless:    !headful,
+			Timeout:     automationTimeout,
+		},
+	}
+
+	if params.Automated && (params.AutomationOptions.Email == "" || params.AutomationOptions.Password == "") {
+		return fmt.Errorf("goodreads automation requires email and password (use flags, environment variables, or config)")
+	}
+
+	return parseGoodreads(params)
 }
 
 func (i *IMDBCmd) Run() error {

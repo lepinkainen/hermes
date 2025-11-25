@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func loadBooksFromCSV(filePath string, totalBooks int) ([]Book, error) {
+func loadBooksFromCSV(filePath string, totalBooks int, outputDir string) ([]Book, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open CSV file: %w", err)
@@ -20,6 +20,11 @@ func loadBooksFromCSV(filePath string, totalBooks int) ([]Book, error) {
 	reader := csv.NewReader(file)
 	if _, err := reader.Read(); err != nil {
 		return nil, fmt.Errorf("failed to read CSV header: %w", err)
+	}
+
+	// Create output directory once before processing
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create output directory %s: %w", outputDir, err)
 	}
 
 	var books []Book

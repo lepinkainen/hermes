@@ -47,6 +47,12 @@ The importer enriches the basic Goodreads data with additional information from 
 ./hermes import goodreads --input path/to/goodreads_export.csv
 ```
 
+To fetch the export automatically (no manual CSV download):
+
+```bash
+./hermes import goodreads --automated --goodreads-email "$GOODREADS_EMAIL" --goodreads-password "$GOODREADS_PASSWORD"
+```
+
 ### Configuration
 
 In your `config.yml` (or `config.yaml`) file:
@@ -57,7 +63,15 @@ goodreads:
   output:
     markdown: "./markdown/books"
     json: "./json/books"
+  automation:
+    email: "user@example.com"
+    password: "your-password"
+    download_dir: "exports"
+    headful: false
+    timeout: "3m"
 ```
+
+The automation flow reads the email and password directly from `config.yml` (or CLI flags). Configure `goodreads.automation.email` and `goodreads.automation.password` before running `--automated`.
 
 ### Command-Line Options
 
@@ -65,7 +79,20 @@ goodreads:
 - `--output-dir`: Directory for Markdown output (default: `./markdown/goodreads`)
 - `--write-json`: Enable JSON output
 - `--json-output`: Path for JSON output file (default: `./json/goodreads.json`)
+- `--automated`: Trigger browser automation and skip the manual `--input` requirement
+- `--goodreads-email` / `--goodreads-password`: Credentials used by automation (env/config supported)
+- `--headful`: Open Chrome instead of running headless (default: headless)
+- `--download-dir`: Directory for the automated CSV download (default: `exports/`)
+- `--automation-timeout`: How long to wait for Goodreads to generate the export (default: 3m)
 - `--overwrite`: Overwrite existing files (default: false)
+
+### Automated Export
+
+- Requires a local Chrome/Chromium installation accessible to `chromedp`
+- Headless by default; use `--headful` when debugging selectors or authentication
+- Downloads to `exports/goodreads_library_export.csv` unless `--download-dir` overrides it
+- Credentials should be supplied via environment variables to avoid storing passwords in config files
+- Increase `--automation-timeout` if Goodreads is slow to queue the export
 
 ## Output Format
 

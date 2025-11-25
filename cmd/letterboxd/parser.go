@@ -9,17 +9,32 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/cmdutil"
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/csvutil"
-	"github.com/lepinkainen/hermes/internal/datastore"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/errors"
 	"github.com/lepinkainen/hermes/internal/fileutil"
 	"github.com/lepinkainen/hermes/internal/importer/enrich"
 	"github.com/lepinkainen/hermes/internal/importer/mediaids"
 	"github.com/lepinkainen/hermes/internal/omdb"
-	"github.com/spf13/viper"
 )
+
+const letterboxdMoviesSchema = `CREATE TABLE IF NOT EXISTS letterboxd_movies (
+		date TEXT,
+		name TEXT,
+		year INTEGER,
+		letterboxd_id TEXT PRIMARY KEY,
+		letterboxd_uri TEXT,
+		imdb_id TEXT,
+		director TEXT,
+		cast TEXT,
+		genres TEXT,
+		runtime INTEGER,
+		rating REAL,
+		poster_url TEXT,
+		description TEXT
+	)`
 
 // Convert Movie to map[string]any for database insertion
 func movieToMap(movie Movie) map[string]any {
@@ -53,6 +68,15 @@ func ParseLetterboxd() error {
 	// Log the config at startup
 	slog.Info("Starting Letterboxd parser", "overwrite", overwrite)
 
+	// Create output directories once before processing
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+	attachmentsDir := filepath.Join(outputDir, "attachments")
+	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create attachments directory: %w", err)
+	}
+
 	// Open and process CSV file
 	movies, err := processCSVFile(csvFile)
 	if err != nil {
@@ -78,47 +102,8 @@ func ParseLetterboxd() error {
 	}
 
 	// Datasette integration
-	if viper.GetBool("datasette.enabled") {
-		slog.Info("Writing Letterboxd movies to Datasette")
-
-		store := datastore.NewSQLiteStore(viper.GetString("datasette.dbfile"))
-		if err := store.Connect(); err != nil {
-			slog.Error("Failed to connect to SQLite database", "error", err)
-			return err
-		}
-		defer func() { _ = store.Close() }()
-
-		schema := `CREATE TABLE IF NOT EXISTS letterboxd_movies (
-				date TEXT,
-				name TEXT,
-				year INTEGER,
-				letterboxd_id TEXT PRIMARY KEY,
-				letterboxd_uri TEXT,
-				imdb_id TEXT,
-				director TEXT,
-				cast TEXT,
-				genres TEXT,
-				runtime INTEGER,
-				rating REAL,
-				poster_url TEXT,
-				description TEXT
-			)`
-
-		if err := store.CreateTable(schema); err != nil {
-			slog.Error("Failed to create table", "error", err)
-			return err
-		}
-
-		records := make([]map[string]any, len(movies))
-		for i, movie := range movies {
-			records[i] = movieToMap(movie)
-		}
-
-		if err := store.BatchInsert("hermes", "letterboxd_movies", records); err != nil {
-			slog.Error("Failed to insert records", "error", err)
-			return err
-		}
-		slog.Info("Successfully wrote movies to SQLite database", "count", len(movies))
+	if err := cmdutil.WriteToDatastore(movies, letterboxdMoviesSchema, "letterboxd_movies", "Letterboxd movies", movieToMap); err != nil {
+		return err
 	}
 
 	slog.Info("Processed movies", "count", len(movies))
@@ -153,7 +138,7 @@ func parseMovieRecord(record []string) (Movie, error) {
 	// Parse year
 	year, err := strconv.Atoi(record[2])
 	if err != nil {
-		slog.Warn("Invalid year", "movie", movieName, "year", record[2])
+		slog.Warn("Invalid year", "title", movieName, "year", record[2])
 		if !skipInvalid {
 			return Movie{}, fmt.Errorf("invalid year: %s", record[2])
 		}
@@ -186,10 +171,10 @@ func writeMoviesToJSON(movies []Movie, jsonOutput string) error {
 		if err := enrichMovieData(&movies[i]); err != nil {
 			if errors.IsRateLimitError(err) {
 				omdb.MarkRateLimitReached()
-				slog.Warn("Skipping OMDB enrichment after rate limit", "movie", movies[i].Name)
+				slog.Warn("Skipping OMDB enrichment after rate limit", "title", movies[i].Name)
 				continue
 			}
-			slog.Warn("Failed to enrich movie for JSON", "movie", movies[i].Name, "error", err)
+			slog.Warn("Failed to enrich movie for JSON", "title", movies[i].Name, "error", err)
 			// Continue processing even if enrichment fails for other errors
 		}
 	}
@@ -228,11 +213,11 @@ func enrichMovieData(movie *Movie) error {
 			}
 		},
 		OnOMDBError: func(err error) {
-			slog.Warn("Failed to enrich from OMDB", "movie", movie.Name, "error", err)
+			slog.Warn("Failed to enrich from OMDB", "title", movie.Name, "error", err)
 		},
 		OnOMDBRateLimit: func(error) {
 			omdb.MarkRateLimitReached()
-			slog.Warn("Skipping OMDB enrichment after rate limit", "movie", movie.Name)
+			slog.Warn("Skipping OMDB enrichment after rate limit", "title", movie.Name)
 		},
 		TMDBEnabled: tmdbEnabled,
 		FetchTMDB: func() (*enrichment.TMDBEnrichment, error) {
@@ -242,16 +227,16 @@ func enrichMovieData(movie *Movie) error {
 			target.TMDBEnrichment = tmdbEnrichment
 
 			if tmdbEnrichment.RuntimeMins > 0 && target.Runtime == 0 {
-				slog.Debug("Using TMDB runtime", "movie", target.Name, "omdb_runtime", target.Runtime, "tmdb_runtime", tmdbEnrichment.RuntimeMins)
+				slog.Debug("Using TMDB runtime", "title", target.Name, "omdb_runtime", target.Runtime, "tmdb_runtime", tmdbEnrichment.RuntimeMins)
 				target.Runtime = tmdbEnrichment.RuntimeMins
 			}
 
 			if tmdbEnrichment.CoverPath != "" || tmdbEnrichment.CoverFilename != "" {
-				slog.Debug("Using TMDB cover (higher resolution)", "movie", target.Name)
+				slog.Debug("Using TMDB cover (higher resolution)", "title", target.Name)
 			}
 		},
 		OnTMDBError: func(err error) {
-			slog.Warn("Failed to enrich from TMDB", "movie", movie.Name, "error", err)
+			slog.Warn("Failed to enrich from TMDB", "title", movie.Name, "error", err)
 		},
 	})
 
@@ -260,44 +245,29 @@ func enrichMovieData(movie *Movie) error {
 
 // enrichFromTMDB enriches a movie with TMDB data
 func enrichFromTMDB(movie *Movie) (*enrichment.TMDBEnrichment, error) {
-	// Prepare attachments directory
-	attachmentsDir := filepath.Join(outputDir, "attachments")
-	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create attachments directory: %w", err)
-	}
-
 	storedType := ""
-	if movie.TMDBEnrichment != nil {
-		storedType = movie.TMDBEnrichment.TMDBType
-	}
-
-	opts := enrichment.TMDBEnrichmentOptions{
-		DownloadCover:     tmdbDownloadCover,
-		GenerateContent:   tmdbGenerateContent,
-		ContentSections:   tmdbContentSections,
-		AttachmentsDir:    attachmentsDir,
-		NoteDir:           outputDir,
-		Interactive:       tmdbInteractive,
-		MoviesOnly:        true, // Letterboxd only catalogs movies, not TV shows
-		StoredMediaType:   storedType,
-		ExpectedMediaType: "movie",
-		UseCoverCache:     useTMDBCoverCache,
-		CoverCachePath:    tmdbCoverCachePath,
-	}
-
-	// Use context.Background() for enrichment
 	existingTMDBID := 0
 	if movie.TMDBEnrichment != nil {
+		storedType = movie.TMDBEnrichment.TMDBType
 		existingTMDBID = movie.TMDBEnrichment.TMDBID
 	}
-	ctx := context.Background()
-	return enrichment.EnrichFromTMDB(ctx, movie.Name, movie.Year, movie.ImdbID, existingTMDBID, opts)
+
+	opts := enrichment.NewTMDBOptionsBuilder(outputDir).
+		WithCover(tmdbDownloadCover).
+		WithContent(tmdbGenerateContent, tmdbContentSections).
+		WithInteractive(tmdbInteractive).
+		WithMoviesOnly(true). // Letterboxd only catalogs movies, not TV shows
+		WithStoredType(storedType).
+		WithCoverCache(useTMDBCoverCache, tmdbCoverCachePath).
+		Build()
+
+	return enrichment.EnrichFromTMDB(context.Background(), movie.Name, movie.Year, movie.ImdbID, existingTMDBID, opts)
 }
 
 // writeMoviesToMarkdown writes each movie to a markdown file
 func writeMoviesToMarkdown(movies []Movie, directory string) error {
 	for i := range movies {
-		slog.Info("Processing movie", "name", movies[i].Name)
+		slog.Info("Processing movie", "title", movies[i].Name)
 
 		// If a TMDB ID already exists in the note, reuse it instead of searching
 		loadExistingTMDBID(&movies[i], directory)
@@ -310,10 +280,10 @@ func writeMoviesToMarkdown(movies []Movie, directory string) error {
 				}
 				if errors.IsRateLimitError(err) {
 					omdb.MarkRateLimitReached()
-					slog.Warn("Skipping OMDB enrichment after rate limit", "movie", movies[i].Name)
+					slog.Warn("Skipping OMDB enrichment after rate limit", "title", movies[i].Name)
 					// Continue writing without enrichment
 				} else {
-					slog.Warn("Failed to enrich movie", "movie", movies[i].Name, "error", err)
+					slog.Warn("Failed to enrich movie", "title", movies[i].Name, "error", err)
 					// Continue processing even if enrichment fails for other errors
 				}
 			}
@@ -321,11 +291,11 @@ func writeMoviesToMarkdown(movies []Movie, directory string) error {
 
 		err := writeMovieToMarkdown(movies[i], directory)
 		if err != nil {
-			slog.Error("Failed to write markdown", "movie", movies[i].Name, "error", err)
+			slog.Error("Failed to write markdown", "title", movies[i].Name, "error", err)
 			// Continue with other movies on error
 			continue
 		}
-		slog.Debug("Wrote movie to markdown file", "movie", movies[i].Name)
+		slog.Debug("Wrote movie to markdown file", "title", movies[i].Name)
 	}
 	return nil
 }

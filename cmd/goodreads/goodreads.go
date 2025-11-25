@@ -46,7 +46,7 @@ func enrichBookFromOpenLibrary(book *Book) error {
 
 		// Extract subjects and subject people
 		book.Subjects = getSubjects(olBook.Subjects)
-		book.SubjectPeople = getSubjectPeople(olBook.SubjectPeople)
+		book.SubjectPeople = getSubjects(olBook.SubjectPeople)
 
 		// Try to get additional edition data if we don't have page count
 		if book.NumberOfPages == 0 {

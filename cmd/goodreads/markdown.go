@@ -3,7 +3,6 @@ package goodreads
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"regexp"
 	"strings"
 
@@ -14,11 +13,6 @@ import (
 const defaultCoverWidth = 250
 
 func writeBookToMarkdown(book Book, directory string) error {
-	// Ensure the directory exists
-	if err := os.MkdirAll(directory, 0755); err != nil {
-		return fmt.Errorf("failed to create directory %s: %w", directory, err)
-	}
-
 	filePath := fileutil.GetMarkdownFilePath(book.Title, directory)
 
 	// Use the MarkdownBuilder to construct the document
@@ -173,11 +167,7 @@ func writeBookToMarkdown(book Book, directory string) error {
 		return err
 	}
 
-	if !written {
-		slog.Debug("Skipped existing file", "path", filePath)
-	} else {
-		slog.Info("Wrote file", "path", filePath)
-	}
+	fileutil.LogFileWriteResult(written, filePath)
 
 	return nil
 }

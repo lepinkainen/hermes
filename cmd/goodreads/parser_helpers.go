@@ -42,19 +42,3 @@ func getSubjects(subjects []any) []string {
 	}
 	return result
 }
-
-// Helper function for subject people
-func getSubjectPeople(subjects []any) []string {
-	result := make([]string, 0)
-	for _, subject := range subjects {
-		switch v := subject.(type) {
-		case string:
-			result = append(result, v)
-		case map[string]any:
-			if name, ok := v["name"].(string); ok {
-				result = append(result, name)
-			}
-		}
-	}
-	return result
-}

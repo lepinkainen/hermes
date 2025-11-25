@@ -75,11 +75,11 @@ func TestGoodreadsRunUsesConfigFallback(t *testing.T) {
 
 	called := false
 	orig := parseGoodreads
-	parseGoodreads = func(input, output string, json bool, jsonOutput string, overwrite bool) error {
+	parseGoodreads = func(params goodreads.ParseParams) error {
 		called = true
-		assert.Equal(t, "config.csv", input)
-		assert.Equal(t, "goodreads", output)
-		assert.False(t, overwrite)
+		assert.Equal(t, "config.csv", params.CSVPath)
+		assert.Equal(t, "goodreads", params.OutputDir)
+		assert.False(t, params.Automated)
 		return nil
 	}
 	t.Cleanup(func() { parseGoodreads = orig })
@@ -97,7 +97,7 @@ func TestGoodreadsRunUsesConfigFallback(t *testing.T) {
 func TestImportCommandsRequireInput(t *testing.T) {
 	resetCmdState(t)
 
-	parseGoodreads = func(_, _ string, _ bool, _ string, _ bool) error {
+	parseGoodreads = func(_ goodreads.ParseParams) error {
 		t.Fatalf("goodreads parser should not be called")
 		return nil
 	}
