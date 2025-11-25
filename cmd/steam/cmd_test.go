@@ -5,10 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/lepinkainen/hermes/internal/testutil"
 )
 
 func TestParseSteamWithParams(t *testing.T) {
-	dir := t.TempDir()
+	env := testutil.NewTestEnv(t)
+	dir := env.RootDir()
 	parseSteamFunc = func() error {
 		if steamID != "123" || apiKey != "key" {
 			t.Fatalf("steamID/apiKey not set")
