@@ -436,7 +436,8 @@ func (i *InvalidateCacheCmd) Run() error {
 func initLogging() {
 	// Create a human-readable handler for logging
 	handler := humanlog.NewHandler(os.Stdout, &humanlog.Options{
-		Level: slog.LevelInfo,
+		Level:      slog.LevelInfo,
+		TimeFormat: "2006-01-02 15:04:05", // Include date and time
 	})
 
 	// Set the default logger

@@ -11,7 +11,7 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327
 	github.com/chromedp/chromedp v0.14.2
 	github.com/disintegration/imaging v1.6.2
-	github.com/lepinkainen/humanlog v0.1.0
+	github.com/lepinkainen/humanlog v0.2.0
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	gopkg.in/yaml.v3 v3.0.1

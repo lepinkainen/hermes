@@ -58,8 +58,8 @@ github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/ledongthuc/pdf v0.0.0-20220302134840-0c2507a12d80 h1:6Yzfa6GP0rIo/kULo2bwGEkFvCePZ3qHDDTC3/J9Swo=
 github.com/ledongthuc/pdf v0.0.0-20220302134840-0c2507a12d80/go.mod h1:imJHygn/1yfhB7XSJJKlFZKl/J+dCPAknuiaGOshXAs=
-github.com/lepinkainen/humanlog v0.1.0 h1:PsA1z9G4vSRLAYsUNvcURjjHQM4qQlOx8tWd/h3xxEI=
-github.com/lepinkainen/humanlog v0.1.0/go.mod h1:x1PVckcIy3COuto0ZE4G1O/Iz1srdEJb6WcI394GJxk=
+github.com/lepinkainen/humanlog v0.2.0 h1:FhnX2fUAktPhdbYB6F7WblhQhSTD0Phdmsife3MYuqw=
+github.com/lepinkainen/humanlog v0.2.0/go.mod h1:x1PVckcIy3COuto0ZE4G1O/Iz1srdEJb6WcI394GJxk=
 github.com/lucasb-eyer/go-colorful v1.2.0 h1:1nnpGOrhyZZuNyfu1QjKiUICQ74+3FNCN69Aj6K7nkY=
 github.com/lucasb-eyer/go-colorful v1.2.0/go.mod h1:R4dSotOR9KMtayYi1e77YzuveK+i7ruzyGqttikkLy0=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
