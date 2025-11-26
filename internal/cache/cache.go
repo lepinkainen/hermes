@@ -166,6 +166,13 @@ func GetOrFetchWithPolicy[T any](tableName, cacheKey string, fetchFunc FetchFunc
 	return getOrFetchWithPolicy(tableName, cacheKey, fetchFunc, shouldCache)
 }
 
+// GetOrFetchWithTTL retrieves data from cache or fetches it using the provided function, with a custom TTL.
+// This is useful for negative caching where you want to cache "not found" responses with a shorter TTL.
+// The ttlSelector function is called after fetching to determine which TTL to use for caching.
+func GetOrFetchWithTTL[T any](tableName, cacheKey string, fetchFunc FetchFunc[T], ttlSelector func(T) time.Duration) (T, bool, error) {
+	return getOrFetchWithTTLSelector(tableName, cacheKey, fetchFunc, ttlSelector)
+}
+
 func getOrFetchWithPolicy[T any](tableName, cacheKey string, fetchFunc FetchFunc[T], shouldCache func(T) bool) (T, bool, error) {
 	var zero T
 
@@ -221,6 +228,69 @@ func getOrFetchWithPolicy[T any](tableName, cacheKey string, fetchFunc FetchFunc
 			slog.Warn("Failed to cache data", "table", tableName, "key", cacheKey, "error", err)
 		} else {
 			slog.Debug("Data cached successfully", "table", tableName, "key", cacheKey)
+		}
+	}
+
+	return data, false, nil
+}
+
+func getOrFetchWithTTLSelector[T any](tableName, cacheKey string, fetchFunc FetchFunc[T], ttlSelector func(T) time.Duration) (T, bool, error) {
+	var zero T
+
+	cache, err := GetGlobalCache()
+	if err != nil {
+		// If cache initialization fails, fall back to direct fetch
+		slog.Warn("Failed to initialize cache, fetching directly", "error", err)
+		data, fetchErr := fetchFunc()
+		return data, false, fetchErr
+	}
+
+	// Get default TTL from config for cache lookups
+	ttlStr := viper.GetString("cache.ttl")
+	if ttlStr == "" {
+		ttlStr = "720h" // Default 30 days
+	}
+	defaultTTL, err := time.ParseDuration(ttlStr)
+	if err != nil {
+		slog.Warn("Invalid cache TTL, using default", "ttl", ttlStr, "error", err)
+		defaultTTL = 720 * time.Hour
+	}
+
+	// Check cache first (use maximum TTL for lookup to find both short and long-lived entries)
+	maxTTL := defaultTTL
+	cached, fromCache, err := cache.Get(tableName, cacheKey, maxTTL)
+	if err == nil && fromCache {
+		var result T
+		if err := json.Unmarshal([]byte(cached), &result); err == nil {
+			slog.Debug("Cache hit", "table", tableName, "key", cacheKey)
+			return result, true, nil
+		}
+		slog.Warn("Failed to unmarshal cached data, will refetch", "table", tableName, "key", cacheKey, "error", err)
+	}
+
+	// Fetch from external source if not in cache
+	slog.Debug("Cache miss, fetching data", "table", tableName, "key", cacheKey)
+	data, err := fetchFunc()
+	if err != nil {
+		return zero, false, fmt.Errorf("failed to fetch data: %w", err)
+	}
+
+	// Determine TTL based on the fetched data
+	selectedTTL := defaultTTL
+	if ttlSelector != nil {
+		selectedTTL = ttlSelector(data)
+	}
+
+	// Cache the result with selected TTL
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		slog.Warn("Failed to marshal data for caching", "table", tableName, "key", cacheKey, "error", err)
+	} else {
+		if err := cache.Set(tableName, cacheKey, string(jsonData)); err != nil {
+			// Log error but don't fail - caching failure shouldn't stop the process
+			slog.Warn("Failed to cache data", "table", tableName, "key", cacheKey, "error", err)
+		} else {
+			slog.Debug("Data cached successfully", "table", tableName, "key", cacheKey, "ttl", selectedTTL)
 		}
 	}
 

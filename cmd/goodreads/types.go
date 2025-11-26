@@ -168,3 +168,15 @@ type GoogleBooksResponse struct {
 	TotalItems int               `json:"totalItems"`
 	Items      []GoogleBooksBook `json:"items"`
 }
+
+// CachedOpenLibraryBook wraps OpenLibraryBook with metadata for negative caching
+type CachedOpenLibraryBook struct {
+	Book     *OpenLibraryBook `json:"book"`
+	NotFound bool             `json:"not_found"`
+}
+
+// CachedGoogleBooksBook wraps GoogleBooksBook with metadata for negative caching
+type CachedGoogleBooksBook struct {
+	Book     *GoogleBooksBook `json:"book"`
+	NotFound bool             `json:"not_found"`
+}

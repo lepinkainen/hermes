@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lepinkainen/hermes/internal/cache"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
 
@@ -221,6 +223,7 @@ func TestEnrichBookFromGoogleBooksDataMerge(t *testing.T) {
 	// Mock Google Books to return different data
 	mux := http.NewServeMux()
 	mux.HandleFunc("/volumes", func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("HTTP handler called for data merge test: %s", r.URL.String())
 		response := `{
 			"totalItems": 1,
 			"items": [{
@@ -239,11 +242,17 @@ func TestEnrichBookFromGoogleBooksDataMerge(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
+	// Use a temporary cache database for this test
+	tmpDB := t.TempDir() + "/test_cache.db"
+	viper.Set("cache.dbfile", tmpDB)
+
 	t.Cleanup(func() {
 		googleBooksHTTPClient = nil
 		googleBooksClientOnce = sync.Once{}
 		googleBooksHTTPClientNew = func() *http.Client { return &http.Client{Timeout: 10 * time.Second} }
 		googleBooksBaseURL = "https://www.googleapis.com/books/v1"
+		_ = cache.ResetGlobalCache()
+		viper.Set("cache.dbfile", "./cache.db")
 	})
 
 	googleBooksClientOnce = sync.Once{}
@@ -251,7 +260,13 @@ func TestEnrichBookFromGoogleBooksDataMerge(t *testing.T) {
 	googleBooksHTTPClientNew = func() *http.Client { return server.Client() }
 	googleBooksBaseURL = server.URL
 
+	// Reset cache before test to ensure fresh start
+	_ = cache.ResetGlobalCache()
+
+	t.Logf("About to call enrichBookFromGoogleBooks with ISBN13: %s", book.ISBN13)
 	err := enrichBookFromGoogleBooks(book)
+	t.Logf("enrichBookFromGoogleBooks returned error: %v", err)
+	t.Logf("Book subtitle after enrichment: %s", book.Subtitle)
 	require.NoError(t, err)
 
 	// Verify OpenLibrary data is preserved

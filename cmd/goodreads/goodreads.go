@@ -2,6 +2,7 @@ package goodreads
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 )
 
@@ -87,8 +88,16 @@ func enrichBookFromGoogleBooks(book *Book) error {
 
 	// Try cache first
 	googleBook, cacheHit, err := getCachedGoogleBook(searchISBN)
+	slog.Debug("Google Books enrichment", "isbn", searchISBN, "cache_hit", cacheHit, "error", err, "book_nil", googleBook == nil)
 	if err != nil {
+		// If book not found, just return without error (nothing to enrich with)
 		return fmt.Errorf("failed to get Google Books data: %w", err)
+	}
+
+	// If googleBook is nil (shouldn't happen given the error check above, but be defensive)
+	if googleBook == nil {
+		slog.Debug("Google Books returned nil, skipping enrichment", "isbn", searchISBN)
+		return nil
 	}
 
 	// Only fill in empty fields - never overwrite existing data
