@@ -113,6 +113,21 @@ func (c *CacheDB) Close() error {
 	return nil
 }
 
+// QueryRow executes a query that returns at most one row
+func (c *CacheDB) QueryRow(query string, args ...any) *sql.Row {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.db.QueryRow(query, args...)
+}
+
+// Exec executes a query without returning any rows
+func (c *CacheDB) Exec(query string, args ...any) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	_, err := c.db.Exec(query, args...)
+	return err
+}
+
 // InvalidateSource deletes all entries from the specified cache table
 // tableName must be one of the valid cache table names (e.g., "tmdb_cache", "omdb_cache")
 // Returns the number of rows deleted

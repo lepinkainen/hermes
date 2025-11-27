@@ -1,8 +1,13 @@
 package letterboxd
 
 import (
+	"context"
+	"time"
+
 	"github.com/lepinkainen/hermes/internal/cmdutil"
 )
+
+const defaultAutomationTimeout = 3 * time.Minute
 
 // Define package-level variables for flags
 var (
@@ -27,6 +32,12 @@ var (
 )
 
 var parseLetterboxdFunc = ParseLetterboxd
+var downloadLetterboxdCSV = downloadLetterboxdZip
+
+// DownloadLetterboxdCSV wraps the automation function for use by root.go
+func DownloadLetterboxdCSV(ctx context.Context, opts AutomationOptions) (string, error) {
+	return downloadLetterboxdCSV(ctx, opts)
+}
 
 // ParseLetterboxdWithParams allows calling letterboxd parsing with specific parameters
 // This is used by the Kong-based CLI implementation

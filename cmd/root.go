@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -100,6 +101,14 @@ type LetterboxdCmd struct {
 	TMDBGenerateContent bool     `help:"Generate TMDB content sections" default:"false"`
 	TMDBNoInteractive   bool     `help:"Disable interactive TUI for TMDB selection (auto-select first result)" default:"false"`
 	TMDBContentSections []string `help:"Specific TMDB content sections to generate (empty = all)"`
+	// Automation options
+	Automated          bool          `help:"Automatically download Letterboxd export"`
+	LetterboxdUsername string        `help:"Letterboxd account username"`
+	LetterboxdPassword string        `help:"Letterboxd account password"`
+	Headful            bool          `help:"Show browser window during automation"`
+	DownloadDir        string        `help:"Directory for downloaded exports" default:"exports"`
+	AutomationTimeout  time.Duration `help:"Timeout for automation process" default:"3m"`
+	DryRun             bool          `help:"Run automation without importing (testing)"`
 }
 
 // SteamCmd represents the steam import command
@@ -175,6 +184,10 @@ func initConfig() {
 	viper.SetDefault("goodreads.automation.timeout", "3m")
 	viper.SetDefault("goodreads.automation.download_dir", "exports")
 
+	// Letterboxd automation defaults
+	viper.SetDefault("letterboxd.automation.timeout", "3m")
+	viper.SetDefault("letterboxd.automation.download_dir", "exports")
+
 	// Enable environment variable support
 	viper.AutomaticEnv()
 	// Bind specific environment variables to config keys
@@ -188,6 +201,21 @@ func initConfig() {
 		slog.Error("Failed to bind environment variable", "error", err)
 	}
 	if err := viper.BindEnv("goodreads.automation.timeout", "GOODREADS_AUTOMATION_TIMEOUT"); err != nil {
+		slog.Error("Failed to bind environment variable", "error", err)
+	}
+	if err := viper.BindEnv("letterboxd.automation.username", "LETTERBOXD_USERNAME"); err != nil {
+		slog.Error("Failed to bind environment variable", "error", err)
+	}
+	if err := viper.BindEnv("letterboxd.automation.password", "LETTERBOXD_PASSWORD"); err != nil {
+		slog.Error("Failed to bind environment variable", "error", err)
+	}
+	if err := viper.BindEnv("letterboxd.automation.headful", "LETTERBOXD_HEADFUL"); err != nil {
+		slog.Error("Failed to bind environment variable", "error", err)
+	}
+	if err := viper.BindEnv("letterboxd.automation.download_dir", "LETTERBOXD_DOWNLOAD_DIR"); err != nil {
+		slog.Error("Failed to bind environment variable", "error", err)
+	}
+	if err := viper.BindEnv("letterboxd.automation.timeout", "LETTERBOXD_AUTOMATION_TIMEOUT"); err != nil {
 		slog.Error("Failed to bind environment variable", "error", err)
 	}
 
@@ -325,13 +353,70 @@ func (i *IMDBCmd) Run() error {
 func (l *LetterboxdCmd) Run() error {
 	// Read from config if value not provided via flag
 	input := l.Input
-	if input == "" {
+	if input == "" && !l.Automated {
 		input = viper.GetString("letterboxd.csvfile")
 	}
 
-	// Check if required value is still missing
-	if input == "" {
+	automationTimeout := l.AutomationTimeout
+	if automationTimeout == 0 {
+		automationTimeout = viper.GetDuration("letterboxd.automation.timeout")
+		if automationTimeout == 0 {
+			automationTimeout = 3 * time.Minute
+		}
+	}
+
+	headful := l.Headful
+	if !headful && viper.IsSet("letterboxd.automation.headful") {
+		headful = viper.GetBool("letterboxd.automation.headful")
+	}
+
+	downloadDir := l.DownloadDir
+	if downloadDir == "" {
+		downloadDir = viper.GetString("letterboxd.automation.download_dir")
+	}
+
+	username := l.LetterboxdUsername
+	if username == "" {
+		username = viper.GetString("letterboxd.automation.username")
+	}
+	password := l.LetterboxdPassword
+	if password == "" {
+		password = viper.GetString("letterboxd.automation.password")
+	}
+
+	// Check if required value is still missing when not automated
+	if input == "" && !l.Automated {
 		return fmt.Errorf("input CSV file is required (provide via --input flag or letterboxd.csvfile in config)")
+	}
+
+	// Handle automation
+	if l.Automated {
+		if username == "" || password == "" {
+			return fmt.Errorf("letterboxd automation requires both username and password")
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), automationTimeout)
+		defer cancel()
+
+		opts := letterboxd.AutomationOptions{
+			Username:    username,
+			Password:    password,
+			DownloadDir: downloadDir,
+			Headless:    !headful,
+			Timeout:     automationTimeout,
+		}
+
+		csvPath, err := letterboxd.DownloadLetterboxdCSV(ctx, opts)
+		if err != nil {
+			return fmt.Errorf("letterboxd automation failed: %w", err)
+		}
+
+		if l.DryRun {
+			slog.Info("Dry-run mode: automation completed successfully", "csv_path", csvPath)
+			return nil
+		}
+
+		input = csvPath
 	}
 
 	return parseLetterboxd(
@@ -434,9 +519,24 @@ func (i *InvalidateCacheCmd) Run() error {
 }
 
 func initLogging() {
+	// Determine log level from environment variable
+	logLevel := slog.LevelInfo
+	if levelStr := os.Getenv("HERMES_LOG_LEVEL"); levelStr != "" {
+		switch levelStr {
+		case "debug", "DEBUG":
+			logLevel = slog.LevelDebug
+		case "info", "INFO":
+			logLevel = slog.LevelInfo
+		case "warn", "WARN":
+			logLevel = slog.LevelWarn
+		case "error", "ERROR":
+			logLevel = slog.LevelError
+		}
+	}
+
 	// Create a human-readable handler for logging
 	handler := humanlog.NewHandler(os.Stdout, &humanlog.Options{
-		Level:      slog.LevelInfo,
+		Level:      logLevel,
 		TimeFormat: "2006-01-02 15:04:05", // Include date and time
 	})
 

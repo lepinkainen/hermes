@@ -269,6 +269,30 @@ func writeMoviesToMarkdown(movies []Movie, directory string) error {
 	for i := range movies {
 		slog.Info("Processing movie", "title", movies[i].Name)
 
+		// First, check if we have a cached mapping for this Letterboxd URI
+		if mapping, err := GetLetterboxdMapping(movies[i].LetterboxdURI); err != nil {
+			slog.Warn("Failed to load Letterboxd mapping from cache", "error", err)
+		} else if mapping != nil {
+			// Use cached mapping
+			if mapping.TMDBID != 0 && movies[i].TMDBEnrichment == nil {
+				// Initialize TMDB enrichment from cached mapping
+				movies[i].TMDBEnrichment = &enrichment.TMDBEnrichment{
+					TMDBID:   mapping.TMDBID,
+					TMDBType: mapping.TMDBType,
+				}
+				slog.Debug("Loaded TMDB ID from Letterboxd mapping cache",
+					"title", movies[i].Name,
+					"letterboxd_uri", movies[i].LetterboxdURI,
+					"tmdb_id", mapping.TMDBID)
+			}
+			if mapping.ImdbID != "" && movies[i].ImdbID == "" {
+				movies[i].ImdbID = mapping.ImdbID
+				slog.Debug("Loaded IMDB ID from Letterboxd mapping cache",
+					"title", movies[i].Name,
+					"imdb_id", mapping.ImdbID)
+			}
+		}
+
 		// If a TMDB ID already exists in the note, reuse it instead of searching
 		loadExistingTMDBID(&movies[i], directory)
 
@@ -286,6 +310,21 @@ func writeMoviesToMarkdown(movies []Movie, directory string) error {
 					slog.Warn("Failed to enrich movie", "title", movies[i].Name, "error", err)
 					// Continue processing even if enrichment fails for other errors
 				}
+			}
+		}
+
+		// After enrichment, save the mapping to cache if we have new data
+		if movies[i].LetterboxdURI != "" {
+			mapping := LetterboxdMapping{
+				LetterboxdURI: movies[i].LetterboxdURI,
+				ImdbID:        movies[i].ImdbID,
+			}
+			if movies[i].TMDBEnrichment != nil {
+				mapping.TMDBID = movies[i].TMDBEnrichment.TMDBID
+				mapping.TMDBType = movies[i].TMDBEnrichment.TMDBType
+			}
+			if err := SetLetterboxdMapping(mapping); err != nil {
+				slog.Warn("Failed to save Letterboxd mapping to cache", "error", err)
 			}
 		}
 
