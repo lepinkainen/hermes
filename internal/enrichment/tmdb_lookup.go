@@ -60,19 +60,7 @@ func searchTMDBID(ctx context.Context, client tmdbClient, title string, year int
 		return 0, "", nil
 	}
 
-	filtered := make([]tmdb.SearchResult, 0, len(results))
-	for _, result := range results {
-		if result.VoteCount >= 100 || (opts.ExpectedMediaType != "" && result.MediaType == opts.ExpectedMediaType) {
-			filtered = append(filtered, result)
-		}
-	}
-	filtered = prioritizeMediaType(filtered, opts.ExpectedMediaType)
-	if len(filtered) == 0 {
-		slog.Debug("No TMDB results with 100+ votes found", "title", title)
-		return 0, "", nil
-	}
-
-	selection, err := selectTMDBResult(filtered, title, year, opts.Interactive)
+	selection, err := selectTMDBResult(results, title, year, opts.Interactive, opts.ExpectedMediaType)
 	if err != nil {
 		return 0, "", err
 	}
@@ -83,15 +71,54 @@ func searchTMDBID(ctx context.Context, client tmdbClient, title string, year int
 	return selection.ID, selection.MediaType, nil
 }
 
-func selectTMDBResult(results []tmdb.SearchResult, title string, year int, interactive bool) (*tmdb.SearchResult, error) {
-	if len(results) == 1 {
-		return &results[0], nil
+func selectTMDBResult(results []tmdb.SearchResult, title string, year int, interactive bool, expectedMediaType string) (*tmdb.SearchResult, error) {
+	// Filter results by vote count (100+ votes required)
+	filtered := make([]tmdb.SearchResult, 0, len(results))
+	for _, result := range results {
+		if result.VoteCount >= 100 {
+			filtered = append(filtered, result)
+		}
 	}
 
-	exact := findExactMatch(results, title, year)
+	// If we have an expected media type but no high-vote results of that type,
+	// include low-vote results of the expected type as a fallback
+	if expectedMediaType != "" {
+		hasExpectedType := false
+		for _, result := range filtered {
+			if result.MediaType == expectedMediaType {
+				hasExpectedType = true
+				break
+			}
+		}
+
+		if !hasExpectedType {
+			for _, result := range results {
+				if result.MediaType == expectedMediaType {
+					filtered = append(filtered, result)
+				}
+			}
+		}
+	}
+
+	// If still no results, skip
+	if len(filtered) == 0 {
+		slog.Debug("No TMDB results with 100+ votes found", "title", title)
+		return nil, nil
+	}
+
+	// Prioritize expected media type after filtering
+	filtered = prioritizeMediaType(filtered, expectedMediaType)
+
+	// If only one result after filtering, auto-select it
+	if len(filtered) == 1 {
+		slog.Debug("Auto-selected single TMDB result", "title", title, "tmdb_id", filtered[0].ID)
+		return &filtered[0], nil
+	}
+
+	exact := findExactMatch(filtered, title, year)
 
 	if interactive {
-		selection, err := tui.Select(title, results)
+		selection, err := tui.Select(title, filtered)
 		if err != nil {
 			return nil, fmt.Errorf("TUI selection failed: %w", err)
 		}
@@ -114,7 +141,7 @@ func selectTMDBResult(results []tmdb.SearchResult, title string, year int, inter
 		return exact, nil
 	}
 
-	return &results[0], nil
+	return &filtered[0], nil
 }
 
 // findTMDBIDByIMDBID attempts to find TMDB ID using IMDB ID via the find endpoint.

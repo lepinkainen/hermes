@@ -76,15 +76,16 @@ func TestFormattingHelpers(t *testing.T) {
 	require.Equal(t, 8, clamp(10, 5, 8))
 }
 
-func TestSelectFiltersLowVoteResults(t *testing.T) {
+func TestSelectAcceptsPreFilteredResults(t *testing.T) {
 	originalRunner := runProgram
 	defer func() { runProgram = originalRunner }()
 
 	runProgram = func(m tea.Model) (tea.Model, error) {
 		typed := m.(*model)
-		// Should only contain the high-vote result after filtering
-		require.Equal(t, 1, len(typed.list.Items()))
-		item := typed.list.Items()[0].(tmdbItem)
+		// The caller should have pre-filtered, so we should receive all items
+		require.Equal(t, 2, len(typed.list.Items()))
+		// Select the second item
+		item := typed.list.Items()[1].(tmdbItem)
 		typed.result = SelectionResult{
 			Action:    ActionSelected,
 			Selection: &item.SearchResult,
@@ -92,9 +93,10 @@ func TestSelectFiltersLowVoteResults(t *testing.T) {
 		return typed, nil
 	}
 
+	// The caller is responsible for filtering - we just display what we're given
 	results := []tmdb.SearchResult{
-		{ID: 1, Title: "Low", VoteCount: 50},
-		{ID: 2, Title: "High", VoteCount: 200},
+		{ID: 1, Title: "Result 1", VoteCount: 150},
+		{ID: 2, Title: "Result 2", VoteCount: 200},
 	}
 
 	res, err := Select("Title", results)

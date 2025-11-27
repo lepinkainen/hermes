@@ -261,22 +261,14 @@ var (
 )
 
 // Select presents an interactive selection UI for TMDB search results.
+// The caller is responsible for filtering results before calling this function.
 func Select(title string, results []tmdb.SearchResult) (SelectionResult, error) {
-	// Filter out items with less than 100 votes
-	filteredResults := make([]tmdb.SearchResult, 0, len(results))
-	for _, result := range results {
-		if result.VoteCount >= 100 {
-			filteredResults = append(filteredResults, result)
-		}
-	}
-
-	// If no items meet the vote threshold, return empty
-	if len(filteredResults) == 0 {
+	if len(results) == 0 {
 		return SelectionResult{Action: ActionSkipped}, nil
 	}
 
-	items := make([]tmdbItem, len(filteredResults))
-	for i, result := range filteredResults {
+	items := make([]tmdbItem, len(results))
+	for i, result := range results {
 		items[i] = tmdbItem{SearchResult: result}
 	}
 	m := newModel(title, items)
