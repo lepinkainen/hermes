@@ -60,7 +60,7 @@ func searchTMDBID(ctx context.Context, client tmdbClient, title string, year int
 		return 0, "", nil
 	}
 
-	selection, err := selectTMDBResult(results, title, year, opts.Interactive, opts.ExpectedMediaType)
+	selection, err := selectTMDBResult(results, title, year, opts.Interactive, opts.ExpectedMediaType, opts.SourceURL)
 	if err != nil {
 		return 0, "", err
 	}
@@ -71,7 +71,7 @@ func searchTMDBID(ctx context.Context, client tmdbClient, title string, year int
 	return selection.ID, selection.MediaType, nil
 }
 
-func selectTMDBResult(results []tmdb.SearchResult, title string, year int, interactive bool, expectedMediaType string) (*tmdb.SearchResult, error) {
+func selectTMDBResult(results []tmdb.SearchResult, title string, year int, interactive bool, expectedMediaType, sourceURL string) (*tmdb.SearchResult, error) {
 	// Filter results by vote count (100+ votes required)
 	filtered := make([]tmdb.SearchResult, 0, len(results))
 	for _, result := range results {
@@ -118,7 +118,12 @@ func selectTMDBResult(results []tmdb.SearchResult, title string, year int, inter
 	exact := findExactMatch(filtered, title, year)
 
 	if interactive {
-		selection, err := tui.Select(title, filtered)
+		var opts *tui.SelectOptions
+		if sourceURL != "" {
+			opts = &tui.SelectOptions{SourceURL: sourceURL}
+		}
+
+		selection, err := tui.Select(title, filtered, opts)
 		if err != nil {
 			return nil, fmt.Errorf("TUI selection failed: %w", err)
 		}

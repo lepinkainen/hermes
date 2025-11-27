@@ -24,7 +24,7 @@ func TestModelUpdateHandlesKeyMessages(t *testing.T) {
 	item := tmdbItem{SearchResult: tmdb.SearchResult{ID: 1, Title: "Heat", ReleaseDate: "1995-12-15"}}
 
 	t.Run("enter selects item", func(t *testing.T) {
-		m := newModel("Heat", []tmdbItem{item})
+		m := newModel("Heat", []tmdbItem{item}, "")
 		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 		typed := updated.(*model)
 
@@ -34,15 +34,15 @@ func TestModelUpdateHandlesKeyMessages(t *testing.T) {
 	})
 
 	t.Run("skip and stop actions", func(t *testing.T) {
-		m := newModel("Heat", []tmdbItem{item})
+		m := newModel("Heat", []tmdbItem{item}, "")
 		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
 		require.Equal(t, ActionSkipped, updated.(*model).result.Action)
 
-		m = newModel("Heat", []tmdbItem{item})
+		m = newModel("Heat", []tmdbItem{item}, "")
 		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 		require.Equal(t, ActionStopped, updated.(*model).result.Action)
 
-		m = newModel("Heat", []tmdbItem{item})
+		m = newModel("Heat", []tmdbItem{item}, "")
 		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
 		require.Equal(t, ActionSkipped, updated.(*model).result.Action)
 	})
@@ -99,7 +99,7 @@ func TestSelectAcceptsPreFilteredResults(t *testing.T) {
 		{ID: 2, Title: "Result 2", VoteCount: 200},
 	}
 
-	res, err := Select("Title", results)
+	res, err := Select("Title", results, nil)
 	require.NoError(t, err)
 	require.Equal(t, ActionSelected, res.Action)
 	require.NotNil(t, res.Selection)

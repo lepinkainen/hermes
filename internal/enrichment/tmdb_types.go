@@ -49,6 +49,9 @@ type TMDBEnrichmentOptions struct {
 	UseCoverCache bool
 	// CoverCachePath is the directory for cached cover images
 	CoverCachePath string
+	// SourceURL is an optional URL to display in the TUI (e.g., Letterboxd URL)
+	// to help users verify which exact item they're selecting
+	SourceURL string
 }
 
 // TMDBOptionsBuilder provides a fluent builder for TMDBEnrichmentOptions.
@@ -110,6 +113,12 @@ func (b *TMDBOptionsBuilder) WithExpectedType(expectedType string) *TMDBOptionsB
 func (b *TMDBOptionsBuilder) WithCoverCache(enabled bool, cachePath string) *TMDBOptionsBuilder {
 	b.opts.UseCoverCache = enabled
 	b.opts.CoverCachePath = cachePath
+	return b
+}
+
+// WithSourceURL sets the source URL to display in the TUI.
+func (b *TMDBOptionsBuilder) WithSourceURL(sourceURL string) *TMDBOptionsBuilder {
+	b.opts.SourceURL = sourceURL
 	return b
 }
 

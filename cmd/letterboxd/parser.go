@@ -259,6 +259,7 @@ func enrichFromTMDB(movie *Movie) (*enrichment.TMDBEnrichment, error) {
 		WithMoviesOnly(true). // Letterboxd only catalogs movies, not TV shows
 		WithStoredType(storedType).
 		WithCoverCache(useTMDBCoverCache, tmdbCoverCachePath).
+		WithSourceURL(movie.LetterboxdURI). // Display Letterboxd URL in TUI to help identify exact movie
 		Build()
 
 	return enrichment.EnrichFromTMDB(context.Background(), movie.Name, movie.Year, movie.ImdbID, existingTMDBID, opts)

@@ -158,10 +158,11 @@ func (d tmdbDelegate) Render(w io.Writer, m list.Model, idx int, item list.Item)
 type model struct {
 	list        list.Model
 	searchTitle string
+	sourceURL   string
 	result      SelectionResult
 }
 
-func newModel(title string, items []tmdbItem) *model {
+func newModel(title string, items []tmdbItem, sourceURL string) *model {
 	listItems := make([]list.Item, len(items))
 	for i, item := range items {
 		listItems[i] = item
@@ -180,6 +181,7 @@ func newModel(title string, items []tmdbItem) *model {
 	return &model{
 		list:        l,
 		searchTitle: title,
+		sourceURL:   sourceURL,
 		result: SelectionResult{
 			Action: ActionNone,
 		},
@@ -224,15 +226,33 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *model) View() string {
 	header := headerStyle.Render(fmt.Sprintf("Multiple results found for: %s", m.searchTitle))
-	listView := m.list.View()
+
+	var elements []string
+	elements = append(elements, header)
+
+	// Add source URL if provided
+	if m.sourceURL != "" {
+		sourceStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("110")).
+			Faint(true)
+		sourceURL := sourceStyle.Render(fmt.Sprintf("Source: %s", m.sourceURL))
+		elements = append(elements, sourceURL)
+	}
+
+	elements = append(elements, m.list.View())
+
 	buttons := lipgloss.JoinHorizontal(
 		lipgloss.Left,
 		skipButtonStyle.Render(" Skip "),
 		lipgloss.NewStyle().Padding(0, 2).Render(""),
 		stopButtonStyle.Render(" Stop Processing "),
 	)
+	elements = append(elements, buttons)
+
 	help := helpStyle.Render("Up/Down navigate | Enter select | s skip | q stop")
-	return lipgloss.JoinVertical(lipgloss.Left, header, listView, buttons, help)
+	elements = append(elements, help)
+
+	return lipgloss.JoinVertical(lipgloss.Left, elements...)
 }
 
 var (
@@ -260,9 +280,16 @@ var (
 			Foreground(lipgloss.Color("244"))
 )
 
+// SelectOptions holds optional parameters for the Select function
+type SelectOptions struct {
+	// SourceURL is an optional URL to display (e.g., Letterboxd URL)
+	// to help users verify which exact item they're selecting
+	SourceURL string
+}
+
 // Select presents an interactive selection UI for TMDB search results.
 // The caller is responsible for filtering results before calling this function.
-func Select(title string, results []tmdb.SearchResult) (SelectionResult, error) {
+func Select(title string, results []tmdb.SearchResult, opts *SelectOptions) (SelectionResult, error) {
 	if len(results) == 0 {
 		return SelectionResult{Action: ActionSkipped}, nil
 	}
@@ -271,7 +298,13 @@ func Select(title string, results []tmdb.SearchResult) (SelectionResult, error) 
 	for i, result := range results {
 		items[i] = tmdbItem{SearchResult: result}
 	}
-	m := newModel(title, items)
+
+	sourceURL := ""
+	if opts != nil {
+		sourceURL = opts.SourceURL
+	}
+
+	m := newModel(title, items, sourceURL)
 	finalModel, err := runProgram(m)
 	if err != nil {
 		return SelectionResult{}, err
