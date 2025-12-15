@@ -231,19 +231,17 @@ func performLetterboxdLogin(ctx context.Context, opts AutomationOptions) error {
 }
 
 func waitForLoginSuccess(ctx context.Context) error {
-	start := time.Now()
 	timeout := 30 * time.Second
+	deadline := time.Now().Add(timeout)
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
 
 	for {
-		if time.Since(start) > timeout {
-			return errors.New("timeout waiting for Letterboxd login")
-		}
-
 		// Check current URL - if we're not on sign-in page, we're logged in
 		var currentURL string
 		_ = chromedpRunner(ctx, chromedp.Location(&currentURL))
 
-		slog.Debug("Checking login status", "url", currentURL, "elapsed", time.Since(start))
+		slog.Debug("Checking login status", "url", currentURL, "elapsed", time.Since(deadline.Add(-timeout)))
 
 		// Check if we've navigated away from sign-in page
 		if !strings.Contains(currentURL, "/sign-in/") && !strings.Contains(currentURL, "/user/login.do") {
@@ -271,28 +269,26 @@ func waitForLoginSuccess(ctx context.Context) error {
 			return fmt.Errorf("login error: %s", errorText)
 		}
 
-		time.Sleep(1 * time.Second)
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("login canceled: %w", ctx.Err())
+		case <-ticker.C:
+			if time.Now().After(deadline) {
+				return errors.New("timeout waiting for Letterboxd login")
+			}
+		}
 	}
 }
 
 func waitForSelector(ctx context.Context, selectors []string, description string) (string, error) {
 	slog.Debug("Waiting for selector", "desc", description, "selectors", strings.Join(selectors, " | "))
 
-	// Try each selector individually, looking for presence (not visibility)
 	timeout := 10 * time.Second
-	start := time.Now()
+	deadline := time.Now().Add(timeout)
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
 
 	for {
-		if time.Since(start) > timeout {
-			// Dump page content for debugging
-			var htmlContent string
-			var currentURL string
-			_ = chromedpRunner(ctx, chromedp.Location(&currentURL))
-			_ = chromedpRunner(ctx, chromedp.OuterHTML("html", &htmlContent, chromedp.ByQuery))
-			slog.Debug("Selector timeout", "desc", description, "url", currentURL, "html_length", len(htmlContent))
-			return "", fmt.Errorf("timeout waiting for %s", description)
-		}
-
 		// Check each selector
 		for _, sel := range selectors {
 			var exists bool
@@ -314,7 +310,20 @@ func waitForSelector(ctx context.Context, selectors []string, description string
 			}
 		}
 
-		time.Sleep(500 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("selector wait canceled for %s: %w", description, ctx.Err())
+		case <-ticker.C:
+			if time.Now().After(deadline) {
+				// Dump page content for debugging
+				var htmlContent string
+				var currentURL string
+				_ = chromedpRunner(ctx, chromedp.Location(&currentURL))
+				_ = chromedpRunner(ctx, chromedp.OuterHTML("html", &htmlContent, chromedp.ByQuery))
+				slog.Debug("Selector timeout", "desc", description, "url", currentURL, "html_length", len(htmlContent))
+				return "", fmt.Errorf("timeout waiting for %s", description)
+			}
+		}
 	}
 }
 
@@ -345,7 +354,7 @@ func waitForDownload(ctx context.Context, downloadDir string) (string, error) {
 
 	tries := 0
 	for {
-		path, err := findDownloadedZip(downloadDir)
+		path, err := findDownloadedZip(downloadDir, start)
 		if err == nil {
 			slog.Info("Letterboxd export download completed", "path", path, "waited", time.Since(start))
 			return path, nil
@@ -364,7 +373,7 @@ func waitForDownload(ctx context.Context, downloadDir string) (string, error) {
 	}
 }
 
-func findDownloadedZip(downloadDir string) (string, error) {
+func findDownloadedZip(downloadDir string, startTime time.Time) (string, error) {
 	entries, err := os.ReadDir(downloadDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to read download directory: %w", err)
@@ -376,8 +385,18 @@ func findDownloadedZip(downloadDir string) (string, error) {
 		if strings.HasPrefix(name, "letterboxd-") &&
 			strings.HasSuffix(name, ".zip") &&
 			!strings.HasSuffix(name, ".crdownload") {
-			slog.Debug("Found downloaded ZIP file", "name", name)
-			return filepath.Join(downloadDir, name), nil
+			// Check file modification time to avoid stale files
+			info, err := entry.Info()
+			if err != nil {
+				slog.Debug("Failed to get file info", "name", name, "error", err)
+				continue
+			}
+
+			if info.ModTime().After(startTime) {
+				slog.Debug("Found downloaded ZIP file", "name", name, "modTime", info.ModTime())
+				return filepath.Join(downloadDir, name), nil
+			}
+			slog.Debug("Skipping stale ZIP file", "name", name, "modTime", info.ModTime(), "startTime", startTime)
 		}
 	}
 
@@ -445,20 +464,29 @@ func mergeWatchedAndRatings(watchedPath, ratingsPath, outputPath string) error {
 	ratingsMap := make(map[string]string)
 	if ratingsPath != "" {
 		ratingsFile, err := os.Open(ratingsPath)
-		if err == nil {
+		if err != nil {
+			// Only log warning if file doesn't exist (not critical)
+			if os.IsNotExist(err) {
+				slog.Warn("Ratings file not found, continuing without ratings", "path", ratingsPath)
+			} else {
+				return fmt.Errorf("failed to open ratings.csv: %w", err)
+			}
+		} else {
 			defer func() { _ = ratingsFile.Close() }()
 			reader := csv.NewReader(ratingsFile)
 			records, err := reader.ReadAll()
-			if err == nil {
-				for i, record := range records {
-					if i == 0 {
-						continue
-					} // Skip header
-					if len(record) >= 5 {
-						uri := record[3]    // Letterboxd URI
-						rating := record[4] // Rating
-						ratingsMap[uri] = rating
-					}
+			if err != nil {
+				return fmt.Errorf("failed to parse ratings.csv: %w", err)
+			}
+
+			for i, record := range records {
+				if i == 0 {
+					continue
+				} // Skip header
+				if len(record) >= 5 {
+					uri := record[3]    // Letterboxd URI
+					rating := record[4] // Rating
+					ratingsMap[uri] = rating
 				}
 			}
 		}
@@ -490,15 +518,25 @@ func mergeWatchedAndRatings(watchedPath, ratingsPath, outputPath string) error {
 	for i, record := range records {
 		if i == 0 {
 			// Add Rating header
-			_ = writer.Write(append(record, "Rating"))
+			if err := writer.Write(append(record, "Rating")); err != nil {
+				return fmt.Errorf("failed to write CSV header: %w", err)
+			}
 			continue
 		}
 
 		if len(record) >= 4 {
 			uri := record[3]
 			rating := ratingsMap[uri] // Empty string if not rated
-			_ = writer.Write(append(record, rating))
+			if err := writer.Write(append(record, rating)); err != nil {
+				return fmt.Errorf("failed to write CSV row: %w", err)
+			}
 		}
+	}
+
+	// Check for flush errors
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return fmt.Errorf("failed to flush CSV writer: %w", err)
 	}
 
 	slog.Info("Merged CSV created", "path", outputPath, "ratings_added", len(ratingsMap))

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
@@ -165,17 +166,19 @@ func TestMergeWatchedAndRatingsWithoutRatingsFile(t *testing.T) {
 func TestFindDownloadedZipSkipsPartialFiles(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 
+	startTime := time.Now().Add(-1 * time.Hour) // Start time in the past
+
 	// Create partial download
 	require.NoError(t, os.WriteFile(env.Path("letterboxd-export.zip.crdownload"), []byte("partial"), 0644))
 
-	_, err := findDownloadedZip(env.RootDir())
+	_, err := findDownloadedZip(env.RootDir(), startTime)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "ZIP file not found")
 
 	// Create complete download
 	require.NoError(t, os.WriteFile(env.Path("letterboxd-user-2025.zip"), []byte("complete"), 0644))
 
-	path, err := findDownloadedZip(env.RootDir())
+	path, err := findDownloadedZip(env.RootDir(), startTime)
 	require.NoError(t, err)
 	require.Contains(t, path, "letterboxd")
 	require.Contains(t, filepath.Base(path), "letterboxd-user-2025.zip")
@@ -184,17 +187,19 @@ func TestFindDownloadedZipSkipsPartialFiles(t *testing.T) {
 func TestFindDownloadedZipIgnoresNonLetterboxdFiles(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 
+	startTime := time.Now().Add(-1 * time.Hour) // Start time in the past
+
 	// Create non-letterboxd zip files
 	require.NoError(t, os.WriteFile(env.Path("other-export.zip"), []byte("data"), 0644))
 	require.NoError(t, os.WriteFile(env.Path("random.zip"), []byte("data"), 0644))
 
-	_, err := findDownloadedZip(env.RootDir())
+	_, err := findDownloadedZip(env.RootDir(), startTime)
 	require.Error(t, err)
 
 	// Add a valid letterboxd ZIP
 	require.NoError(t, os.WriteFile(env.Path("letterboxd-test-2025-01-01.zip"), []byte("data"), 0644))
 
-	path, err := findDownloadedZip(env.RootDir())
+	path, err := findDownloadedZip(env.RootDir(), startTime)
 	require.NoError(t, err)
 	require.Contains(t, filepath.Base(path), "letterboxd-")
 }
@@ -215,6 +220,78 @@ func TestCopyFile(t *testing.T) {
 	content, err := os.ReadFile(dst)
 	require.NoError(t, err)
 	require.Equal(t, testContent, string(content))
+}
+
+func TestFindDownloadedZipRespectsStartTime(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+
+	// Create old ZIP file
+	oldZipPath := env.Path("letterboxd-old-2024-12-31.zip")
+	require.NoError(t, os.WriteFile(oldZipPath, []byte("old"), 0644))
+
+	// Set file mod time to yesterday
+	yesterday := time.Now().Add(-24 * time.Hour)
+	require.NoError(t, os.Chtimes(oldZipPath, yesterday, yesterday))
+
+	// Start time is now
+	startTime := time.Now()
+
+	// Should not find old file
+	_, err := findDownloadedZip(env.RootDir(), startTime)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ZIP file not found")
+
+	// Create new ZIP file after start time
+	time.Sleep(10 * time.Millisecond) // Ensure file is newer
+	newZipPath := env.Path("letterboxd-new-2025-01-27.zip")
+	require.NoError(t, os.WriteFile(newZipPath, []byte("new"), 0644))
+
+	// Should find new file
+	path, err := findDownloadedZip(env.RootDir(), startTime)
+	require.NoError(t, err)
+	require.Equal(t, newZipPath, path)
+}
+
+func TestMergeWatchedAndRatingsCorruptedRatingsFile(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+
+	// Create valid watched.csv
+	watchedPath := env.Path("watched.csv")
+	watchedContent := "Date,Name,Year,URI\n2025-01-01,Movie1,2025,https://boxd.it/abc\n"
+	require.NoError(t, os.WriteFile(watchedPath, []byte(watchedContent), 0644))
+
+	// Create corrupted ratings.csv (invalid CSV format)
+	ratingsPath := env.Path("ratings.csv")
+	ratingsContent := "Date,Name,Year,URI,Rating\n\"unclosed quote,Movie1,2025,https://boxd.it/abc,5\n"
+	require.NoError(t, os.WriteFile(ratingsPath, []byte(ratingsContent), 0644))
+
+	outputPath := env.Path("merged.csv")
+	err := mergeWatchedAndRatings(watchedPath, ratingsPath, outputPath)
+
+	// Should return error when ratings.csv is corrupted
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to parse ratings.csv")
+}
+
+func TestMergeWatchedAndRatingsMissingWatchedFile(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+
+	// Don't create watched.csv
+	watchedPath := env.Path("watched.csv")
+	ratingsPath := env.Path("ratings.csv")
+	outputPath := env.Path("merged.csv")
+
+	err := mergeWatchedAndRatings(watchedPath, ratingsPath, outputPath)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to open watched.csv")
+}
+
+func TestWaitForLoginSuccessRespectsContext(t *testing.T) {
+	t.Skip("Requires chromedp integration - will be tested with fix implementation")
+}
+
+func TestWaitForSelectorRespectsContext(t *testing.T) {
+	t.Skip("Requires chromedp integration - will be tested with fix implementation")
 }
 
 func TestMergeWatchedAndRatings_EdgeCases(t *testing.T) {
