@@ -2,7 +2,6 @@ package goodreads
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -42,8 +41,7 @@ func TestFetchBookAndEditionData(t *testing.T) {
 		_, _ = w.Write([]byte(`{"number_of_pages":321,"publishers":["Edition Pub"]}`))
 	})
 
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := newIPv4TestServer(t, mux)
 
 	t.Cleanup(func() {
 		httpClient = nil
@@ -71,8 +69,7 @@ func TestFetchEditionDataError(t *testing.T) {
 	mux.HandleFunc("/isbn/000.json", func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "nope", http.StatusInternalServerError)
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := newIPv4TestServer(t, mux)
 
 	t.Cleanup(func() {
 		httpClient = nil

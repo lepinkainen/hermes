@@ -2,7 +2,6 @@ package goodreads
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -67,8 +66,7 @@ func TestFetchBookDataFromGoogleBooksSuccess(t *testing.T) {
 		_, _ = w.Write([]byte(response))
 	})
 
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := newIPv4TestServer(t, mux)
 
 	t.Cleanup(func() {
 		googleBooksHTTPClient = nil
@@ -100,8 +98,7 @@ func TestFetchBookDataFromGoogleBooksEmptyResults(t *testing.T) {
 		_, _ = w.Write([]byte(response))
 	})
 
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := newIPv4TestServer(t, mux)
 
 	t.Cleanup(func() {
 		googleBooksHTTPClient = nil
@@ -127,8 +124,7 @@ func TestFetchBookDataFromGoogleBooksHTTPError(t *testing.T) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	})
 
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := newIPv4TestServer(t, mux)
 
 	t.Cleanup(func() {
 		googleBooksHTTPClient = nil
@@ -154,8 +150,7 @@ func TestFetchBookDataFromGoogleBooksMalformedJSON(t *testing.T) {
 		_, _ = w.Write([]byte(`{invalid json`))
 	})
 
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := newIPv4TestServer(t, mux)
 
 	t.Cleanup(func() {
 		googleBooksHTTPClient = nil
@@ -239,8 +234,7 @@ func TestEnrichBookFromGoogleBooksDataMerge(t *testing.T) {
 		_, _ = w.Write([]byte(response))
 	})
 
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := newIPv4TestServer(t, mux)
 
 	// Use a temporary cache database for this test
 	tmpDB := t.TempDir() + "/test_cache.db"
