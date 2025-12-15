@@ -107,6 +107,24 @@ func buildInfo(details map[string]any, mediaType string, letterboxdURI string) s
 		if release != "" {
 			builder.WriteString(fmt.Sprintf("| **Released** | %s |\n", release))
 		}
+
+		// Add director(s) - movies only
+		directors := getDirectors(details)
+		if len(directors) > 0 {
+			builder.WriteString(fmt.Sprintf("| **Director** | %s |\n", strings.Join(directors, ", ")))
+		}
+
+		// Add writer(s) - movies only
+		writers := getWriters(details)
+		if len(writers) > 0 {
+			builder.WriteString(fmt.Sprintf("| **Writer** | %s |\n", strings.Join(writers, ", ")))
+		}
+
+		// Add top 5 cast - movies only
+		actors := getTopActors(details)
+		if len(actors) > 0 {
+			builder.WriteString(fmt.Sprintf("| **Cast** | %s |\n", strings.Join(actors, ", ")))
+		}
 	}
 
 	if rating, ok := floatVal(details, "vote_average"); ok && rating > 0 {

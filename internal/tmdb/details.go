@@ -32,7 +32,7 @@ func (c *Client) GetFullTVDetails(ctx context.Context, tvID int) (map[string]any
 func (c *Client) GetFullMovieDetails(ctx context.Context, movieID int) (map[string]any, error) {
 	params := url.Values{}
 	params.Set("api_key", c.apiKey)
-	params.Set("append_to_response", "external_ids,keywords")
+	params.Set("append_to_response", "external_ids,keywords,credits")
 	endpoint := fmt.Sprintf("%s/movie/%d?%s", c.baseURL, movieID, params.Encode())
 	return c.getJSONMap(ctx, endpoint)
 }

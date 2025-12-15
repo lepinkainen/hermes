@@ -136,6 +136,106 @@ func usContentRating(details map[string]any) string {
 	return ""
 }
 
+// buildTMDBPersonLink creates a markdown link to a TMDB person page.
+func buildTMDBPersonLink(name string, id int) string {
+	return fmt.Sprintf("[%s](https://www.themoviedb.org/person/%d)", name, id)
+}
+
+// getDirectors extracts all directors from the TMDB credits.
+func getDirectors(details map[string]any) []string {
+	credits, ok := details["credits"].(map[string]any)
+	if !ok {
+		return []string{}
+	}
+	crew, ok := credits["crew"].([]any)
+	if !ok {
+		return []string{}
+	}
+
+	var directors []string
+	for _, entry := range crew {
+		if obj, ok := entry.(map[string]any); ok {
+			if stringVal(obj, "job") == "Director" {
+				name := stringVal(obj, "name")
+				id, _ := intVal(obj, "id")
+				if name != "" && id > 0 {
+					directors = append(directors, buildTMDBPersonLink(name, id))
+				}
+			}
+		}
+	}
+	return directors
+}
+
+// getWriters extracts all writers from the TMDB credits Writing department,
+// formatted as "Name (Job)".
+func getWriters(details map[string]any) []string {
+	credits, ok := details["credits"].(map[string]any)
+	if !ok {
+		return []string{}
+	}
+	crew, ok := credits["crew"].([]any)
+	if !ok {
+		return []string{}
+	}
+
+	var writers []string
+	for _, entry := range crew {
+		if obj, ok := entry.(map[string]any); ok {
+			if stringVal(obj, "department") == "Writing" {
+				name := stringVal(obj, "name")
+				job := stringVal(obj, "job")
+				id, _ := intVal(obj, "id")
+				if name != "" && id > 0 {
+					link := buildTMDBPersonLink(name, id)
+					if job != "" {
+						writers = append(writers, fmt.Sprintf("%s (%s)", link, job))
+					} else {
+						writers = append(writers, link)
+					}
+				}
+			}
+		}
+	}
+	return writers
+}
+
+// getTopActors extracts top 5 actors from TMDB credits with character names and links.
+func getTopActors(details map[string]any) []string {
+	credits, ok := details["credits"].(map[string]any)
+	if !ok {
+		return []string{}
+	}
+	cast, ok := credits["cast"].([]any)
+	if !ok {
+		return []string{}
+	}
+
+	var actors []string
+	for _, entry := range cast {
+		if obj, ok := entry.(map[string]any); ok {
+			order, _ := intVal(obj, "order")
+			if order >= 5 {
+				continue
+			}
+
+			name := stringVal(obj, "name")
+			character := stringVal(obj, "character")
+			id, _ := intVal(obj, "id")
+
+			if name != "" && id > 0 {
+				link := buildTMDBPersonLink(name, id)
+				if character != "" {
+					actors = append(actors, fmt.Sprintf("%s as %s", link, character))
+				} else {
+					actors = append(actors, link)
+				}
+			}
+		}
+	}
+	return actors
+}
+
 func friendlyHomepageName(url string) string {
 	switch {
 	case strings.Contains(url, "apple.com"):
