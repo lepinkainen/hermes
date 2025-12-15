@@ -52,6 +52,8 @@ type TMDBEnrichmentOptions struct {
 	// SourceURL is an optional URL to display in the TUI (e.g., Letterboxd URL)
 	// to help users verify which exact item they're selecting
 	SourceURL string
+	// LetterboxdURI is an optional Letterboxd URI to include in TMDB content output
+	LetterboxdURI string
 }
 
 // TMDBOptionsBuilder provides a fluent builder for TMDBEnrichmentOptions.

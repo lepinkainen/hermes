@@ -111,3 +111,39 @@ func SetLetterboxdMapping(mapping LetterboxdMapping) error {
 
 	return nil
 }
+
+// GetLetterboxdURIByTMDB retrieves a Letterboxd URI from cache using TMDB ID.
+// Returns empty string if no mapping found.
+func GetLetterboxdURIByTMDB(tmdbID int, tmdbType string) (string, error) {
+	if tmdbID == 0 || tmdbType == "" {
+		return "", nil
+	}
+
+	cacheDB, err := cache.GetGlobalCache()
+	if err != nil {
+		return "", fmt.Errorf("failed to get cache: %w", err)
+	}
+
+	query := `
+		SELECT letterboxd_uri
+		FROM letterboxd_mapping_cache
+		WHERE tmdb_id = ? AND tmdb_type = ?
+		LIMIT 1
+	`
+
+	var uri string
+	err = cacheDB.QueryRow(query, tmdbID, tmdbType).Scan(&uri)
+	if err == sql.ErrNoRows {
+		return "", nil // No mapping found
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to query mapping cache: %w", err)
+	}
+
+	slog.Debug("Retrieved Letterboxd URI by TMDB ID",
+		"tmdb_id", tmdbID,
+		"tmdb_type", tmdbType,
+		"letterboxd_uri", uri)
+
+	return uri, nil
+}

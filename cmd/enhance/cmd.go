@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
 
+	"github.com/lepinkainen/hermes/cmd/letterboxd"
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/fileutil"
@@ -22,8 +24,6 @@ type Options struct {
 	Recursive bool
 	// TMDBDownloadCover determines whether to download cover images
 	TMDBDownloadCover bool
-	// TMDBGenerateContent determines whether to generate TMDB content sections
-	TMDBGenerateContent bool
 	// TMDBInteractive enables TUI for multiple TMDB matches
 	TMDBInteractive bool
 	// TMDBContentSections specifies which sections to generate (empty = all)
@@ -119,8 +119,8 @@ func EnhanceNotes(opts Options) error {
 		storedType := fm.StringFromAny(note.RawFrontmatter["tmdb_type"])
 
 		enrichOpts := enrichment.TMDBEnrichmentOptions{
-			DownloadCover:     opts.TMDBDownloadCover && needsCover,
-			GenerateContent:   opts.TMDBGenerateContent && needsContent,
+			DownloadCover:     opts.TMDBDownloadCover && (needsCover || opts.Overwrite),
+			GenerateContent:   needsContent || opts.Overwrite,
 			ContentSections:   opts.TMDBContentSections,
 			AttachmentsDir:    attachmentsDir,
 			NoteDir:           noteDir,
@@ -131,6 +131,10 @@ func EnhanceNotes(opts Options) error {
 			UseCoverCache:     opts.UseTMDBCoverCache,
 			CoverCachePath:    opts.TMDBCoverCachePath,
 		}
+
+		// Resolve Letterboxd URI using 3-tier strategy
+		letterboxdURI := resolveLetterboxdURI(note, enrichOpts.StoredMediaType, enrichOpts.ExpectedMediaType)
+		enrichOpts.LetterboxdURI = letterboxdURI
 
 		// Enrich with TMDB data (pass existing TMDB ID if present)
 		tmdbData, err := enrichment.EnrichFromTMDB(ctx, note.Title, note.Year, note.IMDBID, note.TMDBID, enrichOpts)
@@ -219,4 +223,46 @@ func updateNoteWithTMDBData(filePath string, note *Note, tmdbData *enrichment.TM
 	}
 
 	return nil
+}
+
+// resolveLetterboxdURI attempts to find a Letterboxd URI using a 3-tier strategy:
+// 1. Check frontmatter for letterboxd_uri
+// 2. If TMDB ID exists, check cache for reverse lookup
+// 3. Generate search URL as fallback
+func resolveLetterboxdURI(note *Note, storedType, expectedType string) string {
+	// Tier 1: Check frontmatter first
+	if uri := fm.StringFromAny(note.RawFrontmatter["letterboxd_uri"]); uri != "" {
+		slog.Debug("Using Letterboxd URI from frontmatter", "uri", uri)
+		return uri
+	}
+
+	// Tier 2: Check cache if we have TMDB ID
+	if note.TMDBID != 0 {
+		mediaType := storedType
+		if mediaType == "" {
+			mediaType = expectedType
+		}
+		if mediaType == "" {
+			mediaType = "movie" // default
+		}
+
+		if cachedURI, err := letterboxd.GetLetterboxdURIByTMDB(note.TMDBID, mediaType); err == nil && cachedURI != "" {
+			slog.Debug("Found Letterboxd URI in cache", "tmdb_id", note.TMDBID, "uri", cachedURI)
+			return cachedURI
+		}
+	}
+
+	// Tier 3: Generate search URL as fallback
+	if note.Title != "" {
+		searchURL := generateLetterboxdSearchURL(note.Title)
+		slog.Debug("Generated Letterboxd search URL", "title", note.Title, "url", searchURL)
+		return searchURL
+	}
+
+	return ""
+}
+
+// generateLetterboxdSearchURL creates a Letterboxd search URL for the given title.
+func generateLetterboxdSearchURL(title string) string {
+	return fmt.Sprintf("https://letterboxd.com/search/%s/", url.PathEscape(title))
 }

@@ -6,7 +6,7 @@ import (
 )
 
 // BuildTMDBContent generates markdown content from TMDB details.
-func BuildTMDBContent(details map[string]any, mediaType string, sections []string) string {
+func BuildTMDBContent(details map[string]any, mediaType string, sections []string, letterboxdURI string) string {
 	if len(sections) == 0 {
 		if mediaType == "tv" {
 			sections = []string{"overview", "info", "seasons"}
@@ -23,7 +23,7 @@ func BuildTMDBContent(details map[string]any, mediaType string, sections []strin
 				blocks = append(blocks, block)
 			}
 		case "info":
-			if block := buildInfo(details, mediaType); block != "" {
+			if block := buildInfo(details, mediaType, letterboxdURI); block != "" {
 				blocks = append(blocks, block)
 			}
 		case "seasons":
@@ -59,7 +59,7 @@ func buildOverview(details map[string]any) string {
 	return builder.String()
 }
 
-func buildInfo(details map[string]any, mediaType string) string {
+func buildInfo(details map[string]any, mediaType string, letterboxdURI string) string {
 	var builder strings.Builder
 	builder.WriteString("## ")
 	if mediaType == "tv" {
@@ -151,11 +151,49 @@ func buildInfo(details map[string]any, mediaType string) string {
 		builder.WriteString(fmt.Sprintf("| **TVDB** | [thetvdb.com/%s](https://thetvdb.com/series/%s) |\n", tvdb, tvdb))
 	}
 
+	if letterboxdURI != "" {
+		displayText := extractLetterboxdDisplayText(letterboxdURI)
+		builder.WriteString(fmt.Sprintf("| **Letterboxd** | [%s](%s) |\n", displayText, letterboxdURI))
+	}
+
 	if homepage := stringVal(details, "homepage"); homepage != "" {
 		builder.WriteString(fmt.Sprintf("| **Homepage** | [%s](%s) |\n", friendlyHomepageName(homepage), homepage))
 	}
 
 	return strings.TrimRight(builder.String(), "\n")
+}
+
+// extractLetterboxdDisplayText extracts a clean display text from a Letterboxd URI.
+// For short URLs like "https://boxd.it/2bg8", returns "boxd.it/2bg8"
+// For full URLs like "https://letterboxd.com/film/the-godfather/", returns "film/the-godfather"
+// For search URLs like "https://letterboxd.com/search/wildcat/", returns "Search: wildcat"
+func extractLetterboxdDisplayText(uri string) string {
+	// Remove protocol
+	display := strings.TrimPrefix(uri, "https://")
+	display = strings.TrimPrefix(display, "http://")
+
+	// Handle search URLs specially
+	if strings.Contains(display, "letterboxd.com/search/") {
+		// Extract search term
+		searchTerm := strings.TrimPrefix(display, "letterboxd.com/search/")
+		searchTerm = strings.TrimSuffix(searchTerm, "/")
+		return fmt.Sprintf("Search: %s", searchTerm)
+	}
+
+	// For short URLs, keep as is: "boxd.it/xyz"
+	if strings.HasPrefix(display, "boxd.it/") {
+		return display
+	}
+
+	// For full URLs, extract the film path: "letterboxd.com/film/movie-name/" -> "film/movie-name"
+	if strings.HasPrefix(display, "letterboxd.com/film/") {
+		filmPath := strings.TrimPrefix(display, "letterboxd.com/")
+		filmPath = strings.TrimSuffix(filmPath, "/")
+		return filmPath
+	}
+
+	// Fallback: return as-is
+	return display
 }
 
 func buildSeasons(details map[string]any) string {

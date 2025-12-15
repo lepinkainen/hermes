@@ -29,7 +29,7 @@ func buildContentMarkdown(ctx context.Context, client tmdbClient, opts TMDBEnric
 		slog.Debug("TMDB full details from cache", "tmdb_id", tmdbID)
 	}
 
-	tmdbContent := content.BuildTMDBContent(details, mediaType, opts.ContentSections)
+	tmdbContent := content.BuildTMDBContent(details, mediaType, opts.ContentSections, opts.LetterboxdURI)
 	coverEmbed := ""
 	if coverFilename != "" {
 		coverEmbed = content.BuildCoverImageEmbed(coverFilename)

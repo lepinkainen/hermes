@@ -273,7 +273,7 @@ func TestBuildTMDBContentMovie(t *testing.T) {
 		"homepage": "https://www.netflix.com/title/123",
 	}
 
-	content := BuildTMDBContent(details, "movie", nil)
+	content := BuildTMDBContent(details, "movie", nil, "")
 
 	assertContains(t, content, "## Overview")
 	assertContains(t, content, "A classic crime saga.")
@@ -331,7 +331,7 @@ func TestBuildTMDBContentTVWithSeasons(t *testing.T) {
 		},
 	}
 
-	content := BuildTMDBContent(details, "tv", nil)
+	content := BuildTMDBContent(details, "tv", nil, "")
 
 	assertContains(t, content, "## Overview")
 	assertContains(t, content, "## Series Info")

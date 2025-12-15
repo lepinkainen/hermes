@@ -467,7 +467,6 @@ func (e *EnhanceCmd) Run() error {
 			Overwrite:           e.OverwriteTMDB,
 			Force:               e.Force,
 			TMDBDownloadCover:   true,                 // Always download covers
-			TMDBGenerateContent: true,                 // Always generate content
 			TMDBInteractive:     !e.TMDBNoInteractive, // Invert: default is interactive
 			TMDBContentSections: e.TMDBContentSections,
 			UseTMDBCoverCache:   viper.GetBool("tmdb.cover_cache.enabled"),
