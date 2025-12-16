@@ -38,6 +38,8 @@ type TMDBEnrichmentOptions struct {
 	Interactive bool
 	// Force forces re-enrichment even when TMDB ID exists
 	Force bool
+	// RefreshCache refreshes TMDB cache without re-searching for matches
+	RefreshCache bool
 	// MoviesOnly restricts search to movies only (excludes TV shows)
 	MoviesOnly bool
 	// StoredMediaType is the tmdb_type already present in the note (if any)

@@ -9,12 +9,52 @@ import (
 	"os"
 	"path/filepath"
 
+
 	"github.com/lepinkainen/hermes/cmd/letterboxd"
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/fileutil"
 	fm "github.com/lepinkainen/hermes/internal/frontmatter"
+	"github.com/spf13/viper"
 )
+
+// EnhanceCmd represents the enhance command
+type EnhanceCmd struct {
+	InputDirs           []string `short:"d" help:"Directories containing markdown files to enhance (can specify multiple)" required:""`
+	Recursive           bool     `short:"r" help:"Scan subdirectories recursively" default:"false"`
+	DryRun              bool     `help:"Show what would be done without making changes" default:"false"`
+	OverwriteTMDB       bool     `help:"Overwrite existing TMDB content in notes" default:"false"`
+	Force               bool     `short:"f" help:"Force re-enrichment even when TMDB ID exists in frontmatter" default:"false"`
+	RefreshCache        bool     `help:"Refresh TMDB cache without re-searching for matches" default:"false"`
+	TMDBNoInteractive   bool     `help:"Disable interactive TUI for TMDB selection (auto-select first result)" default:"false"`
+	TMDBContentSections []string `help:"Specific TMDB content sections to generate (empty = all)"`
+}
+
+func (e *EnhanceCmd) Run() error {
+	for _, inputDir := range e.InputDirs {
+		opts := Options{
+			InputDir:            inputDir,
+			Recursive:           e.Recursive,
+			DryRun:              e.DryRun,
+			Overwrite:           e.OverwriteTMDB,
+			Force:               e.Force,
+			RefreshCache:        e.RefreshCache,
+			TMDBDownloadCover:   true,                 // Always download covers
+			TMDBInteractive:     !e.TMDBNoInteractive, // Invert: default is interactive
+			TMDBContentSections: e.TMDBContentSections,
+			UseTMDBCoverCache:   viper.GetBool("tmdb.cover_cache.enabled"),
+			TMDBCoverCachePath:  viper.GetString("tmdb.cover_cache.path"),
+		}
+
+		if err := EnhanceNotesFunc(opts); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+var EnhanceNotesFunc = EnhanceNotes
 
 // Options holds configuration for the enhance command.
 type Options struct {
@@ -34,6 +74,8 @@ type Options struct {
 	Overwrite bool
 	// Force forces re-enrichment even when TMDB ID exists
 	Force bool
+	// RefreshCache refreshes TMDB cache without re-searching for matches
+	RefreshCache bool
 	// UseTMDBCoverCache enables development cache for TMDB cover images
 	UseTMDBCoverCache bool
 	// TMDBCoverCachePath is the directory for cached cover images
@@ -126,6 +168,7 @@ func EnhanceNotes(opts Options) error {
 			NoteDir:           noteDir,
 			Interactive:       opts.TMDBInteractive,
 			Force:             opts.Force,
+			RefreshCache:      opts.RefreshCache,
 			StoredMediaType:   storedType,
 			ExpectedMediaType: expectedType,
 			UseCoverCache:     opts.UseTMDBCoverCache,

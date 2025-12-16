@@ -31,7 +31,7 @@ func EnrichFromTMDB(ctx context.Context, title string, year int, imdbID string, 
 		TMDBType: mediaType,
 	}
 
-	applyPrimaryMetadata(ctx, client, enrichment, opts.Force)
+	applyPrimaryMetadata(ctx, client, enrichment, opts.Force || opts.RefreshCache)
 
 	if opts.DownloadCover {
 		coverFilename, coverPath := ensureCoverAssets(ctx, client, opts, title, mediaType, tmdbID)

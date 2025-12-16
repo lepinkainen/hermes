@@ -15,9 +15,9 @@ func buildContentMarkdown(ctx context.Context, client tmdbClient, opts TMDBEnric
 	)
 
 	if mediaType == "movie" {
-		details, detailFromCache, err = client.CachedGetFullMovieDetails(ctx, tmdbID, opts.Force)
+		details, detailFromCache, err = client.CachedGetFullMovieDetails(ctx, tmdbID, opts.Force || opts.RefreshCache)
 	} else {
-		details, detailFromCache, err = client.CachedGetFullTVDetails(ctx, tmdbID, opts.Force)
+		details, detailFromCache, err = client.CachedGetFullTVDetails(ctx, tmdbID, opts.Force || opts.RefreshCache)
 	}
 
 	if err != nil {
