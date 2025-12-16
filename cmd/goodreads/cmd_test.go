@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lepinkainen/hermes/internal/automation"
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestParseGoodreadsWithParams(t *testing.T) {
-	t.Cleanup(func() { parseGoodreadsFunc = ParseGoodreads })
+	t.Parallel()
 
 	env := testutil.NewTestEnv(t)
 
@@ -18,7 +19,7 @@ func TestParseGoodreadsWithParams(t *testing.T) {
 	csv := env.Path("books.csv")
 
 	var called bool
-	parseGoodreadsFunc = func(params ParseParams) error {
+	mockParseGoodreads := func(params ParseParams) error {
 		called = true
 		require.Equal(t, csv, params.CSVPath)
 		require.True(t, params.WriteJSON)
@@ -33,29 +34,26 @@ func TestParseGoodreadsWithParams(t *testing.T) {
 		WriteJSON:  true,
 		JSONOutput: env.Path("books.json"),
 		Overwrite:  true,
-	})
+	}, mockParseGoodreads, DefaultDownloadGoodreadsCSVFunc, &automation.DefaultCDPRunner{})
 
 	require.NoError(t, err, "ParseGoodreadsWithParams should not error")
-	require.True(t, called, "expected parseGoodreadsFunc to be called")
+	require.True(t, called, "expected mockParseGoodreads to be called")
 }
 
 func TestParseGoodreadsWithAutomation(t *testing.T) {
-	t.Cleanup(func() {
-		parseGoodreadsFunc = ParseGoodreads
-		downloadGoodreadsCSV = AutomateGoodreadsExport
-	})
+	t.Parallel()
 
 	env := testutil.NewTestEnv(t)
 	downloaded := env.Path("automated.csv")
 
 	var automationOpts AutomationOptions
-	downloadGoodreadsCSV = func(_ context.Context, opts AutomationOptions) (string, error) {
+	mockDownloadGoodreadsCSV := func(_ context.Context, _ automation.CDPRunner, opts AutomationOptions) (string, error) {
 		automationOpts = opts
 		return downloaded, nil
 	}
 
 	var called bool
-	parseGoodreadsFunc = func(params ParseParams) error {
+	mockParseGoodreads := func(params ParseParams) error {
 		called = true
 		require.Equal(t, downloaded, params.CSVPath)
 		require.True(t, params.Automated)
@@ -71,11 +69,63 @@ func TestParseGoodreadsWithAutomation(t *testing.T) {
 			Headless: true,
 			Timeout:  time.Minute,
 		},
-	})
+	}, mockParseGoodreads, mockDownloadGoodreadsCSV, &automation.DefaultCDPRunner{})
 
 	require.NoError(t, err)
 	require.True(t, called)
 	require.Equal(t, "user@example.com", automationOpts.Email)
 	require.Equal(t, "secret", automationOpts.Password)
 	require.Equal(t, time.Minute, automationOpts.Timeout)
+}
+
+func TestGoodreadsCmdRun(t *testing.T) {
+	t.Parallel()
+
+	testInputFile := "test-input.csv"
+	testOutputDir := "test-output"
+	testJSONOutput := "test-json.json"
+	testEmail := "test@example.com"
+	testPassword := "test-password"
+
+	var receivedParams ParseParams
+	mockParseGoodreads := func(params ParseParams) error {
+		receivedParams = params
+		return nil
+	}
+
+	mockDownloadGoodreadsCSV := func(_ context.Context, _ automation.CDPRunner, opts AutomationOptions) (string, error) {
+		return "", nil
+	}
+
+	cmd := GoodreadsCmd{
+		Input:             testInputFile,
+		Output:            testOutputDir,
+		JSON:              true,
+		JSONOutput:        testJSONOutput,
+		Automated:         false,
+		GoodreadsEmail:    testEmail,
+		GoodreadsPassword: testPassword,
+		Headful:           false,
+		DownloadDir:       "exports",
+		AutomationTimeout: 5 * time.Minute,
+		DryRun:            false,
+	}
+	cmd.Init(mockParseGoodreads, mockDownloadGoodreadsCSV, &mockCDPRunner{})
+
+	t.Logf("cmd.Automated before Run: %v", cmd.Automated)
+
+	err := cmd.Run()
+	require.NoError(t, err)
+
+	require.Equal(t, testInputFile, receivedParams.CSVPath)
+	require.Equal(t, "markdown/"+testOutputDir, receivedParams.OutputDir)
+	require.True(t, receivedParams.WriteJSON)
+	require.Equal(t, testJSONOutput, receivedParams.JSONOutput)
+	require.False(t, receivedParams.Automated)
+	require.False(t, receivedParams.DryRun)
+	require.Equal(t, testEmail, receivedParams.AutomationOptions.Email)
+	require.Equal(t, testPassword, receivedParams.AutomationOptions.Password)
+	require.True(t, receivedParams.AutomationOptions.Headless)
+	require.Equal(t, "exports", receivedParams.AutomationOptions.DownloadDir)
+	require.Equal(t, 5*time.Minute, receivedParams.AutomationOptions.Timeout)
 }

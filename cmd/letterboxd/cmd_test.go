@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lepinkainen/hermes/internal/automation"
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +27,7 @@ func TestParseLetterboxdWithParams(t *testing.T) {
 	}
 	defer func() { parseLetterboxdFunc = ParseLetterboxd }()
 
-	err := ParseLetterboxdWithParams(csv, dir, false, "", true, true, false, true, true, []string{"overview"}, false, "")
+	err := ParseLetterboxdWithParams(csv, dir, false, "", true, true, false, true, true, []string{"overview"}, false, "", &automation.DefaultCDPRunner{})
 	require.NoError(t, err, "ParseLetterboxdWithParams should not error")
 	require.True(t, called, "expected parser to run")
 }

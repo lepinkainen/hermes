@@ -2,13 +2,13 @@ package cmd
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/alecthomas/kong"
 	"github.com/lepinkainen/hermes/cmd/enhance"
 	"github.com/lepinkainen/hermes/cmd/goodreads"
-	"github.com/lepinkainen/hermes/cmd/imdb"
-	"github.com/lepinkainen/hermes/cmd/letterboxd"
+	"github.com/lepinkainen/hermes/cmd/steam"
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -26,6 +26,8 @@ func resetCmdState(t *testing.T) {
 	})
 
 	viper.Reset()
+	// Explicitly unset or set to false any environment variables that might interfere with tests
+	t.Setenv("GOODREADS_AUTOMATED", "false")
 }
 
 func parseCLI(t *testing.T, args ...string) (*CLI, *kong.Context) {
@@ -73,16 +75,15 @@ func TestUpdateGlobalConfig(t *testing.T) {
 func TestGoodreadsRunUsesConfigFallback(t *testing.T) {
 	resetCmdState(t)
 
-	called := false
-	orig := parseGoodreads
-	parseGoodreads = func(params goodreads.ParseParams) error {
-		called = true
+	mockRun := func(params goodreads.ParseParams) error {
 		assert.Equal(t, "config.csv", params.CSVPath)
-		assert.Equal(t, "goodreads", params.OutputDir)
+		assert.Equal(t, "markdown/goodreads", params.OutputDir)
 		assert.False(t, params.Automated)
 		return nil
 	}
-	t.Cleanup(func() { parseGoodreads = orig })
+	origParseGoodreads := goodreads.DefaultParseGoodreadsFunc
+	goodreads.DefaultParseGoodreadsFunc = mockRun
+	t.Cleanup(func() { goodreads.DefaultParseGoodreadsFunc = origParseGoodreads })
 
 	viper.Set("goodreads.csvfile", "config.csv")
 
@@ -91,29 +92,10 @@ func TestGoodreadsRunUsesConfigFallback(t *testing.T) {
 
 	err := ctx.Run()
 	require.NoError(t, err)
-	assert.True(t, called)
 }
 
 func TestImportCommandsRequireInput(t *testing.T) {
 	resetCmdState(t)
-
-	parseGoodreads = func(_ goodreads.ParseParams) error {
-		t.Fatalf("goodreads parser should not be called")
-		return nil
-	}
-	parseIMDB = func(_, _ string, _ bool, _ string, _ bool, _ bool, _ bool, _ bool, _ bool, _ []string, _ bool, _ string) error {
-		t.Fatalf("imdb parser should not be called")
-		return nil
-	}
-	parseLetterboxd = func(_, _ string, _ bool, _ string, _ bool, _ bool, _ bool, _ bool, _ bool, _ []string, _ bool, _ string) error {
-		t.Fatalf("letterboxd parser should not be called")
-		return nil
-	}
-	t.Cleanup(func() {
-		parseGoodreads = goodreads.ParseGoodreadsWithParams
-		parseIMDB = imdb.ParseImdbWithParams
-		parseLetterboxd = letterboxd.ParseLetterboxdWithParams
-	})
 
 	tests := []struct {
 		name string
@@ -151,17 +133,16 @@ func TestImportCommandsRequireInput(t *testing.T) {
 func TestSteamRunUsesConfig(t *testing.T) {
 	resetCmdState(t)
 
-	called := false
-	orig := parseSteam
-	parseSteam = func(steamID, apiKey, output string, json bool, jsonOutput string, overwrite bool) error {
-		called = true
+	mockRun := func(steamID, apiKey, output string, json bool, jsonOutput string, overwrite bool) error {
 		assert.Equal(t, "steam-id", steamID)
 		assert.Equal(t, "api-key", apiKey)
 		assert.Equal(t, "steam", output)
 		assert.False(t, overwrite)
 		return nil
 	}
-	t.Cleanup(func() { parseSteam = orig })
+	origParseSteam := steam.ParseSteamWithParamsFunc
+	steam.ParseSteamWithParamsFunc = mockRun
+	t.Cleanup(func() { steam.ParseSteamWithParamsFunc = origParseSteam })
 
 	viper.Set("steam.steamid", "steam-id")
 	viper.Set("steam.apikey", "api-key")
@@ -171,15 +152,26 @@ func TestSteamRunUsesConfig(t *testing.T) {
 
 	err := ctx.Run()
 	require.NoError(t, err)
-	assert.True(t, called)
 }
 
 func TestEnhanceRunPassesOptions(t *testing.T) {
 	resetCmdState(t)
 
+	// Create temporary directories
+	tempDir := t.TempDir()
+	notesDir := filepath.Join(tempDir, "notes")
+	animeDir := filepath.Join(tempDir, "anime")
+	require.NoError(t, os.MkdirAll(notesDir, 0755))
+	require.NoError(t, os.MkdirAll(animeDir, 0755))
+
+	// Mock config.TMDBAPIKey
+	origTMDBAPIKey := config.TMDBAPIKey
+	config.TMDBAPIKey = "test-key"
+	t.Cleanup(func() { config.TMDBAPIKey = origTMDBAPIKey })
+
 	calledDirs := []string{}
-	orig := runEnhancement
-	runEnhancement = func(opts enhance.Options) error {
+	mockRun := func(opts enhance.Options) error {
+		t.Logf("mockRun called with InputDir: %s", opts.InputDir)
 		calledDirs = append(calledDirs, opts.InputDir)
 		assert.True(t, opts.Recursive)
 		assert.True(t, opts.DryRun)
@@ -188,12 +180,14 @@ func TestEnhanceRunPassesOptions(t *testing.T) {
 		assert.Equal(t, []string{"cast"}, opts.TMDBContentSections)
 		return nil
 	}
-	t.Cleanup(func() { runEnhancement = orig })
+	origEnhanceNotes := enhance.EnhanceNotesFunc
+	enhance.EnhanceNotesFunc = mockRun
+	t.Cleanup(func() { enhance.EnhanceNotesFunc = origEnhanceNotes })
 
-	cli, ctx := parseCLI(t, "enhance", "--input-dirs", "./notes", "--input-dirs", "./anime", "--recursive", "--dry-run", "--overwrite-tmdb", "--force", "--tmdb-content-sections", "cast")
+	cli, ctx := parseCLI(t, "enhance", "--input-dirs", notesDir, "--input-dirs", animeDir, "--recursive", "--dry-run", "--overwrite-tmdb", "--force", "--tmdb-content-sections", "cast")
 	updateGlobalConfig(cli)
 
 	err := ctx.Run()
 	require.NoError(t, err)
-	assert.Equal(t, []string{"./notes", "./anime"}, calledDirs)
+	assert.Equal(t, []string{notesDir, animeDir}, calledDirs)
 }

@@ -49,3 +49,6 @@ The project uses `Taskfile.yml` for task automation.
 
 - **Dependencies**:
     - The project uses Go modules. Key libraries include `kong` for the CLI, `viper` for configuration, and `modernc.org/sqlite` for the database. Add new dependencies to `go.mod` only when necessary.
+
+## Gemini Agent Specific Notes
+- Always use `task build` to build the project.

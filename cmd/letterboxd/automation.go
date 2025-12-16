@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/chromedp"
+	"github.com/lepinkainen/hermes/internal/automation"
 )
 
 const (
@@ -23,12 +23,6 @@ const (
 
 	letterboxdSignInURL     = "https://letterboxd.com/sign-in/"
 	letterboxdDataExportURL = "https://letterboxd.com/data/export/"
-)
-
-var (
-	chromedpExecAllocator = chromedp.NewExecAllocator
-	chromedpContext       = chromedp.NewContext
-	chromedpRunner        = chromedp.Run
 )
 
 // AutomationOptions holds configuration for Letterboxd automation
@@ -43,7 +37,7 @@ type AutomationOptions struct {
 var downloadLetterboxdZip = AutomateLetterboxdExport
 
 // AutomateLetterboxdExport orchestrates the full automation workflow
-func AutomateLetterboxdExport(parentCtx context.Context, opts AutomationOptions) (string, error) {
+func AutomateLetterboxdExport(parentCtx context.Context, runner automation.CDPRunner, opts AutomationOptions) (string, error) {
 	if opts.Username == "" || opts.Password == "" {
 		return "", errors.New("letterboxd automation requires both username and password")
 	}
@@ -53,10 +47,10 @@ func AutomateLetterboxdExport(parentCtx context.Context, opts AutomationOptions)
 		timeout = defaultAutomationTimeout
 	}
 
-	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	_, cancel := context.WithTimeout(parentCtx, timeout)
 	defer cancel()
 
-	downloadDir, cleanup, err := prepareDownloadDir(opts.DownloadDir)
+	downloadDir, cleanup, err := automation.PrepareDownloadDir(opts.DownloadDir, "hermes-letterboxd-*")
 	if err != nil {
 		return "", err
 	}
@@ -67,25 +61,22 @@ func AutomateLetterboxdExport(parentCtx context.Context, opts AutomationOptions)
 	}()
 	slog.Info("Prepared Letterboxd download directory", "path", downloadDir, "headless", opts.Headless)
 
-	allocCtx, cancelAllocator := chromedpExecAllocator(ctx, buildExecAllocatorOptions(opts)...)
-	defer cancelAllocator()
-
-	browserCtx, cancelBrowser := chromedpContext(allocCtx)
+	browserCtx, cancelBrowser := automation.NewBrowser(runner, automation.AutomationOptions{Headless: opts.Headless})
 	defer cancelBrowser()
 
-	if err := configureDownloadDirectory(browserCtx, downloadDir); err != nil {
+	if err := automation.ConfigureDownloadDirectory(browserCtx, runner, downloadDir); err != nil {
 		return "", err
 	}
 
-	if err := performLetterboxdLogin(browserCtx, opts); err != nil {
+	if err := performLetterboxdLogin(browserCtx, runner, opts); err != nil {
 		return "", err
 	}
 
-	if err := triggerLetterboxdExport(browserCtx); err != nil {
+	if err := triggerLetterboxdExport(browserCtx, runner); err != nil {
 		return "", err
 	}
 
-	zipPath, err := waitForDownload(browserCtx, downloadDir)
+	zipPath, err := waitForDownload(browserCtx, runner, downloadDir)
 	if err != nil {
 		return "", err
 	}
@@ -112,66 +103,26 @@ func AutomateLetterboxdExport(parentCtx context.Context, opts AutomationOptions)
 	return finalPath, nil
 }
 
-func buildExecAllocatorOptions(opts AutomationOptions) []chromedp.ExecAllocatorOption {
-	return []chromedp.ExecAllocatorOption{
-		chromedp.NoDefaultBrowserCheck,
-		chromedp.NoFirstRun,
-		chromedp.Flag("headless", opts.Headless),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("disable-sync", true),
-		chromedp.Flag("mute-audio", true),
-		chromedp.Flag("disable-default-apps", true),
-		chromedp.Flag("no-default-browser-check", true),
-	}
-}
-
-func prepareDownloadDir(path string) (string, func(), error) {
-	if path != "" {
-		if err := os.MkdirAll(path, 0755); err != nil {
-			return "", nil, fmt.Errorf("failed to create download directory: %w", err)
-		}
-		return filepath.Clean(path), nil, nil
-	}
-
-	tmpDir, err := os.MkdirTemp("", "hermes-letterboxd-*")
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to create temporary download directory: %w", err)
-	}
-
-	return tmpDir, func() { _ = os.RemoveAll(tmpDir) }, nil
-}
-
-func configureDownloadDirectory(ctx context.Context, downloadDir string) error {
-	action := browser.SetDownloadBehavior(browser.SetDownloadBehaviorBehaviorAllow).
-		WithDownloadPath(downloadDir).
-		WithEventsEnabled(true)
-	slog.Debug("Configuring download directory", "path", downloadDir)
-	if err := chromedpRunner(ctx, action); err != nil {
-		return fmt.Errorf("failed to configure download directory: %w", err)
-	}
-	return nil
-}
-
-func performLetterboxdLogin(ctx context.Context, opts AutomationOptions) error {
+func performLetterboxdLogin(ctx context.Context, runner automation.CDPRunner, opts AutomationOptions) error {
 	slog.Info("Logging in to Letterboxd", "username", opts.Username)
 
-	if err := chromedpRunner(ctx, chromedp.Navigate(letterboxdSignInURL)); err != nil {
+	if err := runner.Run(ctx, chromedp.Navigate(letterboxdSignInURL)); err != nil {
 		return fmt.Errorf("failed to open Letterboxd login page: %w", err)
 	}
 
 	// Wait for username field to be present
-	usernameSelector, err := waitForSelector(ctx, []string{
+	usernameSelector, err := automation.WaitForSelector(ctx, runner, []string{
 		`//input[@id="field-username"]`,
 		`//input[@type="text" and @autocomplete="username"]`,
 		`//input[@name="username"]`,
-	}, "username field")
+	}, "username field", 10*time.Second)
 	if err != nil {
 		return err
 	}
 
 	// Remove 'disabled' attribute via JS if present
 	slog.Debug("Removing disabled attribute from login fields")
-	if err := chromedpRunner(ctx, chromedp.Evaluate(`
+	if err := runner.Run(ctx, chromedp.Evaluate(`
 		(function() {
 			const username = document.querySelector('#field-username');
 			const password = document.querySelector('#field-password');
@@ -183,46 +134,46 @@ func performLetterboxdLogin(ctx context.Context, opts AutomationOptions) error {
 	}
 
 	// Small wait to ensure fields are ready
-	_ = chromedpRunner(ctx, chromedp.Sleep(500*time.Millisecond))
+	_ = runner.Run(ctx, chromedp.Sleep(500*time.Millisecond))
 
 	// Fill username
-	if err := chromedpRunner(ctx, chromedp.SendKeys(usernameSelector, opts.Username, chromedp.BySearch)); err != nil {
+	if err := runner.Run(ctx, chromedp.SendKeys(usernameSelector, opts.Username, chromedp.BySearch)); err != nil {
 		return fmt.Errorf("failed to enter username: %w", err)
 	}
 
 	// Fill password
-	passwordSelector, err := waitForSelector(ctx, []string{
+	passwordSelector, err := automation.WaitForSelector(ctx, runner, []string{
 		`//input[@id="field-password"]`,
 		`//input[@type="password"]`,
 		`//input[@name="password"]`,
-	}, "password field")
+	}, "password field", 10*time.Second)
 	if err != nil {
 		return err
 	}
 
-	if err := chromedpRunner(ctx, chromedp.SendKeys(passwordSelector, opts.Password, chromedp.BySearch)); err != nil {
+	if err := runner.Run(ctx, chromedp.SendKeys(passwordSelector, opts.Password, chromedp.BySearch)); err != nil {
 		return fmt.Errorf("failed to enter password: %w", err)
 	}
 
 	// Submit form
-	buttonSelector, err := waitForSelector(ctx, []string{
+	buttonSelector, err := automation.WaitForSelector(ctx, runner, []string{
 		`//form[contains(@class, 'js-sign-in-form')]//button[@type='submit']`,
 		`//button[@type='submit']//span[contains(text(), 'Sign')]`,
 		`//button[@type='submit' and contains(@class, 'standalone-flow-button')]`,
 		`.standalone-flow-form button[type=submit]`,
-	}, "sign in button")
+	}, "sign in button", 10*time.Second)
 	if err != nil {
 		return err
 	}
 
 	slog.Info("Clicking sign in button", "selector", buttonSelector)
-	if err := chromedpRunner(ctx, chromedp.Click(buttonSelector, chromedp.BySearch)); err != nil {
+	if err := runner.Run(ctx, chromedp.Click(buttonSelector, chromedp.BySearch)); err != nil {
 		return fmt.Errorf("failed to click sign in: %w", err)
 	}
 
-	_ = chromedpRunner(ctx, chromedp.Sleep(2*time.Second))
+	_ = runner.Run(ctx, chromedp.Sleep(2*time.Second))
 
-	if err := waitForLoginSuccess(ctx); err != nil {
+	if err := waitForLoginSuccess(ctx, runner); err != nil {
 		return err
 	}
 
@@ -230,108 +181,59 @@ func performLetterboxdLogin(ctx context.Context, opts AutomationOptions) error {
 	return nil
 }
 
-func waitForLoginSuccess(ctx context.Context) error {
-	timeout := 30 * time.Second
-	deadline := time.Now().Add(timeout)
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
+func waitForLoginSuccess(ctx context.Context, runner automation.CDPRunner) error {
+	start := time.Now()
+	slog.Info("Waiting for Letterboxd login to complete")
 
-	for {
-		// Check current URL - if we're not on sign-in page, we're logged in
-		var currentURL string
-		_ = chromedpRunner(ctx, chromedp.Location(&currentURL))
+	err := automation.WaitForURLChange(
+		ctx,
+		runner,
+		func() (string, error) {
+			var currentURL string
+			err := runner.Run(ctx, chromedp.Location(&currentURL))
+			if err != nil {
+				return "", err
+			}
 
-		slog.Debug("Checking login status", "url", currentURL, "elapsed", time.Since(deadline.Add(-timeout)))
-
-		// Check if we've navigated away from sign-in page
-		if !strings.Contains(currentURL, "/sign-in/") && !strings.Contains(currentURL, "/user/login.do") {
-			slog.Info("Successfully logged in to Letterboxd", "url", currentURL)
-			return nil
-		}
-
-		// Also check for error messages on the page
-		var hasError bool
-		_ = chromedpRunner(ctx, chromedp.Evaluate(`
-			(function() {
-				const errorMsg = document.querySelector('.error, .errormessage, .form-error');
-				return errorMsg !== null;
-			})()
-		`, &hasError))
-
-		if hasError {
-			var errorText string
-			_ = chromedpRunner(ctx, chromedp.Evaluate(`
+			// Check for error messages on the page
+			var hasError bool
+			_ = runner.Run(ctx, chromedp.Evaluate(`
 				(function() {
 					const errorMsg = document.querySelector('.error, .errormessage, .form-error');
-					return errorMsg ? errorMsg.textContent.trim() : '';
+					return errorMsg !== null;
 				})()
-			`, &errorText))
-			return fmt.Errorf("login error: %s", errorText)
-		}
+			`, &hasError))
 
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("login canceled: %w", ctx.Err())
-		case <-ticker.C:
-			if time.Now().After(deadline) {
-				return errors.New("timeout waiting for Letterboxd login")
+			if hasError {
+				var errorText string
+				_ = runner.Run(ctx, chromedp.Evaluate(`
+					(function() {
+						const errorMsg = document.querySelector('.error, .errormessage, .form-error');
+						return errorMsg ? errorMsg.textContent.trim() : '';
+					})()
+				`, &errorText))
+				return "", fmt.Errorf("login error: %s", errorText)
 			}
-		}
+
+			return currentURL, nil
+		},
+		[]string{"/sign-in/", "/user/login.do"},
+		30*time.Second,
+	)
+
+	if err != nil {
+		return err
 	}
+
+	slog.Info("Successfully logged in to Letterboxd", "elapsed", time.Since(start))
+	return nil
 }
 
-func waitForSelector(ctx context.Context, selectors []string, description string) (string, error) {
-	slog.Debug("Waiting for selector", "desc", description, "selectors", strings.Join(selectors, " | "))
-
-	timeout := 10 * time.Second
-	deadline := time.Now().Add(timeout)
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		// Check each selector
-		for _, sel := range selectors {
-			var exists bool
-
-			// For XPath selectors (starting with //)
-			if strings.HasPrefix(sel, "//") {
-				checkScript := fmt.Sprintf(`!!document.evaluate(%q, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue`, sel)
-				if err := chromedpRunner(ctx, chromedp.Evaluate(checkScript, &exists)); err == nil && exists {
-					slog.Debug("Found selector", "desc", description, "selector", sel)
-					return sel, nil
-				}
-			} else {
-				// For CSS selectors
-				checkScript := fmt.Sprintf(`!!document.querySelector(%q)`, sel)
-				if err := chromedpRunner(ctx, chromedp.Evaluate(checkScript, &exists)); err == nil && exists {
-					slog.Debug("Found selector", "desc", description, "selector", sel)
-					return sel, nil
-				}
-			}
-		}
-
-		select {
-		case <-ctx.Done():
-			return "", fmt.Errorf("selector wait canceled for %s: %w", description, ctx.Err())
-		case <-ticker.C:
-			if time.Now().After(deadline) {
-				// Dump page content for debugging
-				var htmlContent string
-				var currentURL string
-				_ = chromedpRunner(ctx, chromedp.Location(&currentURL))
-				_ = chromedpRunner(ctx, chromedp.OuterHTML("html", &htmlContent, chromedp.ByQuery))
-				slog.Debug("Selector timeout", "desc", description, "url", currentURL, "html_length", len(htmlContent))
-				return "", fmt.Errorf("timeout waiting for %s", description)
-			}
-		}
-	}
-}
-
-func triggerLetterboxdExport(ctx context.Context) error {
+func triggerLetterboxdExport(ctx context.Context, runner automation.CDPRunner) error {
 	slog.Info("Navigating directly to Letterboxd export URL to trigger download")
 
 	// Navigate to export URL - this may abort because it triggers a download
-	err := chromedpRunner(ctx, chromedp.Navigate(letterboxdDataExportURL))
+	err := runner.Run(ctx, chromedp.Navigate(letterboxdDataExportURL))
 	if err != nil {
 		// ERR_ABORTED is expected when the page immediately triggers a download
 		if !strings.Contains(err.Error(), "ERR_ABORTED") && !strings.Contains(err.Error(), "net::ERR_ABORTED") {
@@ -347,30 +249,30 @@ func triggerLetterboxdExport(ctx context.Context) error {
 	return nil
 }
 
-func waitForDownload(ctx context.Context, downloadDir string) (string, error) {
+func waitForDownload(ctx context.Context, runner automation.CDPRunner, downloadDir string) (string, error) {
 	start := time.Now()
-	ticker := time.NewTicker(downloadPollInterval)
-	defer ticker.Stop()
 
-	tries := 0
-	for {
-		path, err := findDownloadedZip(downloadDir, start)
-		if err == nil {
-			slog.Info("Letterboxd export download completed", "path", path, "waited", time.Since(start))
-			return path, nil
-		}
+	path, err := automation.PollWithTimeout(
+		ctx,
+		downloadPollInterval,
+		3*time.Minute,
+		"Letterboxd export download",
+		func() (string, bool, error) {
+			path, err := findDownloadedZip(downloadDir, start)
+			if err != nil {
+				// Not found yet, continue polling
+				return "", false, nil
+			}
+			return path, true, nil
+		},
+	)
 
-		if tries%5 == 0 {
-			slog.Info("Waiting for Letterboxd export download", "elapsed", time.Since(start))
-		}
-		tries++
-
-		select {
-		case <-ctx.Done():
-			return "", fmt.Errorf("timed out waiting for Letterboxd export download: %w", ctx.Err())
-		case <-ticker.C:
-		}
+	if err != nil {
+		return "", err
 	}
+
+	slog.Info("Letterboxd export download completed", "path", path, "waited", time.Since(start))
+	return path, nil
 }
 
 func findDownloadedZip(downloadDir string, startTime time.Time) (string, error) {
@@ -559,7 +461,7 @@ func moveDownloadedCSV(csvPath, zipPath, requestedDir string) (string, error) {
 
 	if csvPath != targetCSVPath {
 		if err := os.Rename(csvPath, targetCSVPath); err != nil {
-			if copyErr := copyFile(csvPath, targetCSVPath); copyErr != nil {
+			if copyErr := automation.CopyFile(csvPath, targetCSVPath); copyErr != nil {
 				return "", fmt.Errorf("failed to move CSV: %v (copy error: %w)", err, copyErr)
 			}
 			_ = os.Remove(csvPath)
@@ -571,7 +473,7 @@ func moveDownloadedCSV(csvPath, zipPath, requestedDir string) (string, error) {
 	targetZipPath := filepath.Join(targetDir, zipFilename)
 
 	if zipPath != targetZipPath {
-		if err := copyFile(zipPath, targetZipPath); err != nil {
+		if err := automation.CopyFile(zipPath, targetZipPath); err != nil {
 			slog.Warn("Failed to copy ZIP to exports", "error", err)
 		} else {
 			slog.Info("Copied ZIP to exports", "path", targetZipPath)
@@ -579,24 +481,4 @@ func moveDownloadedCSV(csvPath, zipPath, requestedDir string) (string, error) {
 	}
 
 	return targetCSVPath, nil
-}
-
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = in.Close() }()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = out.Close() }()
-
-	if _, err := io.Copy(out, in); err != nil {
-		return err
-	}
-
-	return out.Sync()
 }

@@ -3,6 +3,7 @@ package fileutil
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -129,6 +130,26 @@ func WriteJSONFile(data interface{}, filePath string, overwrite bool) (bool, err
 		return false, fmt.Errorf("failed to write JSON file: %w", err)
 	}
 
-	slog.Info("Wrote JSON file", "path", filePath)
 	return true, nil
+}
+
+// CopyFile copies a file from src to dst
+func CopyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = in.Close() }()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = out.Close() }()
+
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+
+	return out.Sync()
 }

@@ -7,11 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chromedp/chromedp"
+	"github.com/lepinkainen/hermes/internal/automation"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPrepareDownloadDirCreatesTemp(t *testing.T) {
-	dir, cleanup, err := prepareDownloadDir("")
+	dir, cleanup, err := automation.PrepareDownloadDir("", "hermes-goodreads-test-*")
 	require.NoError(t, err)
 	require.DirExists(t, dir)
 	require.NotNil(t, cleanup)
@@ -46,9 +48,24 @@ func TestWaitForDownloadFindsExistingFile(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	path, err := waitForDownload(ctx, tempDir)
+	runner := &mockCDPRunner{}
+	path, err := waitForDownload(ctx, runner, tempDir)
 	require.NoError(t, err)
 	require.Equal(t, target, path)
+}
+
+type mockCDPRunner struct{}
+
+func (m *mockCDPRunner) NewExecAllocator(ctx context.Context, opts ...chromedp.ExecAllocatorOption) (context.Context, context.CancelFunc) {
+	return context.Background(), func() {}
+}
+
+func (m *mockCDPRunner) NewContext(parent context.Context, opts ...chromedp.ContextOption) (context.Context, context.CancelFunc) {
+	return context.Background(), func() {}
+}
+
+func (m *mockCDPRunner) Run(ctx context.Context, actions ...chromedp.Action) error {
+	return nil
 }
 
 func TestFindDownloadedCSVSkipsPartialFiles(t *testing.T) {

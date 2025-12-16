@@ -10,10 +10,11 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
+	"github.com/lepinkainen/hermes/internal/automation"
 )
 
 func TestPrepareDownloadDirCreatesTemp(t *testing.T) {
-	dir, cleanup, err := prepareDownloadDir("")
+	dir, cleanup, err := automation.PrepareDownloadDir("", "hermes-letterboxd-test-*")
 	require.NoError(t, err)
 	require.DirExists(t, dir)
 	require.NotNil(t, cleanup)
@@ -27,7 +28,7 @@ func TestPrepareDownloadDirCreatesCustom(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	customDir := env.Path("custom-downloads")
 
-	dir, cleanup, err := prepareDownloadDir(customDir)
+	dir, cleanup, err := automation.PrepareDownloadDir(customDir, "hermes-letterboxd-test-*")
 	require.NoError(t, err)
 	require.DirExists(t, dir)
 	require.Nil(t, cleanup) // No cleanup for custom dirs
@@ -213,7 +214,7 @@ func TestCopyFile(t *testing.T) {
 	testContent := "test file content"
 	require.NoError(t, os.WriteFile(src, []byte(testContent), 0644))
 
-	err := copyFile(src, dst)
+	err := automation.CopyFile(src, dst)
 	require.NoError(t, err)
 	require.FileExists(t, dst)
 
