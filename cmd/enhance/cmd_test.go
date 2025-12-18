@@ -131,6 +131,92 @@ Body`
 	require.Contains(t, logs, "Red Sonja (2025).md")
 }
 
+// TestEnhanceNotes_FilesWithParenthesesFullWorkflow demonstrates the complete lifecycle
+// of files with parentheses in their names:
+// 1. Discovery via findMarkdownFiles
+// 2. Parsing via parseNoteFile
+// 3. Title extraction from filename
+// 4. Full processing through enhance workflow
+// This is a regression test for hermes-zihb.
+func TestEnhanceNotes_FilesWithParenthesesFullWorkflow(t *testing.T) {
+	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"))
+	env := testutil.NewTestEnv(t)
+
+	// Create files with various parentheses patterns
+	testFiles := map[string]string{
+		"Movie (2025).md":                     "title: Movie\nyear: 2025",
+		"Show (Season 1).md":                  "title: Show\nyear: 2024",
+		"Complex (2023) - Special Edition.md": "title: Complex\nyear: 2023",
+		"Plain.md":                            "title: Plain\nyear: 2024",
+	}
+
+	for filename, content := range testFiles {
+		env.WriteFileString(filename, fmt.Sprintf("---\n%s\n---\n\nTest content", content))
+	}
+
+	// Step 1: Verify file discovery finds all files including those with parentheses
+	files, err := findMarkdownFiles(env.RootDir(), false)
+	require.NoError(t, err)
+	require.Len(t, files, 4, "Should find all 4 markdown files")
+
+	// Verify specific files with parentheses are in the list
+	foundParenthesesFiles := 0
+	for _, file := range files {
+		if strings.Contains(filepath.Base(file), "(") {
+			foundParenthesesFiles++
+		}
+	}
+	require.Equal(t, 3, foundParenthesesFiles, "Should find 3 files with parentheses in name")
+
+	// Step 2: Verify parsing works for files with parentheses
+	for _, file := range files {
+		note, err := parseNoteFile(file)
+		require.NoError(t, err, "Should successfully parse file: %s", filepath.Base(file))
+		require.NotEmpty(t, note.Title, "Title should be extracted for file: %s", filepath.Base(file))
+	}
+
+	// Step 3: Verify title extraction from filenames with parentheses
+	testCases := []struct {
+		path          string
+		expectedTitle string
+	}{
+		{filepath.Join(env.RootDir(), "Movie (2025).md"), "Movie (2025)"},
+		{filepath.Join(env.RootDir(), "Show (Season 1).md"), "Show (Season 1)"},
+		{filepath.Join(env.RootDir(), "Complex (2023) - Special Edition.md"), "Complex (2023) - Special Edition"},
+	}
+
+	for _, tc := range testCases {
+		title := extractTitleFromPath(tc.path)
+		require.Equal(t, tc.expectedTitle, title, "Title extraction should preserve parentheses")
+	}
+
+	// Step 4: Verify full enhance workflow with dry-run
+	var buf bytes.Buffer
+	origLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})))
+	t.Cleanup(func() { slog.SetDefault(origLogger) })
+
+	err = EnhanceNotes(Options{
+		InputDir:          env.RootDir(),
+		DryRun:            true,
+		Force:             true,
+		TMDBDownloadCover: false,
+	})
+	require.NoError(t, err, "Enhance should complete successfully")
+
+	// Verify all files including those with parentheses were processed
+	logs := buf.String()
+	require.Contains(t, logs, "Found markdown files to process")
+	require.Contains(t, logs, "count=4")
+
+	// Verify specific files with parentheses appear in logs
+	require.Contains(t, logs, "Movie (2025).md", "File with parentheses should be processed")
+	require.Contains(t, logs, "Show (Season 1).md", "File with parentheses should be processed")
+	require.Contains(t, logs, "Complex (2023) - Special Edition.md", "File with complex parentheses pattern should be processed")
+}
+
 func completeNote(title string, tmdbID int) string {
 	return fmt.Sprintf(`---
 title: %s
