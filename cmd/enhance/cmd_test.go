@@ -1,9 +1,15 @@
 package enhance
 
 import (
+	"bytes"
+	"fmt"
+	"log/slog"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
 
+	"github.com/alecthomas/assert/v2"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
@@ -28,6 +34,117 @@ func TestFindMarkdownFiles(t *testing.T) {
 		filepath.Join(dir, "Movie.md"),
 		filepath.Join(dir, "sub", "Show.md"),
 	}, files)
+}
+
+func TestFindMarkdownFiles_WithParentheses(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+
+	env.WriteFileString("Plain.md", "ok")
+	env.WriteFileString("Red Sonja (2025).md", "ok")
+	env.WriteFileString("ignore.txt", "nope")
+	env.MkdirAll("subdir")
+	env.WriteFileString("subdir/Series (Pilot).md", "ok")
+
+	gh := testutil.NewGoldenHelper(t, filepath.Join("testdata", "find_markdown_files"))
+
+	files, err := findMarkdownFiles(env.RootDir(), false)
+	require.NoError(t, err)
+	gh.AssertGoldenString("non_recursive.txt", strings.Join(relPaths(t, env.RootDir(), files), "\n")+"\n")
+
+	files, err = findMarkdownFiles(env.RootDir(), true)
+	require.NoError(t, err)
+	gh.AssertGoldenString("recursive.txt", strings.Join(relPaths(t, env.RootDir(), files), "\n")+"\n")
+}
+
+func relPaths(t *testing.T, root string, files []string) []string {
+	t.Helper()
+
+	var rels []string
+	for _, f := range files {
+		rel, err := filepath.Rel(root, f)
+		require.NoError(t, err)
+		rels = append(rels, filepath.ToSlash(rel))
+	}
+
+	sort.Strings(rels)
+	return rels
+}
+
+func TestEnhanceNotes_ProcessesFilesWithParentheses(t *testing.T) {
+	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"))
+	env := testutil.NewTestEnv(t)
+
+	env.WriteFileString("Plain.md", completeNote("Plain", 1001))
+	env.WriteFileString("Red Sonja (2025).md", completeNote("Red Sonja", 2002))
+
+	var buf bytes.Buffer
+	origLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})))
+	t.Cleanup(func() {
+		slog.SetDefault(origLogger)
+	})
+
+	opts := Options{
+		InputDir: env.RootDir(),
+	}
+
+	err := EnhanceNotes(opts)
+	require.NoError(t, err)
+
+	logs := buf.String()
+	require.Contains(t, logs, "Skipping file (already has all TMDB data)")
+	require.Contains(t, logs, "Plain.md")
+	require.Contains(t, logs, "Red Sonja (2025).md")
+}
+
+func TestEnhanceNotes_DryRunIncludesParenthesesFiles(t *testing.T) {
+	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"))
+	env := testutil.NewTestEnv(t)
+
+	minimal := `---
+---
+
+Body`
+	env.WriteFileString("Plain.md", minimal)
+	env.WriteFileString("Red Sonja (2025).md", minimal)
+
+	var buf bytes.Buffer
+	orig := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})))
+	t.Cleanup(func() { slog.SetDefault(orig) })
+
+	err := EnhanceNotes(Options{
+		InputDir:          env.RootDir(),
+		DryRun:            true,
+		Force:             true,
+		TMDBDownloadCover: false,
+	})
+	require.NoError(t, err)
+
+	logs := buf.String()
+	require.Contains(t, logs, "Would enhance")
+	require.Contains(t, logs, "Plain.md")
+	require.Contains(t, logs, "Red Sonja (2025).md")
+}
+
+func completeNote(title string, tmdbID int) string {
+	return fmt.Sprintf(`---
+title: %s
+tmdb_type: movie
+tmdb_id: %d
+cover: attachments/%s - cover.jpg
+---
+
+Existing body
+
+<!-- TMDB_DATA_START -->
+Existing TMDB data
+<!-- TMDB_DATA_END -->
+`, title, tmdbID, title)
 }
 
 func TestUpdateNoteWithTMDBData(t *testing.T) {
@@ -105,4 +222,293 @@ An anime series.`
 	require.Contains(t, body, "tmdb_id: 30991")
 	require.Contains(t, body, "tmdb_type: tv")
 	require.Contains(t, body, "total_episodes: 26")
+}
+
+func TestGenerateLetterboxdSearchURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		title    string
+		expected string
+	}{
+		{
+			name:     "simple title",
+			title:    "Heat",
+			expected: "https://letterboxd.com/search/Heat/",
+		},
+		{
+			name:     "title with spaces",
+			title:    "The Dark Knight",
+			expected: "https://letterboxd.com/search/The%20Dark%20Knight/",
+		},
+		{
+			name:     "title with special characters",
+			title:    "The Lord of the Rings: The Fellowship of the Ring",
+			expected: "https://letterboxd.com/search/The%20Lord%20of%20the%20Rings:%20The%20Fellowship%20of%20the%20Ring/",
+		},
+		{
+			name:     "title with ampersand",
+			title:    "Bonnie & Clyde",
+			expected: "https://letterboxd.com/search/Bonnie%20&%20Clyde/",
+		},
+		{
+			name:     "title with parentheses",
+			title:    "Red Sonja (2025)",
+			expected: "https://letterboxd.com/search/Red%20Sonja%20%282025%29/",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := generateLetterboxdSearchURL(tt.title)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestResolveLetterboxdURI(t *testing.T) {
+	testutil.SetTestConfig(t)
+
+	tests := []struct {
+		name         string
+		note         *Note
+		storedType   string
+		expectedType string
+		setup        func(t *testing.T)
+		cleanup      func(t *testing.T)
+		wantURI      string
+		wantContains string
+	}{
+		{
+			name: "tier 1: URI from frontmatter",
+			note: &Note{
+				Title: "Heat",
+				RawFrontmatter: map[string]interface{}{
+					"letterboxd_uri": "https://letterboxd.com/film/heat-1995/",
+				},
+			},
+			storedType:   "",
+			expectedType: "",
+			wantURI:      "https://letterboxd.com/film/heat-1995/",
+		},
+		{
+			name: "tier 3: generate search URL when no TMDB ID",
+			note: &Note{
+				Title:          "The Dark Knight",
+				TMDBID:         0,
+				RawFrontmatter: map[string]interface{}{},
+			},
+			storedType:   "",
+			expectedType: "",
+			wantContains: "https://letterboxd.com/search/The%20Dark%20Knight/",
+		},
+		{
+			name: "empty title returns empty string",
+			note: &Note{
+				Title:          "",
+				TMDBID:         0,
+				RawFrontmatter: map[string]interface{}{},
+			},
+			storedType:   "",
+			expectedType: "",
+			wantURI:      "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.setup != nil {
+				tt.setup(t)
+			}
+			if tt.cleanup != nil {
+				t.Cleanup(func() { tt.cleanup(t) })
+			}
+
+			result := resolveLetterboxdURI(tt.note, tt.storedType, tt.expectedType)
+
+			if tt.wantURI != "" {
+				require.Equal(t, tt.wantURI, result)
+			}
+			if tt.wantContains != "" {
+				require.Contains(t, result, tt.wantContains)
+			}
+		})
+	}
+}
+
+func TestEnhanceCmd_Run_Success(t *testing.T) {
+	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"))
+	env := testutil.NewTestEnv(t)
+
+	// Create test markdown files
+	env.WriteFileString("Movie1.md", `---
+title: Movie 1
+---
+Body`)
+	env.WriteFileString("Movie2.md", `---
+title: Movie 2
+---
+Body`)
+
+	mockCalled := false
+	mockFunc := func(opts Options) error {
+		mockCalled = true
+		assert.Equal(t, env.RootDir(), opts.InputDir)
+		assert.False(t, opts.Recursive)
+		assert.False(t, opts.DryRun)
+		assert.True(t, opts.TMDBDownloadCover)
+		assert.True(t, opts.TMDBInteractive)
+		return nil
+	}
+
+	origFunc := EnhanceNotesFunc
+	EnhanceNotesFunc = mockFunc
+	defer func() { EnhanceNotesFunc = origFunc }()
+
+	cmd := EnhanceCmd{
+		InputDirs: []string{env.RootDir()},
+	}
+
+	err := cmd.Run()
+	require.NoError(t, err)
+	assert.True(t, mockCalled, "EnhanceNotesFunc should have been called")
+}
+
+func TestEnhanceCmd_Run_MultipleDirectories(t *testing.T) {
+	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"))
+	env := testutil.NewTestEnv(t)
+
+	// Create subdirectories
+	env.MkdirAll("dir1")
+	env.MkdirAll("dir2")
+
+	callCount := 0
+	var calledDirs []string
+
+	mockFunc := func(opts Options) error {
+		callCount++
+		calledDirs = append(calledDirs, opts.InputDir)
+		return nil
+	}
+
+	origFunc := EnhanceNotesFunc
+	EnhanceNotesFunc = mockFunc
+	defer func() { EnhanceNotesFunc = origFunc }()
+
+	cmd := EnhanceCmd{
+		InputDirs: []string{
+			filepath.Join(env.RootDir(), "dir1"),
+			filepath.Join(env.RootDir(), "dir2"),
+		},
+	}
+
+	err := cmd.Run()
+	require.NoError(t, err)
+	assert.Equal(t, 2, callCount, "EnhanceNotesFunc should be called twice")
+	assert.Contains(t, calledDirs[0], "dir1")
+	assert.Contains(t, calledDirs[1], "dir2")
+}
+
+func TestEnhanceCmd_Run_WithOptions(t *testing.T) {
+	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"))
+	env := testutil.NewTestEnv(t)
+
+	tests := []struct {
+		name            string
+		cmd             EnhanceCmd
+		wantRecursive   bool
+		wantDryRun      bool
+		wantOverwrite   bool
+		wantForce       bool
+		wantInteractive bool
+	}{
+		{
+			name: "with recursive flag",
+			cmd: EnhanceCmd{
+				InputDirs: []string{env.RootDir()},
+				Recursive: true,
+			},
+			wantRecursive:   true,
+			wantInteractive: true,
+		},
+		{
+			name: "with dry-run flag",
+			cmd: EnhanceCmd{
+				InputDirs: []string{env.RootDir()},
+				DryRun:    true,
+			},
+			wantDryRun:      true,
+			wantInteractive: true,
+		},
+		{
+			name: "with overwrite flag",
+			cmd: EnhanceCmd{
+				InputDirs:     []string{env.RootDir()},
+				OverwriteTMDB: true,
+			},
+			wantOverwrite:   true,
+			wantInteractive: true,
+		},
+		{
+			name: "with force flag",
+			cmd: EnhanceCmd{
+				InputDirs: []string{env.RootDir()},
+				Force:     true,
+			},
+			wantForce:       true,
+			wantInteractive: true,
+		},
+		{
+			name: "with non-interactive flag",
+			cmd: EnhanceCmd{
+				InputDirs:         []string{env.RootDir()},
+				TMDBNoInteractive: true,
+			},
+			wantInteractive: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockCalled := false
+			mockFunc := func(opts Options) error {
+				mockCalled = true
+				assert.Equal(t, tt.wantRecursive, opts.Recursive, "Recursive flag")
+				assert.Equal(t, tt.wantDryRun, opts.DryRun, "DryRun flag")
+				assert.Equal(t, tt.wantOverwrite, opts.Overwrite, "Overwrite flag")
+				assert.Equal(t, tt.wantForce, opts.Force, "Force flag")
+				assert.Equal(t, tt.wantInteractive, opts.TMDBInteractive, "TMDBInteractive flag")
+				return nil
+			}
+
+			origFunc := EnhanceNotesFunc
+			EnhanceNotesFunc = mockFunc
+			defer func() { EnhanceNotesFunc = origFunc }()
+
+			err := tt.cmd.Run()
+			require.NoError(t, err)
+			assert.True(t, mockCalled)
+		})
+	}
+}
+
+func TestEnhanceCmd_Run_PropagatesError(t *testing.T) {
+	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"))
+	env := testutil.NewTestEnv(t)
+
+	expectedErr := fmt.Errorf("mock error from enhance")
+	mockFunc := func(opts Options) error {
+		return expectedErr
+	}
+
+	origFunc := EnhanceNotesFunc
+	EnhanceNotesFunc = mockFunc
+	defer func() { EnhanceNotesFunc = origFunc }()
+
+	cmd := EnhanceCmd{
+		InputDirs: []string{env.RootDir()},
+	}
+
+	err := cmd.Run()
+	require.Error(t, err)
+	assert.Equal(t, expectedErr, err)
 }

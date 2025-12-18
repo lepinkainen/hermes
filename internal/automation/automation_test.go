@@ -85,14 +85,22 @@ func TestCopyFile(t *testing.T) {
 
 // MockCDPRunner is a test implementation of CDPRunner
 type MockCDPRunner struct {
-	RunFunc func(ctx context.Context, actions ...chromedp.Action) error
+	NewExecAllocatorFunc func(ctx context.Context, opts ...chromedp.ExecAllocatorOption) (context.Context, context.CancelFunc)
+	NewContextFunc       func(parent context.Context, opts ...chromedp.ContextOption) (context.Context, context.CancelFunc)
+	RunFunc              func(ctx context.Context, actions ...chromedp.Action) error
 }
 
 func (m *MockCDPRunner) NewExecAllocator(ctx context.Context, opts ...chromedp.ExecAllocatorOption) (context.Context, context.CancelFunc) {
+	if m.NewExecAllocatorFunc != nil {
+		return m.NewExecAllocatorFunc(ctx, opts...)
+	}
 	return ctx, func() {}
 }
 
 func (m *MockCDPRunner) NewContext(parent context.Context, opts ...chromedp.ContextOption) (context.Context, context.CancelFunc) {
+	if m.NewContextFunc != nil {
+		return m.NewContextFunc(parent, opts...)
+	}
 	return parent, func() {}
 }
 
@@ -137,6 +145,69 @@ func TestConfigureDownloadDirectory(t *testing.T) {
 func TestWaitForSelector(t *testing.T) {
 	t.Skip("Skipping WaitForSelector tests - requires more complex chromedp mocking")
 	// TODO: Implement proper mocking for chromedp.Evaluate that can set boolean values
+}
+
+func TestNewBrowser(t *testing.T) {
+	t.Parallel()
+
+	t.Run("creates browser context with headless mode", func(t *testing.T) {
+		t.Parallel()
+		runner := &MockCDPRunner{}
+
+		ctx, cancel := automation.NewBrowser(runner, automation.AutomationOptions{
+			Headless: true,
+		})
+
+		assert.NotNil(t, ctx)
+		assert.NotNil(t, cancel)
+
+		// Cleanup
+		cancel()
+	})
+
+	t.Run("creates browser context with headful mode", func(t *testing.T) {
+		t.Parallel()
+		runner := &MockCDPRunner{}
+
+		ctx, cancel := automation.NewBrowser(runner, automation.AutomationOptions{
+			Headless: false,
+		})
+
+		assert.NotNil(t, ctx)
+		assert.NotNil(t, cancel)
+
+		// Cleanup
+		cancel()
+	})
+
+	t.Run("combined cancel function works", func(t *testing.T) {
+		t.Parallel()
+		allocCanceled := false
+		browserCanceled := false
+
+		runner := &MockCDPRunner{
+			NewExecAllocatorFunc: func(ctx context.Context, opts ...chromedp.ExecAllocatorOption) (context.Context, context.CancelFunc) {
+				return ctx, func() {
+					allocCanceled = true
+				}
+			},
+			NewContextFunc: func(parent context.Context, opts ...chromedp.ContextOption) (context.Context, context.CancelFunc) {
+				return parent, func() {
+					browserCanceled = true
+				}
+			},
+		}
+
+		_, cancel := automation.NewBrowser(runner, automation.AutomationOptions{
+			Headless: true,
+		})
+
+		// Call the combined cancel function
+		cancel()
+
+		assert.True(t, allocCanceled, "allocator cancel should be called")
+		assert.True(t, browserCanceled, "browser cancel should be called")
+	})
 }
 
 // TODO: Test BuildExecAllocatorOptions
