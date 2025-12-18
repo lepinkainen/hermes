@@ -63,6 +63,7 @@ func Execute() {
 	// Create CLI instance
 	var cli CLI
 	cli.Import.Goodreads.Init(goodreads.DefaultParseGoodreadsFunc, goodreads.DefaultDownloadGoodreadsCSVFunc, &automation.DefaultCDPRunner{})
+	cli.Import.Letterboxd.Runner = &automation.DefaultCDPRunner{}
 
 	// Parse command line with Kong
 	ctx := kong.Parse(&cli,

@@ -13,6 +13,22 @@ import (
 
 const defaultAutomationTimeout = 3 * time.Minute
 
+type ParseLetterboxdFuncType func(
+	inputFile, outputDirParam string,
+	writeJSONFlag bool,
+	jsonOutputPath string,
+	overwriteFlag bool,
+	tmdbEnabledFlag bool,
+	tmdbDownloadCoverFlag bool,
+	tmdbGenerateContentFlag bool,
+	tmdbInteractiveFlag bool,
+	tmdbContentSectionsFlag []string,
+	useTMDBCoverCacheFlag bool,
+	tmdbCoverCachePathFlag string,
+	runner automation.CDPRunner,
+) error
+type DownloadLetterboxdCSVFuncType func(ctx context.Context, runner automation.CDPRunner, opts AutomationOptions) (string, error)
+
 // Define package-level variables for flags
 var (
 	csvFile     string
@@ -64,7 +80,7 @@ type LetterboxdCmd struct {
 	AutomationTimeout  time.Duration `help:"Timeout for automation process" default:"3m"`
 	DryRun             bool          `help:"Run automation without importing (testing)"`
 
-	runner automation.CDPRunner
+	Runner automation.CDPRunner `kong:"-"`
 }
 
 func (l *LetterboxdCmd) Run() error {
@@ -123,7 +139,7 @@ func (l *LetterboxdCmd) Run() error {
 			Timeout:     automationTimeout,
 		}
 
-		csvPath, err := DownloadLetterboxdCSV(ctx, l.runner, opts)
+		csvPath, err := DownloadLetterboxdCSV(ctx, l.Runner, opts)
 		if err != nil {
 			return fmt.Errorf("letterboxd automation failed: %w", err)
 		}
@@ -149,7 +165,7 @@ func (l *LetterboxdCmd) Run() error {
 		l.TMDBContentSections,
 		viper.GetBool("tmdb.cover_cache.enabled"),
 		viper.GetString("tmdb.cover_cache.path"),
-		l.runner,
+		l.Runner,
 	)
 }
 

@@ -36,9 +36,11 @@ config.yml
 hermes
 hermes-*
 
-*.csv
+# dev stuff and databases
 *.json
 hermes.db
 cache.db
 exports/
+imports/
+tmp/
 .envrc

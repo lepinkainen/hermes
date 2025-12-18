@@ -165,6 +165,11 @@ func TestHasTMDBData(t *testing.T) {
 	}
 }
 
+func TestExtractTitleFromPath_WithParentheses(t *testing.T) {
+	title := extractTitleFromPath("/notes/Red Sonja (2025).md")
+	require.Equal(t, "Red Sonja (2025)", title)
+}
+
 func TestAddTMDBData(t *testing.T) {
 	note := &Note{
 		RawFrontmatter: map[string]interface{}{
