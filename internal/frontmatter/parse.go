@@ -117,6 +117,7 @@ func DetectMediaTypeFromTags(fm map[string]any) string {
 }
 
 // detectTypeFromTags attempts to determine media type from the tags array.
+// Returns "movie", "tv", "game", or empty string if no type hints are present.
 func detectTypeFromTags(fm map[string]any) string {
 	tags, ok := fm["tags"]
 	if !ok {
@@ -125,6 +126,7 @@ func detectTypeFromTags(fm map[string]any) string {
 
 	moviePresent := false
 	tvPresent := false
+	gamePresent := false
 
 	// helper checks a single tag string
 	checkTag := func(tagStr string) {
@@ -134,6 +136,8 @@ func detectTypeFromTags(fm map[string]any) string {
 			moviePresent = true
 		case tag == "tv" || tag == "tv-show" || tag == "series" || strings.HasPrefix(tag, "tv/"):
 			tvPresent = true
+		case tag == "game" || strings.HasPrefix(tag, "game/") || strings.HasPrefix(tag, "steam/"):
+			gamePresent = true
 		}
 	}
 
@@ -154,6 +158,8 @@ func detectTypeFromTags(fm map[string]any) string {
 	}
 
 	switch {
+	case gamePresent:
+		return "game"
 	case tvPresent:
 		return "tv"
 	case moviePresent:

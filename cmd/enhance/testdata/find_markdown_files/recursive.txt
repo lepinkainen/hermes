@@ -1,0 +1,3 @@
+Plain.md
+Red Sonja (2025).md
+subdir/Series (Pilot).md

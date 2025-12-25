@@ -251,7 +251,7 @@ Original content here.`
 	}
 }
 
-func TestBuildMarkdownOverwriteTMDBBehavior(t *testing.T) {
+func TestBuildMarkdownRegenerateDataBehavior(t *testing.T) {
 	t.Run("overwriteTrueUpdatesOnlyTMDBFields", func(t *testing.T) {
 		originalContent := `---
 title: "Existing Show"

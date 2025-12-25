@@ -175,7 +175,7 @@ func TestEnhanceRunPassesOptions(t *testing.T) {
 		calledDirs = append(calledDirs, opts.InputDir)
 		assert.True(t, opts.Recursive)
 		assert.True(t, opts.DryRun)
-		assert.True(t, opts.Overwrite)
+		assert.True(t, opts.RegenerateData)
 		assert.True(t, opts.Force)
 		assert.Equal(t, []string{"cast"}, opts.TMDBContentSections)
 		return nil
@@ -184,7 +184,7 @@ func TestEnhanceRunPassesOptions(t *testing.T) {
 	enhance.EnhanceNotesFunc = mockRun
 	t.Cleanup(func() { enhance.EnhanceNotesFunc = origEnhanceNotes })
 
-	cli, ctx := parseCLI(t, "enhance", "--input-dirs", notesDir, "--input-dirs", animeDir, "--recursive", "--dry-run", "--overwrite-tmdb", "--force", "--tmdb-content-sections", "cast")
+	cli, ctx := parseCLI(t, "enhance", "--input-dirs", notesDir, "--input-dirs", animeDir, "--recursive", "--dry-run", "--regenerate-data", "--force", "--tmdb-content-sections", "cast")
 	updateGlobalConfig(cli)
 
 	err := ctx.Run()

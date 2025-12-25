@@ -526,10 +526,10 @@ func TestEnhanceCmd_Run_WithOptions(t *testing.T) {
 			wantInteractive: true,
 		},
 		{
-			name: "with overwrite flag",
+			name: "with regenerate data flag",
 			cmd: EnhanceCmd{
-				InputDirs:     []string{env.RootDir()},
-				OverwriteTMDB: true,
+				InputDirs:      []string{env.RootDir()},
+				RegenerateData: true,
 			},
 			wantOverwrite:   true,
 			wantInteractive: true,
@@ -560,7 +560,7 @@ func TestEnhanceCmd_Run_WithOptions(t *testing.T) {
 				mockCalled = true
 				assert.Equal(t, tt.wantRecursive, opts.Recursive, "Recursive flag")
 				assert.Equal(t, tt.wantDryRun, opts.DryRun, "DryRun flag")
-				assert.Equal(t, tt.wantOverwrite, opts.Overwrite, "Overwrite flag")
+				assert.Equal(t, tt.wantOverwrite, opts.RegenerateData, "RegenerateData flag")
 				assert.Equal(t, tt.wantForce, opts.Force, "Force flag")
 				assert.Equal(t, tt.wantInteractive, opts.TMDBInteractive, "TMDBInteractive flag")
 				return nil

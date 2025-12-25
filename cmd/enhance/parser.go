@@ -17,11 +17,12 @@ import (
 type Note struct {
 	// Frontmatter fields
 	Title        string `yaml:"title"`
-	Type         string `yaml:"type"`
+	Type         string `yaml:"type"` // "movie", "tv", or "game"
 	Year         int    `yaml:"year"`
 	IMDBID       string `yaml:"imdb_id,omitempty"`
 	TMDBID       int    `yaml:"tmdb_id,omitempty"`
 	LetterboxdID string `yaml:"letterboxd_id,omitempty"`
+	SteamAppID   int    `yaml:"steam_appid,omitempty"`
 	Seen         bool   `yaml:"seen,omitempty"`
 
 	// Raw frontmatter and content
@@ -90,6 +91,9 @@ func parseNote(fileContent string) (*Note, error) {
 		note.Seen = seen
 	}
 
+	// Check for Steam AppID
+	note.SteamAppID = fm.IntFromAny(frontmatter["steam_appid"])
+
 	return note, nil
 }
 
@@ -115,6 +119,23 @@ func (n *Note) NeedsCover() bool {
 // Returns true if TMDB content markers are missing from the body.
 func (n *Note) NeedsContent() bool {
 	return !content.HasTMDBContentMarkers(n.OriginalBody)
+}
+
+// IsGame returns true if this note is detected as a game note.
+func (n *Note) IsGame() bool {
+	return n.Type == "game"
+}
+
+// HasSteamData checks if the note already has Steam data in both frontmatter and body.
+// Returns true only if both Steam AppID exists in frontmatter AND content markers exist in body.
+func (n *Note) HasSteamData() bool {
+	return n.SteamAppID != 0 && content.HasSteamContentMarkers(n.OriginalBody)
+}
+
+// NeedsSteamContent checks if the note needs Steam content sections.
+// Returns true if Steam content markers are missing from the body.
+func (n *Note) NeedsSteamContent() bool {
+	return !content.HasSteamContentMarkers(n.OriginalBody)
 }
 
 // AddTMDBData adds TMDB enrichment data to the note's frontmatter.
@@ -156,6 +177,42 @@ func (n *Note) AddTMDBData(tmdbData *enrichment.TMDBEnrichment) {
 	}
 }
 
+// AddSteamData adds Steam enrichment data to the note's frontmatter.
+func (n *Note) AddSteamData(steamData *enrichment.SteamEnrichment) {
+	if steamData == nil {
+		return
+	}
+
+	n.RawFrontmatter["steam_appid"] = steamData.SteamAppID
+
+	if len(steamData.GenreTags) > 0 {
+		// Merge with existing tags using shared utility
+		existingTags := enrichment.TagsFromAny(n.RawFrontmatter["tags"])
+		mergedTags := enrichment.MergeTags(existingTags, steamData.GenreTags)
+		n.RawFrontmatter["tags"] = mergedTags
+	}
+
+	if steamData.CoverPath != "" {
+		n.RawFrontmatter["cover"] = steamData.CoverPath
+	}
+
+	if len(steamData.Developers) > 0 {
+		n.RawFrontmatter["developers"] = steamData.Developers
+	}
+
+	if len(steamData.Publishers) > 0 {
+		n.RawFrontmatter["publishers"] = steamData.Publishers
+	}
+
+	if steamData.ReleaseDate != "" {
+		n.RawFrontmatter["release_date"] = steamData.ReleaseDate
+	}
+
+	if steamData.MetacriticScore > 0 {
+		n.RawFrontmatter["metacritic_score"] = steamData.MetacriticScore
+	}
+}
+
 // BuildMarkdown builds the complete markdown content with updated frontmatter and content.
 func (n *Note) BuildMarkdown(originalContent string, tmdbData *enrichment.TMDBEnrichment, overwrite bool) string {
 	var sb strings.Builder
@@ -181,6 +238,43 @@ func (n *Note) BuildMarkdown(originalContent string, tmdbData *enrichment.TMDBEn
 		} else {
 			// No markers exist - append wrapped content
 			wrappedContent := content.WrapWithMarkers(tmdbData.ContentMarkdown)
+			body = strings.TrimRight(body, "\n")
+			if body != "" {
+				body += "\n\n"
+			}
+			body += wrappedContent
+		}
+	}
+
+	sb.WriteString(body)
+	return sb.String()
+}
+
+// BuildMarkdownForSteam builds the complete markdown content with updated frontmatter and Steam content.
+func (n *Note) BuildMarkdownForSteam(originalContent string, steamData *enrichment.SteamEnrichment, overwrite bool) string {
+	var sb strings.Builder
+
+	// Write frontmatter
+	sb.WriteString("---\n")
+	frontmatterBytes, err := yaml.Marshal(n.RawFrontmatter)
+	if err != nil {
+		// Fallback to original if marshaling fails
+		return originalContent
+	}
+	sb.Write(frontmatterBytes)
+	sb.WriteString("---\n\n")
+
+	// Handle Steam content with marker-based replacement
+	body := n.OriginalBody
+	if steamData != nil && steamData.ContentMarkdown != "" {
+		if content.HasSteamContentMarkers(body) {
+			// Replace existing Steam content between markers
+			if overwrite {
+				body = content.ReplaceSteamContent(body, steamData.ContentMarkdown)
+			}
+		} else {
+			// No markers exist - append wrapped content
+			wrappedContent := content.WrapWithSteamMarkers(steamData.ContentMarkdown)
 			body = strings.TrimRight(body, "\n")
 			if body != "" {
 				body += "\n\n"

@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-
 	"github.com/lepinkainen/hermes/cmd/letterboxd"
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/enrichment"
@@ -23,7 +22,7 @@ type EnhanceCmd struct {
 	InputDirs           []string `short:"d" help:"Directories containing markdown files to enhance (can specify multiple)" required:""`
 	Recursive           bool     `short:"r" help:"Scan subdirectories recursively" default:"false"`
 	DryRun              bool     `help:"Show what would be done without making changes" default:"false"`
-	OverwriteTMDB       bool     `help:"Overwrite existing TMDB content in notes" default:"false"`
+	RegenerateData      bool     `help:"Regenerate data sections (TMDB/Steam) even if they already exist" default:"false"`
 	Force               bool     `short:"f" help:"Force re-enrichment even when TMDB ID exists in frontmatter" default:"false"`
 	RefreshCache        bool     `help:"Refresh TMDB cache without re-searching for matches" default:"false"`
 	TMDBNoInteractive   bool     `help:"Disable interactive TUI for TMDB selection (auto-select first result)" default:"false"`
@@ -36,7 +35,7 @@ func (e *EnhanceCmd) Run() error {
 			InputDir:            inputDir,
 			Recursive:           e.Recursive,
 			DryRun:              e.DryRun,
-			Overwrite:           e.OverwriteTMDB,
+			RegenerateData:      e.RegenerateData,
 			Force:               e.Force,
 			RefreshCache:        e.RefreshCache,
 			TMDBDownloadCover:   true,                 // Always download covers
@@ -70,8 +69,8 @@ type Options struct {
 	TMDBContentSections []string
 	// DryRun shows what would be done without making changes
 	DryRun bool
-	// Overwrite determines whether to overwrite existing TMDB content
-	Overwrite bool
+	// RegenerateData determines whether to regenerate data sections even if they exist
+	RegenerateData bool
 	// Force forces re-enrichment even when TMDB ID exists
 	Force bool
 	// RefreshCache refreshes TMDB cache without re-searching for matches
@@ -133,13 +132,28 @@ func EnhanceNotes(opts Options) error {
 			continue
 		}
 
+		// Route to appropriate enrichment based on media type
+		if note.IsGame() {
+			// Handle game enrichment with Steam
+			success, skip := processGameNote(ctx, file, note, opts, attachmentsDir)
+			if success {
+				successCount++
+			} else if skip {
+				skipCount++
+			} else {
+				errorCount++
+			}
+			continue
+		}
+
+		// Handle movie/TV enrichment with TMDB
 		// Smart needs detection: determine what needs to be updated
 		needsCover := note.NeedsCover()
 		needsContent := note.NeedsContent()
 
-		// Skip if already has everything and not forcing/overwriting
+		// Skip if already has everything and not forcing/regenerating
 		// Note: metadata is always fetched to ensure all fields are current (uses cache for efficiency)
-		if !opts.Force && !opts.Overwrite && !needsCover && !needsContent {
+		if !opts.Force && !opts.RegenerateData && !needsCover && !needsContent {
 			slog.Info("Skipping file (already has all TMDB data)", "path", file, "tmdb_id", note.TMDBID)
 			skipCount++
 			continue
@@ -161,8 +175,8 @@ func EnhanceNotes(opts Options) error {
 		storedType := fm.StringFromAny(note.RawFrontmatter["tmdb_type"])
 
 		enrichOpts := enrichment.TMDBEnrichmentOptions{
-			DownloadCover:     opts.TMDBDownloadCover && (needsCover || opts.Overwrite),
-			GenerateContent:   needsContent || opts.Overwrite,
+			DownloadCover:     opts.TMDBDownloadCover && (needsCover || opts.RegenerateData),
+			GenerateContent:   needsContent || opts.RegenerateData,
 			ContentSections:   opts.TMDBContentSections,
 			AttachmentsDir:    attachmentsDir,
 			NoteDir:           noteDir,
@@ -194,7 +208,7 @@ func EnhanceNotes(opts Options) error {
 		}
 
 		// Update the note with TMDB data
-		if err := updateNoteWithTMDBData(file, note, tmdbData, opts.Overwrite); err != nil {
+		if err := updateNoteWithTMDBData(file, note, tmdbData, opts.RegenerateData); err != nil {
 			slog.Warn("Failed to update note", "path", file, "error", err)
 			errorCount++
 			continue
@@ -308,4 +322,78 @@ func resolveLetterboxdURI(note *Note, storedType, expectedType string) string {
 // generateLetterboxdSearchURL creates a Letterboxd search URL for the given title.
 func generateLetterboxdSearchURL(title string) string {
 	return fmt.Sprintf("https://letterboxd.com/search/%s/", url.PathEscape(title))
+}
+
+// processGameNote handles enrichment for game notes using Steam.
+// Returns (success, skip) booleans.
+func processGameNote(ctx context.Context, file string, note *Note, opts Options, attachmentsDir string) (bool, bool) {
+	needsCover := note.NeedsCover()
+	needsContent := note.NeedsSteamContent()
+
+	// Skip if already has everything and not forcing/regenerating
+	if !opts.Force && !opts.RegenerateData && !needsCover && !needsContent {
+		slog.Info("Skipping game file (already has all Steam data)", "path", file, "steam_appid", note.SteamAppID)
+		return false, true // skip
+	}
+
+	if opts.DryRun {
+		slog.Info("Would enhance game", "title", note.Title, "file", file,
+			"needs_cover", needsCover, "needs_content", needsContent)
+		return true, false // success
+	}
+
+	noteDir := filepath.Dir(file)
+
+	steamOpts := enrichment.SteamEnrichmentOptions{
+		DownloadCover:   opts.TMDBDownloadCover && (needsCover || opts.RegenerateData),
+		GenerateContent: needsContent || opts.RegenerateData,
+		AttachmentsDir:  attachmentsDir,
+		NoteDir:         noteDir,
+		Interactive:     opts.TMDBInteractive,
+		Force:           opts.Force,
+	}
+
+	// Enrich with Steam data
+	steamData, err := enrichment.EnrichFromSteam(ctx, note.Title, note.SteamAppID, steamOpts)
+	if err != nil {
+		slog.Warn("Failed to enrich game from Steam", "title", note.Title, "error", err)
+		return false, false // error
+	}
+
+	if steamData == nil {
+		slog.Debug("No Steam data found", "title", note.Title)
+		return false, true // skip
+	}
+
+	// Update the note with Steam data
+	if err := updateNoteWithSteamData(file, note, steamData, opts.RegenerateData); err != nil {
+		slog.Warn("Failed to update game note", "path", file, "error", err)
+		return false, false // error
+	}
+
+	slog.Info("Enhanced game note", "title", note.Title, "steam_appid", steamData.SteamAppID)
+	return true, false // success
+}
+
+// updateNoteWithSteamData updates the note file with Steam enrichment data.
+func updateNoteWithSteamData(filePath string, note *Note, steamData *enrichment.SteamEnrichment, overwrite bool) error {
+	// Read the original file
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Update frontmatter with Steam data
+	note.AddSteamData(steamData)
+
+	// Build the new file content
+	newContent := note.BuildMarkdownForSteam(string(content), steamData, overwrite)
+
+	// Write back to file
+	_, err = fileutil.WriteFileWithOverwrite(filePath, []byte(newContent), 0644, true)
+	if err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
 }
