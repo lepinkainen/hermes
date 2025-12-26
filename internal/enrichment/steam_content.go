@@ -3,6 +3,7 @@ package enrichment
 import (
 	"github.com/lepinkainen/hermes/cmd/steam"
 	"github.com/lepinkainen/hermes/internal/content"
+	"github.com/lepinkainen/hermes/internal/obsidian"
 )
 
 // buildSteamContentMarkdown generates markdown content from Steam game details.
@@ -54,7 +55,7 @@ func extractGenreTags(details *steam.GameDetails) []string {
 	tags := make([]string, 0, len(details.Genres))
 	for _, genre := range details.Genres {
 		if genre.Description != "" {
-			tags = append(tags, "genre/"+genre.Description)
+			tags = append(tags, "genre/"+obsidian.NormalizeTag(genre.Description))
 		}
 	}
 	return tags
