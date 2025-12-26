@@ -1,3 +1,11 @@
+// Package enrichment_test contains legacy tests for deprecated tag functions.
+//
+// These tests verify backward compatibility for enrichment.MergeTags and enrichment.TagsFromAny,
+// which are deprecated in favor of obsidian.MergeTags and obsidian.TagsFromAny.
+// These functions and tests will be removed in v2.0.0.
+//
+// New code should use the obsidian package equivalents, which provide built-in tag normalization
+// according to Obsidian conventions.
 package enrichment
 
 import (
