@@ -9,6 +9,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/content"
 	"github.com/lepinkainen/hermes/internal/fileutil"
+	"github.com/lepinkainen/hermes/internal/obsidian"
 )
 
 const defaultCoverWidth = 250
@@ -60,8 +61,8 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 		mb.AddStringArray("directors", movie.Directors)
 	}
 
-	// Collect all tags using TagCollector for deduplication
-	tc := fileutil.NewTagCollector()
+	// Collect all tags using TagSet for deduplication and normalization
+	tc := obsidian.NewTagSet()
 
 	// Add type tag
 	typeTag := mapTypeToTag(movie.TitleType)

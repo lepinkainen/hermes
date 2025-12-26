@@ -17,7 +17,7 @@ tags:
   - genre/Drama
   - genre/Mystery
   - genre/Psychological
-  - genre/Science Fiction
+  - genre/Science-Fiction
   - genre/Thriller
   - imdb/movie
   - rating/10
