@@ -8,6 +8,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/content"
 	"github.com/lepinkainen/hermes/internal/fileutil"
+	"github.com/lepinkainen/hermes/internal/obsidian"
 )
 
 const defaultCoverWidth = 250
@@ -49,8 +50,8 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 		mb.AddStringArray("directors", []string{movie.Director})
 	}
 
-	// Collect all tags using TagCollector for deduplication
-	tc := fileutil.NewTagCollector()
+	// Collect all tags using TagSet for deduplication and normalization
+	tc := obsidian.NewTagSet()
 	tc.Add("letterboxd/movie")
 
 	// Add rating tag if available (rounded to integer)

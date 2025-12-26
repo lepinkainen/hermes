@@ -10,11 +10,11 @@ duration: 3h 7m
 directors:
   - "Visionary Auteur"
 tags:
-  - genre/Art House
+  - genre/Art-House
   - genre/Drama
   - genre/Experimental
-  - genre/Historical Fiction
-  - genre/Psychological Thriller
+  - genre/Historical-Fiction
+  - genre/Psychological-Thriller
   - letterboxd/movie
   - rating/5
   - year/2020s
