@@ -8,6 +8,7 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/fileutil"
+	"github.com/lepinkainen/hermes/internal/obsidian"
 )
 
 const defaultCoverWidth = 250
@@ -75,28 +76,23 @@ func writeBookToMarkdown(book Book, directory string) error {
 		mb.AddStringArray("bookshelves", book.Bookshelves)
 	}
 
-	// Tags
-	tags := []string{
-		"goodreads/book",
-	}
+	// Collect all tags using TagSet for deduplication and normalization
+	tc := obsidian.NewTagSet()
+	tc.Add("goodreads/book")
 
 	// Add rating tag
-	if book.MyRating > 0 {
-		tags = append(tags, fmt.Sprintf("rating/%.0f", book.MyRating))
-	}
+	tc.AddIf(book.MyRating > 0, fmt.Sprintf("rating/%.0f", book.MyRating))
 
 	// Add decade tag if we have a year
 	if book.YearPublished > 0 {
 		decade := (book.YearPublished / 10) * 10
-		tags = append(tags, fmt.Sprintf("year/%ds", decade))
+		tc.AddFormat("year/%ds", decade)
 	}
 
 	// Add shelf tag
-	if book.ExclusiveShelf != "" {
-		tags = append(tags, fmt.Sprintf("shelf/%s", book.ExclusiveShelf))
-	}
+	tc.AddIf(book.ExclusiveShelf != "", fmt.Sprintf("shelf/%s", book.ExclusiveShelf))
 
-	mb.AddTags(tags...)
+	mb.AddTags(tc.GetSorted()...)
 
 	// Additional metadata from OpenLibrary
 	if book.Description != "" {

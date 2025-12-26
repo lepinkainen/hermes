@@ -7,8 +7,8 @@ authors:
   - "Minimalist Author"
 tags:
   - goodreads/book
-  - year/2010s
   - shelf/to-read
+  - year/2010s
 cover: "attachments/Minimal Book - cover.jpg"
 ---
 

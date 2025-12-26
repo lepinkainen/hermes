@@ -26,8 +26,8 @@ bookshelves:
 tags:
   - goodreads/book
   - rating/5
-  - year/2020s
   - shelf/read
+  - year/2020s
 description: "|
   A groundbreaking interdisciplinary work that explores the connections between quantum mechanics, consciousness, and philosophical determinism. Drawing from cutting-edge research in physics, neuroscience, and metaphysics, the authors present a unified theory of reality that challenges conventional understanding of time, causality, and human perception. Includes extensive notes, mathematical appendices, and thought experiments designed to illuminate the practical applications of theoretical concepts."
 subjects:

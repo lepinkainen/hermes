@@ -22,8 +22,8 @@ bookshelves:
 tags:
   - goodreads/book
   - rating/4
-  - year/2020s
   - shelf/read
+  - year/2020s
 description: "|
   This is a description of the book."
 subjects:
