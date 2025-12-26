@@ -11,6 +11,7 @@ import (
 
 	"github.com/alecthomas/assert/v2"
 	"github.com/lepinkainen/hermes/internal/enrichment"
+	"github.com/lepinkainen/hermes/internal/obsidian"
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -366,12 +367,14 @@ func TestResolveLetterboxdURI(t *testing.T) {
 	}{
 		{
 			name: "tier 1: URI from frontmatter",
-			note: &Note{
-				Title: "Heat",
-				RawFrontmatter: map[string]interface{}{
-					"letterboxd_uri": "https://letterboxd.com/film/heat-1995/",
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("letterboxd_uri", "https://letterboxd.com/film/heat-1995/")
+				return &Note{
+					Title:       "Heat",
+					Frontmatter: fm,
+				}
+			}(),
 			storedType:   "",
 			expectedType: "",
 			wantURI:      "https://letterboxd.com/film/heat-1995/",
@@ -379,9 +382,9 @@ func TestResolveLetterboxdURI(t *testing.T) {
 		{
 			name: "tier 3: generate search URL when no TMDB ID",
 			note: &Note{
-				Title:          "The Dark Knight",
-				TMDBID:         0,
-				RawFrontmatter: map[string]interface{}{},
+				Title:       "The Dark Knight",
+				TMDBID:      0,
+				Frontmatter: obsidian.NewFrontmatter(),
 			},
 			storedType:   "",
 			expectedType: "",
@@ -390,9 +393,9 @@ func TestResolveLetterboxdURI(t *testing.T) {
 		{
 			name: "empty title returns empty string",
 			note: &Note{
-				Title:          "",
-				TMDBID:         0,
-				RawFrontmatter: map[string]interface{}{},
+				Title:       "",
+				TMDBID:      0,
+				Frontmatter: obsidian.NewFrontmatter(),
 			},
 			storedType:   "",
 			expectedType: "",

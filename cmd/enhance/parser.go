@@ -10,24 +10,24 @@ import (
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	fm "github.com/lepinkainen/hermes/internal/frontmatter"
 	"github.com/lepinkainen/hermes/internal/importer/mediaids"
-	"gopkg.in/yaml.v3"
+	"github.com/lepinkainen/hermes/internal/obsidian"
 )
 
 // Note represents a parsed markdown note with YAML frontmatter.
 type Note struct {
-	// Frontmatter fields
-	Title        string `yaml:"title"`
-	Type         string `yaml:"type"` // "movie", "tv", or "game"
-	Year         int    `yaml:"year"`
-	IMDBID       string `yaml:"imdb_id,omitempty"`
-	TMDBID       int    `yaml:"tmdb_id,omitempty"`
-	LetterboxdID string `yaml:"letterboxd_id,omitempty"`
-	SteamAppID   int    `yaml:"steam_appid,omitempty"`
-	Seen         bool   `yaml:"seen,omitempty"`
+	// Frontmatter fields (typed for convenience)
+	Title        string
+	Type         string // "movie", "tv", or "game"
+	Year         int
+	IMDBID       string
+	TMDBID       int
+	LetterboxdID string
+	SteamAppID   int
+	Seen         bool
 
-	// Raw frontmatter and content
-	RawFrontmatter map[string]interface{}
-	OriginalBody   string
+	// Structured frontmatter and content using obsidian package
+	Frontmatter *obsidian.Frontmatter
+	Body        string
 }
 
 // parseNoteFile parses a markdown file and extracts frontmatter and content.
@@ -45,6 +45,7 @@ func parseNoteFile(filePath string) (*Note, error) {
 	// If title is missing, extract from filename
 	if note.Title == "" {
 		note.Title = extractTitleFromPath(filePath)
+		note.Frontmatter.Set("title", note.Title)
 	}
 
 	return note, nil
@@ -52,47 +53,39 @@ func parseNoteFile(filePath string) (*Note, error) {
 
 // parseNote parses markdown content with YAML frontmatter.
 func parseNote(fileContent string) (*Note, error) {
-	// Split frontmatter and body
-	parts := strings.SplitN(fileContent, "---", 3)
-	if len(parts) < 3 {
-		return nil, fmt.Errorf("invalid markdown format: missing frontmatter delimiters")
-	}
-
-	frontmatterStr := parts[1]
-	body := parts[2]
-
-	// Parse frontmatter
-	var frontmatter map[string]interface{}
-	if err := yaml.Unmarshal([]byte(frontmatterStr), &frontmatter); err != nil {
-		return nil, fmt.Errorf("failed to parse frontmatter: %w", err)
+	// Use obsidian package for parsing
+	obsNote, err := obsidian.ParseMarkdown([]byte(fileContent))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse markdown: %w", err)
 	}
 
 	note := &Note{
-		RawFrontmatter: frontmatter,
-		OriginalBody:   strings.TrimSpace(body),
+		Frontmatter: obsNote.Frontmatter,
+		Body:        obsNote.Body,
 	}
 
 	// Extract typed fields
-	if title, ok := frontmatter["title"].(string); ok {
-		note.Title = title
-	}
+	note.Title = note.Frontmatter.GetString("title")
 
 	// Get type from tmdb_type field or detect from tags
-	note.Type = fm.DetectMediaType(frontmatter)
-
-	if year, ok := frontmatter["year"].(int); ok {
-		note.Year = year
+	// Convert frontmatter to map for DetectMediaType
+	frontmatterMap := make(map[string]any)
+	for _, key := range note.Frontmatter.Keys() {
+		if val, ok := note.Frontmatter.Get(key); ok {
+			frontmatterMap[key] = val
+		}
 	}
-	ids := mediaids.FromFrontmatter(frontmatter)
+	note.Type = fm.DetectMediaType(frontmatterMap)
+
+	note.Year = note.Frontmatter.GetInt("year")
+
+	ids := mediaids.FromFrontmatter(frontmatterMap)
 	note.IMDBID = ids.IMDBID
 	note.TMDBID = ids.TMDBID
 	note.LetterboxdID = ids.LetterboxdID
-	if seen, ok := frontmatter["seen"].(bool); ok {
-		note.Seen = seen
-	}
 
-	// Check for Steam AppID
-	note.SteamAppID = fm.IntFromAny(frontmatter["steam_appid"])
+	note.Seen = note.Frontmatter.GetBool("seen")
+	note.SteamAppID = note.Frontmatter.GetInt("steam_appid")
 
 	return note, nil
 }
@@ -100,25 +93,20 @@ func parseNote(fileContent string) (*Note, error) {
 // HasTMDBData checks if the note already has TMDB data in both frontmatter and body.
 // Returns true only if both TMDB ID exists in frontmatter AND content markers exist in body.
 func (n *Note) HasTMDBData() bool {
-	return n.TMDBID != 0 && content.HasTMDBContentMarkers(n.OriginalBody)
+	return n.TMDBID != 0 && content.HasTMDBContentMarkers(n.Body)
 }
 
 // NeedsCover checks if the note needs a cover image.
 // Returns true if the cover field is missing or empty.
 func (n *Note) NeedsCover() bool {
-	cover, ok := n.RawFrontmatter["cover"]
-	if !ok {
-		return true
-	}
-
-	coverStr, ok := cover.(string)
-	return !ok || coverStr == ""
+	cover := n.Frontmatter.GetString("cover")
+	return cover == ""
 }
 
 // NeedsContent checks if the note needs TMDB content sections.
 // Returns true if TMDB content markers are missing from the body.
 func (n *Note) NeedsContent() bool {
-	return !content.HasTMDBContentMarkers(n.OriginalBody)
+	return !content.HasTMDBContentMarkers(n.Body)
 }
 
 // IsGame returns true if this note is detected as a game note.
@@ -129,13 +117,13 @@ func (n *Note) IsGame() bool {
 // HasSteamData checks if the note already has Steam data in both frontmatter and body.
 // Returns true only if both Steam AppID exists in frontmatter AND content markers exist in body.
 func (n *Note) HasSteamData() bool {
-	return n.SteamAppID != 0 && content.HasSteamContentMarkers(n.OriginalBody)
+	return n.SteamAppID != 0 && content.HasSteamContentMarkers(n.Body)
 }
 
 // NeedsSteamContent checks if the note needs Steam content sections.
 // Returns true if Steam content markers are missing from the body.
 func (n *Note) NeedsSteamContent() bool {
-	return !content.HasSteamContentMarkers(n.OriginalBody)
+	return !content.HasSteamContentMarkers(n.Body)
 }
 
 // AddTMDBData adds TMDB enrichment data to the note's frontmatter.
@@ -144,36 +132,38 @@ func (n *Note) AddTMDBData(tmdbData *enrichment.TMDBEnrichment) {
 		return
 	}
 
-	n.RawFrontmatter["tmdb_id"] = tmdbData.TMDBID
-	n.RawFrontmatter["tmdb_type"] = tmdbData.TMDBType
+	n.Frontmatter.Set("tmdb_id", tmdbData.TMDBID)
+	n.Frontmatter.Set("tmdb_type", tmdbData.TMDBType)
+	n.TMDBID = tmdbData.TMDBID
 
 	if tmdbData.RuntimeMins > 0 {
-		n.RawFrontmatter["runtime"] = tmdbData.RuntimeMins
+		n.Frontmatter.Set("runtime", tmdbData.RuntimeMins)
 	}
 
 	if tmdbData.TotalEpisodes > 0 {
-		n.RawFrontmatter["total_episodes"] = tmdbData.TotalEpisodes
+		n.Frontmatter.Set("total_episodes", tmdbData.TotalEpisodes)
 	}
 
 	if len(tmdbData.GenreTags) > 0 {
-		// Merge with existing tags using shared utility
-		existingTags := enrichment.TagsFromAny(n.RawFrontmatter["tags"])
-		mergedTags := enrichment.MergeTags(existingTags, tmdbData.GenreTags)
-		n.RawFrontmatter["tags"] = mergedTags
+		// Merge with existing tags using obsidian utility
+		existingTags := n.Frontmatter.GetStringArray("tags")
+		mergedTags := obsidian.MergeTags(existingTags, tmdbData.GenreTags)
+		n.Frontmatter.Set("tags", mergedTags)
 	}
 
 	if tmdbData.CoverPath != "" {
-		n.RawFrontmatter["cover"] = tmdbData.CoverPath
+		n.Frontmatter.Set("cover", tmdbData.CoverPath)
 	}
 
 	// Set finished flag for TV shows based on TMDB status
 	if tmdbData.Finished != nil {
-		n.RawFrontmatter["finished"] = *tmdbData.Finished
+		n.Frontmatter.Set("finished", *tmdbData.Finished)
 	}
 
 	// Set seen flag if movie has any rating but seen field is not already set
 	if !n.hasSeenField() && n.hasAnyRating() {
-		n.RawFrontmatter["seen"] = true
+		n.Frontmatter.Set("seen", true)
+		n.Seen = true
 	}
 }
 
@@ -183,52 +173,41 @@ func (n *Note) AddSteamData(steamData *enrichment.SteamEnrichment) {
 		return
 	}
 
-	n.RawFrontmatter["steam_appid"] = steamData.SteamAppID
+	n.Frontmatter.Set("steam_appid", steamData.SteamAppID)
+	n.SteamAppID = steamData.SteamAppID
 
 	if len(steamData.GenreTags) > 0 {
-		// Merge with existing tags using shared utility
-		existingTags := enrichment.TagsFromAny(n.RawFrontmatter["tags"])
-		mergedTags := enrichment.MergeTags(existingTags, steamData.GenreTags)
-		n.RawFrontmatter["tags"] = mergedTags
+		// Merge with existing tags using obsidian utility
+		existingTags := n.Frontmatter.GetStringArray("tags")
+		mergedTags := obsidian.MergeTags(existingTags, steamData.GenreTags)
+		n.Frontmatter.Set("tags", mergedTags)
 	}
 
 	if steamData.CoverPath != "" {
-		n.RawFrontmatter["cover"] = steamData.CoverPath
+		n.Frontmatter.Set("cover", steamData.CoverPath)
 	}
 
 	if len(steamData.Developers) > 0 {
-		n.RawFrontmatter["developers"] = steamData.Developers
+		n.Frontmatter.Set("developers", steamData.Developers)
 	}
 
 	if len(steamData.Publishers) > 0 {
-		n.RawFrontmatter["publishers"] = steamData.Publishers
+		n.Frontmatter.Set("publishers", steamData.Publishers)
 	}
 
 	if steamData.ReleaseDate != "" {
-		n.RawFrontmatter["release_date"] = steamData.ReleaseDate
+		n.Frontmatter.Set("release_date", steamData.ReleaseDate)
 	}
 
 	if steamData.MetacriticScore > 0 {
-		n.RawFrontmatter["metacritic_score"] = steamData.MetacriticScore
+		n.Frontmatter.Set("metacritic_score", steamData.MetacriticScore)
 	}
 }
 
 // BuildMarkdown builds the complete markdown content with updated frontmatter and content.
 func (n *Note) BuildMarkdown(originalContent string, tmdbData *enrichment.TMDBEnrichment, overwrite bool) string {
-	var sb strings.Builder
-
-	// Write frontmatter
-	sb.WriteString("---\n")
-	frontmatterBytes, err := yaml.Marshal(n.RawFrontmatter)
-	if err != nil {
-		// Fallback to original if marshaling fails
-		return originalContent
-	}
-	sb.Write(frontmatterBytes)
-	sb.WriteString("---\n\n")
-
 	// Handle TMDB content with marker-based replacement
-	body := n.OriginalBody
+	body := n.Body
 	if tmdbData != nil && tmdbData.ContentMarkdown != "" {
 		if content.HasTMDBContentMarkers(body) {
 			// Replace existing TMDB content between markers
@@ -246,26 +225,25 @@ func (n *Note) BuildMarkdown(originalContent string, tmdbData *enrichment.TMDBEn
 		}
 	}
 
-	sb.WriteString(body)
-	return sb.String()
+	// Build using obsidian package
+	obsNote := &obsidian.Note{
+		Frontmatter: n.Frontmatter,
+		Body:        body,
+	}
+
+	result, err := obsNote.Build()
+	if err != nil {
+		// Fallback to original if building fails
+		return originalContent
+	}
+
+	return string(result)
 }
 
 // BuildMarkdownForSteam builds the complete markdown content with updated frontmatter and Steam content.
 func (n *Note) BuildMarkdownForSteam(originalContent string, steamData *enrichment.SteamEnrichment, overwrite bool) string {
-	var sb strings.Builder
-
-	// Write frontmatter
-	sb.WriteString("---\n")
-	frontmatterBytes, err := yaml.Marshal(n.RawFrontmatter)
-	if err != nil {
-		// Fallback to original if marshaling fails
-		return originalContent
-	}
-	sb.Write(frontmatterBytes)
-	sb.WriteString("---\n\n")
-
 	// Handle Steam content with marker-based replacement
-	body := n.OriginalBody
+	body := n.Body
 	if steamData != nil && steamData.ContentMarkdown != "" {
 		if content.HasSteamContentMarkers(body) {
 			// Replace existing Steam content between markers
@@ -283,8 +261,19 @@ func (n *Note) BuildMarkdownForSteam(originalContent string, steamData *enrichme
 		}
 	}
 
-	sb.WriteString(body)
-	return sb.String()
+	// Build using obsidian package
+	obsNote := &obsidian.Note{
+		Frontmatter: n.Frontmatter,
+		Body:        body,
+	}
+
+	result, err := obsNote.Build()
+	if err != nil {
+		// Fallback to original if building fails
+		return originalContent
+	}
+
+	return string(result)
 }
 
 // readFile is a helper to read file content.
@@ -331,14 +320,14 @@ func (n *Note) GetIDSummary() string {
 
 // hasSeenField checks if the note already has a seen field in frontmatter.
 func (n *Note) hasSeenField() bool {
-	_, exists := n.RawFrontmatter["seen"]
+	_, exists := n.Frontmatter.Get("seen")
 	return exists
 }
 
 // hasAnyRating checks if the note has any rating field (imdb_rating, my_rating, or letterboxd_rating).
 func (n *Note) hasAnyRating() bool {
 	// Check for IMDb rating
-	if imdbRating, ok := n.RawFrontmatter["imdb_rating"]; ok {
+	if imdbRating, ok := n.Frontmatter.Get("imdb_rating"); ok {
 		if rating, isFloat := imdbRating.(float64); isFloat && rating > 0 {
 			return true
 		}
@@ -348,7 +337,7 @@ func (n *Note) hasAnyRating() bool {
 	}
 
 	// Check for my_rating
-	if myRating, ok := n.RawFrontmatter["my_rating"]; ok {
+	if myRating, ok := n.Frontmatter.Get("my_rating"); ok {
 		if rating, isInt := myRating.(int); isInt && rating > 0 {
 			return true
 		}
@@ -358,7 +347,7 @@ func (n *Note) hasAnyRating() bool {
 	}
 
 	// Check for letterboxd_rating
-	if letterboxdRating, ok := n.RawFrontmatter["letterboxd_rating"]; ok {
+	if letterboxdRating, ok := n.Frontmatter.Get("letterboxd_rating"); ok {
 		if rating, isFloat := letterboxdRating.(float64); isFloat && rating > 0 {
 			return true
 		}

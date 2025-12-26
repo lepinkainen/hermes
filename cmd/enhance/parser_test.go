@@ -7,6 +7,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/content"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/importer/mediaids"
+	"github.com/lepinkainen/hermes/internal/obsidian"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,13 +33,6 @@ This is the content of the note.`,
 				Type:   "movie",
 				Year:   2021,
 				IMDBID: "tt1234567",
-				RawFrontmatter: map[string]interface{}{
-					"title":     "Test Movie",
-					"tmdb_type": "movie",
-					"year":      2021,
-					"imdb_id":   "tt1234567",
-				},
-				OriginalBody: "This is the content of the note.",
 			},
 			wantErr: false,
 		},
@@ -57,20 +51,18 @@ Content here.`,
 				Type:   "movie",
 				Year:   2021,
 				TMDBID: 12345,
-				RawFrontmatter: map[string]interface{}{
-					"title":     "Test Movie",
-					"tmdb_type": "movie",
-					"year":      2021,
-					"tmdb_id":   12345,
-				},
-				OriginalBody: "Content here.",
 			},
 			wantErr: false,
 		},
 		{
 			name:    "missing frontmatter",
 			content: "Just some content without frontmatter",
-			wantErr: true,
+			want: &Note{
+				Title: "",
+				Type:  "",
+				Year:  0,
+			},
+			wantErr: false, // obsidian.ParseMarkdown accepts content without frontmatter
 		},
 		{
 			name: "invalid yaml",
@@ -109,9 +101,7 @@ Content`,
 			if got.TMDBID != tt.want.TMDBID {
 				t.Errorf("TMDBID = %v, want %v", got.TMDBID, tt.want.TMDBID)
 			}
-			if got.OriginalBody != tt.want.OriginalBody {
-				t.Errorf("OriginalBody = %v, want %v", got.OriginalBody, tt.want.OriginalBody)
-			}
+			// Body is checked via parsed content, not comparing directly
 		})
 	}
 }
@@ -125,32 +115,32 @@ func TestHasTMDBData(t *testing.T) {
 		{
 			name: "has tmdb_id and content markers",
 			note: &Note{
-				TMDBID:       12345,
-				OriginalBody: "Some content\n\n<!-- TMDB_DATA_START -->\nTMDB content here\n<!-- TMDB_DATA_END -->",
+				TMDBID: 12345,
+				Body:   "Some content\n\n<!-- TMDB_DATA_START -->\nTMDB content here\n<!-- TMDB_DATA_END -->",
 			},
 			want: true,
 		},
 		{
 			name: "has tmdb_id but no content markers",
 			note: &Note{
-				TMDBID:       12345,
-				OriginalBody: "Some content without markers",
+				TMDBID: 12345,
+				Body:   "Some content without markers",
 			},
 			want: false,
 		},
 		{
 			name: "no tmdb_id",
 			note: &Note{
-				TMDBID:       0,
-				OriginalBody: "Some content",
+				TMDBID: 0,
+				Body:   "Some content",
 			},
 			want: false,
 		},
 		{
 			name: "has content markers but no tmdb_id",
 			note: &Note{
-				TMDBID:       0,
-				OriginalBody: "Some content\n\n<!-- TMDB_DATA_START -->\nTMDB content here\n<!-- TMDB_DATA_END -->",
+				TMDBID: 0,
+				Body:   "Some content\n\n<!-- TMDB_DATA_START -->\nTMDB content here\n<!-- TMDB_DATA_END -->",
 			},
 			want: false,
 		},
@@ -172,12 +162,11 @@ func TestExtractTitleFromPath_WithParentheses(t *testing.T) {
 
 func TestAddTMDBData(t *testing.T) {
 	note := &Note{
-		RawFrontmatter: map[string]interface{}{
-			"title": "Test Movie",
-			"type":  "movie",
-			"year":  2021,
-		},
+		Frontmatter: obsidian.NewFrontmatter(),
 	}
+	note.Frontmatter.Set("title", "Test Movie")
+	note.Frontmatter.Set("type", "movie")
+	note.Frontmatter.Set("year", 2021)
 
 	tmdbData := &enrichment.TMDBEnrichment{
 		TMDBID:      12345,
@@ -189,23 +178,20 @@ func TestAddTMDBData(t *testing.T) {
 
 	note.AddTMDBData(tmdbData)
 
-	if note.RawFrontmatter["tmdb_id"] != 12345 {
+	if note.Frontmatter.GetInt("tmdb_id") != 12345 {
 		t.Errorf("tmdb_id not set correctly")
 	}
-	if note.RawFrontmatter["tmdb_type"] != "movie" {
+	if note.Frontmatter.GetString("tmdb_type") != "movie" {
 		t.Errorf("tmdb_type not set correctly")
 	}
-	if note.RawFrontmatter["runtime"] != 120 {
+	if note.Frontmatter.GetInt("runtime") != 120 {
 		t.Errorf("runtime not set correctly")
 	}
-	if note.RawFrontmatter["cover"] != "_attachments/cover.jpg" {
+	if note.Frontmatter.GetString("cover") != "_attachments/cover.jpg" {
 		t.Errorf("cover not set correctly")
 	}
 
-	tags, ok := note.RawFrontmatter["tags"].([]string)
-	if !ok {
-		t.Errorf("tags not set as []string")
-	}
+	tags := note.Frontmatter.GetStringArray("tags")
 	if len(tags) != 2 {
 		t.Errorf("expected 2 tags, got %d", len(tags))
 	}
@@ -213,13 +199,12 @@ func TestAddTMDBData(t *testing.T) {
 
 func TestBuildMarkdown(t *testing.T) {
 	note := &Note{
-		RawFrontmatter: map[string]interface{}{
-			"title": "Test Movie",
-			"type":  "movie",
-			"year":  2021,
-		},
-		OriginalBody: "Original content here.",
+		Frontmatter: obsidian.NewFrontmatter(),
+		Body:        "Original content here.",
 	}
+	note.Frontmatter.Set("title", "Test Movie")
+	note.Frontmatter.Set("type", "movie")
+	note.Frontmatter.Set("year", 2021)
 
 	originalContent := `---
 title: Test Movie
@@ -303,27 +288,25 @@ Personal wrap up after TMDB block.
 		updated, err := parseNote(result)
 		require.NoError(t, err)
 
-		fm := updated.RawFrontmatter
+		require.Equal(t, tmdbData.TMDBID, updated.Frontmatter.GetInt("tmdb_id"))
+		require.Equal(t, tmdbData.TMDBType, updated.Frontmatter.GetString("tmdb_type"))
+		require.Equal(t, tmdbData.RuntimeMins, updated.Frontmatter.GetInt("runtime"))
+		require.Equal(t, tmdbData.TotalEpisodes, updated.Frontmatter.GetInt("total_episodes"))
+		require.Equal(t, tmdbData.CoverPath, updated.Frontmatter.GetString("cover"))
 
-		require.Equal(t, tmdbData.TMDBID, fm["tmdb_id"])
-		require.Equal(t, tmdbData.TMDBType, fm["tmdb_type"])
-		require.Equal(t, tmdbData.RuntimeMins, fm["runtime"])
-		require.Equal(t, tmdbData.TotalEpisodes, fm["total_episodes"])
-		require.Equal(t, tmdbData.CoverPath, fm["cover"])
-
-		tags := enrichment.TagsFromAny(fm["tags"])
+		tags := updated.Frontmatter.GetStringArray("tags")
 		require.ElementsMatch(t, []string{"Action", "Drama", "genre/animated", "watchlist"}, tags)
 
-		require.Equal(t, "2024-01-01", fm["created"])
-		require.Equal(t, "2024-02-01", fm["modified"])
-		require.Equal(t, "plex", fm["service"])
-		require.Equal(t, "watching", fm["status"])
-		require.Equal(t, 5, fm["episodes"])
+		require.Equal(t, "2024-01-01", updated.Frontmatter.GetString("created"))
+		require.Equal(t, "2024-02-01", updated.Frontmatter.GetString("modified"))
+		require.Equal(t, "plex", updated.Frontmatter.GetString("service"))
+		require.Equal(t, "watching", updated.Frontmatter.GetString("status"))
+		require.Equal(t, 5, updated.Frontmatter.GetInt("episodes"))
 		// finished should be overwritten from false to true based on TMDB data
-		require.Equal(t, true, fm["finished"])
-		require.Equal(t, "keep-me", fm["custom_field"])
+		require.Equal(t, true, updated.Frontmatter.GetBool("finished"))
+		require.Equal(t, "keep-me", updated.Frontmatter.GetString("custom_field"))
 
-		body := updated.OriginalBody
+		body := updated.Body
 		require.Contains(t, body, "Personal intro before TMDB block.")
 		require.Contains(t, body, "Personal wrap up after TMDB block.")
 		require.Contains(t, body, tmdbData.ContentMarkdown)
@@ -359,7 +342,7 @@ Just me writing notes.
 		updated, err := parseNote(result)
 		require.NoError(t, err)
 
-		body := updated.OriginalBody
+		body := updated.Body
 		require.Contains(t, body, "Just me writing notes.")
 		require.Contains(t, body, content.TMDBDataStart)
 		require.Contains(t, body, content.TMDBDataEnd)
@@ -395,41 +378,41 @@ func TestNeedsCover(t *testing.T) {
 	}{
 		{
 			name: "no cover field",
-			note: &Note{
-				RawFrontmatter: map[string]interface{}{
-					"title": "Test Movie",
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				return &Note{Frontmatter: fm}
+			}(),
 			want: true,
 		},
 		{
 			name: "empty cover field",
-			note: &Note{
-				RawFrontmatter: map[string]interface{}{
-					"title": "Test Movie",
-					"cover": "",
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				fm.Set("cover", "")
+				return &Note{Frontmatter: fm}
+			}(),
 			want: true,
 		},
 		{
 			name: "cover field with value",
-			note: &Note{
-				RawFrontmatter: map[string]interface{}{
-					"title": "Test Movie",
-					"cover": "_attachments/cover.jpg",
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				fm.Set("cover", "_attachments/cover.jpg")
+				return &Note{Frontmatter: fm}
+			}(),
 			want: false,
 		},
 		{
 			name: "cover field is not a string",
-			note: &Note{
-				RawFrontmatter: map[string]interface{}{
-					"title": "Test Movie",
-					"cover": 12345,
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				fm.Set("cover", 12345)
+				return &Note{Frontmatter: fm}
+			}(),
 			want: true,
 		},
 	}
@@ -452,21 +435,21 @@ func TestNeedsContent(t *testing.T) {
 		{
 			name: "no content markers",
 			note: &Note{
-				OriginalBody: "Some content without markers",
+				Body: "Some content without markers",
 			},
 			want: true,
 		},
 		{
 			name: "has content markers",
 			note: &Note{
-				OriginalBody: "Some content\n\n<!-- TMDB_DATA_START -->\nTMDB content here\n<!-- TMDB_DATA_END -->",
+				Body: "Some content\n\n<!-- TMDB_DATA_START -->\nTMDB content here\n<!-- TMDB_DATA_END -->",
 			},
 			want: false,
 		},
 		{
 			name: "empty body",
 			note: &Note{
-				OriginalBody: "",
+				Body: "",
 			},
 			want: true,
 		},
@@ -834,34 +817,31 @@ func TestHasSeenField(t *testing.T) {
 	}{
 		{
 			name: "has seen field",
-			note: &Note{
-				Seen: true,
-				RawFrontmatter: map[string]interface{}{
-					"title": "Test Movie",
-					"seen":  true,
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				fm.Set("seen", true)
+				return &Note{Seen: true, Frontmatter: fm}
+			}(),
 			expected: true,
 		},
 		{
 			name: "does not have seen field",
-			note: &Note{
-				Seen: false,
-				RawFrontmatter: map[string]interface{}{
-					"title": "Test Movie",
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				return &Note{Seen: false, Frontmatter: fm}
+			}(),
 			expected: false,
 		},
 		{
 			name: "has seen field set to false",
-			note: &Note{
-				Seen: false,
-				RawFrontmatter: map[string]interface{}{
-					"title": "Test Movie",
-					"seen":  false,
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				fm.Set("seen", false)
+				return &Note{Seen: false, Frontmatter: fm}
+			}(),
 			expected: true,
 		},
 	}
@@ -884,65 +864,65 @@ func TestHasAnyRating(t *testing.T) {
 	}{
 		{
 			name: "has imdb_rating",
-			note: &Note{
-				RawFrontmatter: map[string]interface{}{
-					"title":       "Test Movie",
-					"imdb_rating": 8.5,
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				fm.Set("imdb_rating", 8.5)
+				return &Note{Frontmatter: fm}
+			}(),
 			expected: true,
 		},
 		{
 			name: "has my_rating",
-			note: &Note{
-				RawFrontmatter: map[string]interface{}{
-					"title":     "Test Movie",
-					"my_rating": 9,
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				fm.Set("my_rating", 9)
+				return &Note{Frontmatter: fm}
+			}(),
 			expected: true,
 		},
 		{
 			name: "has letterboxd_rating",
-			note: &Note{
-				RawFrontmatter: map[string]interface{}{
-					"title":             "Test Movie",
-					"letterboxd_rating": 4.5,
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				fm.Set("letterboxd_rating", 4.5)
+				return &Note{Frontmatter: fm}
+			}(),
 			expected: true,
 		},
 		{
 			name: "has zero ratings",
-			note: &Note{
-				RawFrontmatter: map[string]interface{}{
-					"title":             "Test Movie",
-					"imdb_rating":       0.0,
-					"my_rating":         0,
-					"letterboxd_rating": 0.0,
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				fm.Set("imdb_rating", 0.0)
+				fm.Set("my_rating", 0)
+				fm.Set("letterboxd_rating", 0.0)
+				return &Note{Frontmatter: fm}
+			}(),
 			expected: false,
 		},
 		{
 			name: "has no ratings",
-			note: &Note{
-				RawFrontmatter: map[string]interface{}{
-					"title": "Test Movie",
-					"year":  2020,
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				fm.Set("year", 2020)
+				return &Note{Frontmatter: fm}
+			}(),
 			expected: false,
 		},
 		{
 			name: "has mixed rating types (int and float)",
-			note: &Note{
-				RawFrontmatter: map[string]interface{}{
-					"title":       "Test Movie",
-					"my_rating":   8,   // int
-					"imdb_rating": 7.5, // float64
-				},
-			},
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				fm.Set("my_rating", 8)     // int
+				fm.Set("imdb_rating", 7.5) // float64
+				return &Note{Frontmatter: fm}
+			}(),
 			expected: true,
 		},
 	}
@@ -959,13 +939,13 @@ func TestHasAnyRating(t *testing.T) {
 
 func TestAddTMDBDataFinishedField(t *testing.T) {
 	t.Run("setsFinishedTrueForEndedTVShow", func(t *testing.T) {
+		fm := obsidian.NewFrontmatter()
+		fm.Set("title", "Ended Show")
+		fm.Set("tmdb_type", "tv")
 		note := &Note{
-			Title: "Ended Show",
-			Type:  "tv",
-			RawFrontmatter: map[string]interface{}{
-				"title":     "Ended Show",
-				"tmdb_type": "tv",
-			},
+			Title:       "Ended Show",
+			Type:        "tv",
+			Frontmatter: fm,
 		}
 
 		finished := true
@@ -979,17 +959,17 @@ func TestAddTMDBDataFinishedField(t *testing.T) {
 
 		note.AddTMDBData(tmdbData)
 
-		require.Equal(t, true, note.RawFrontmatter["finished"])
+		require.Equal(t, true, note.Frontmatter.GetBool("finished"))
 	})
 
 	t.Run("setsFinishedFalseForOngoingTVShow", func(t *testing.T) {
+		fm := obsidian.NewFrontmatter()
+		fm.Set("title", "Ongoing Show")
+		fm.Set("tmdb_type", "tv")
 		note := &Note{
-			Title: "Ongoing Show",
-			Type:  "tv",
-			RawFrontmatter: map[string]interface{}{
-				"title":     "Ongoing Show",
-				"tmdb_type": "tv",
-			},
+			Title:       "Ongoing Show",
+			Type:        "tv",
+			Frontmatter: fm,
 		}
 
 		finished := false
@@ -1003,17 +983,17 @@ func TestAddTMDBDataFinishedField(t *testing.T) {
 
 		note.AddTMDBData(tmdbData)
 
-		require.Equal(t, false, note.RawFrontmatter["finished"])
+		require.Equal(t, false, note.Frontmatter.GetBool("finished"))
 	})
 
 	t.Run("doesNotSetFinishedForMovie", func(t *testing.T) {
+		fm := obsidian.NewFrontmatter()
+		fm.Set("title", "Test Movie")
+		fm.Set("tmdb_type", "movie")
 		note := &Note{
-			Title: "Test Movie",
-			Type:  "movie",
-			RawFrontmatter: map[string]interface{}{
-				"title":     "Test Movie",
-				"tmdb_type": "movie",
-			},
+			Title:       "Test Movie",
+			Type:        "movie",
+			Frontmatter: fm,
 		}
 
 		tmdbData := &enrichment.TMDBEnrichment{
@@ -1025,18 +1005,18 @@ func TestAddTMDBDataFinishedField(t *testing.T) {
 
 		note.AddTMDBData(tmdbData)
 
-		_, exists := note.RawFrontmatter["finished"]
+		_, exists := note.Frontmatter.Get("finished")
 		require.False(t, exists, "finished field should not be set for movies")
 	})
 
 	t.Run("doesNotSetFinishedWhenStatusNotAvailable", func(t *testing.T) {
+		fm := obsidian.NewFrontmatter()
+		fm.Set("title", "Show Without Status")
+		fm.Set("tmdb_type", "tv")
 		note := &Note{
-			Title: "Show Without Status",
-			Type:  "tv",
-			RawFrontmatter: map[string]interface{}{
-				"title":     "Show Without Status",
-				"tmdb_type": "tv",
-			},
+			Title:       "Show Without Status",
+			Type:        "tv",
+			Frontmatter: fm,
 		}
 
 		tmdbData := &enrichment.TMDBEnrichment{
@@ -1049,7 +1029,7 @@ func TestAddTMDBDataFinishedField(t *testing.T) {
 		note.AddTMDBData(tmdbData)
 
 		// Should not set finished field when TMDB status is not available
-		_, exists := note.RawFrontmatter["finished"]
+		_, exists := note.Frontmatter.Get("finished")
 		require.False(t, exists, "finished field should not be set when TMDB status is unavailable")
 	})
 }

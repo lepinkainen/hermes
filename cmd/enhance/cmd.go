@@ -168,11 +168,19 @@ func EnhanceNotes(opts Options) error {
 
 		// Prepare enrichment options based on what's needed
 		noteDir := filepath.Dir(file)
-		expectedType := fm.DetectMediaTypeFromTags(note.RawFrontmatter)
+
+		// Convert frontmatter to map for DetectMediaTypeFromTags
+		frontmatterMap := make(map[string]any)
+		for _, key := range note.Frontmatter.Keys() {
+			if val, ok := note.Frontmatter.Get(key); ok {
+				frontmatterMap[key] = val
+			}
+		}
+		expectedType := fm.DetectMediaTypeFromTags(frontmatterMap)
 		if expectedType == "" {
 			expectedType = note.Type
 		}
-		storedType := fm.StringFromAny(note.RawFrontmatter["tmdb_type"])
+		storedType := note.Frontmatter.GetString("tmdb_type")
 
 		enrichOpts := enrichment.TMDBEnrichmentOptions{
 			DownloadCover:     opts.TMDBDownloadCover && (needsCover || opts.RegenerateData),
@@ -288,7 +296,7 @@ func updateNoteWithTMDBData(filePath string, note *Note, tmdbData *enrichment.TM
 // 3. Generate search URL as fallback
 func resolveLetterboxdURI(note *Note, storedType, expectedType string) string {
 	// Tier 1: Check frontmatter first
-	if uri := fm.StringFromAny(note.RawFrontmatter["letterboxd_uri"]); uri != "" {
+	if uri := note.Frontmatter.GetString("letterboxd_uri"); uri != "" {
 		slog.Debug("Using Letterboxd URI from frontmatter", "uri", uri)
 		return uri
 	}
