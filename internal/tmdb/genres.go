@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+
+	"github.com/lepinkainen/hermes/internal/obsidian"
 )
 
 func (c *Client) buildGenreTags(ctx context.Context, mediaType string, details map[string]any) ([]string, error) {
@@ -31,7 +33,7 @@ func (c *Client) buildGenreTags(ctx context.Context, mediaType string, details m
 		if !ok {
 			continue
 		}
-		tags = append(tags, fmt.Sprintf("%s/%s", mediaType, sanitizeGenreName(name)))
+		tags = append(tags, fmt.Sprintf("%s/%s", mediaType, obsidian.NormalizeTag(name)))
 	}
 
 	return tags, nil

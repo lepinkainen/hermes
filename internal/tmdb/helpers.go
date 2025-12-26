@@ -3,17 +3,7 @@ package tmdb
 import (
 	"encoding/json"
 	"strconv"
-	"strings"
 )
-
-func sanitizeGenreName(name string) string {
-	name = strings.TrimSpace(name)
-	name = strings.ReplaceAll(name, "&", "and")
-	name = strings.ReplaceAll(name, "#", "")
-	name = strings.ReplaceAll(name, "/", "-")
-	name = strings.ReplaceAll(name, " ", "-")
-	return strings.Trim(name, "-")
-}
 
 func getInt(m map[string]any, key string) (int, bool) {
 	val, ok := m[key]
