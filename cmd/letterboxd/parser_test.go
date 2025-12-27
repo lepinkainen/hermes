@@ -191,6 +191,25 @@ func TestParseMovieRecord(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "record with rating",
+			record: []string{
+				"2024-02-01",
+				"Rated Movie",
+				"2022",
+				"https://letterboxd.com/user/film/rated-movie",
+				"4.5",
+			},
+			wantMovie: Movie{
+				Date:          "2024-02-01",
+				Name:          "Rated Movie",
+				Year:          2022,
+				LetterboxdURI: "https://letterboxd.com/user/film/rated-movie",
+				LetterboxdID:  "rated-movie",
+				Rating:        4.5,
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -212,6 +231,7 @@ func TestParseMovieRecord(t *testing.T) {
 			require.Equal(t, tt.wantMovie.Year, movie.Year)
 			require.Equal(t, tt.wantMovie.LetterboxdURI, movie.LetterboxdURI)
 			require.Equal(t, tt.wantMovie.LetterboxdID, movie.LetterboxdID)
+			require.Equal(t, tt.wantMovie.Rating, movie.Rating)
 		})
 	}
 }

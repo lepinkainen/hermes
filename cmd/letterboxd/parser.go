@@ -154,6 +154,19 @@ func parseMovieRecord(record []string) (Movie, error) {
 		LetterboxdID:  letterboxdID,
 	}
 
+	// Parse optional rating (merged CSV adds a Rating column)
+	if len(record) >= 5 && record[4] != "" {
+		rating, err := strconv.ParseFloat(record[4], 64)
+		if err != nil {
+			slog.Warn("Invalid rating", "title", movieName, "rating", record[4], "error", err)
+			if !skipInvalid {
+				return Movie{}, fmt.Errorf("invalid rating: %s", record[4])
+			}
+		} else {
+			movie.Rating = rating
+		}
+	}
+
 	return movie, nil
 }
 

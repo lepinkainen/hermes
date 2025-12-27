@@ -107,6 +107,9 @@ TMDB_API_KEY=your_tmdb_key ./hermes enhance --dir /path/to/notes --recursive --o
 
 # Import Steam library
 ./hermes import steam --apikey your_steam_api_key --steamid your_steam_id
+
+# Diff IMDb vs Letterboxd movies
+./hermes diff imdb-letterboxd
 ```
 
 ### Command-Line Options

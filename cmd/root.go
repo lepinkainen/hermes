@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/alecthomas/kong"
+	"github.com/lepinkainen/hermes/cmd/diff"
 	"github.com/lepinkainen/hermes/cmd/enhance"
 	"github.com/lepinkainen/hermes/cmd/goodreads"
 	"github.com/lepinkainen/hermes/cmd/imdb"
@@ -38,6 +39,7 @@ type CLI struct {
 	Import  ImportCmd          `cmd:"" help:"Import data from various sources"`
 	Enhance enhance.EnhanceCmd `cmd:"" help:"Enhance existing markdown notes with TMDB data"`
 	Cache   CacheCmd           `cmd:"" help:"Manage cache database"`
+	Diff    diff.DiffCmd       `cmd:"" help:"Diff imported data between sources"`
 
 	// Version command could be added here in the future
 }

@@ -39,6 +39,7 @@ Hermes currently supports the following data sources:
 - **Goodreads** – Imports book ratings/reviews, enriched with OpenLibrary metadata and covers
 - **Steam** – Imports your Steam library with store metadata and cover art
 - **Enhance** – Re-processes existing Markdown notes to inject TMDB metadata/content when TMDB IDs are present or discoverable
+- **Diff reports** – Compare imported IMDb vs Letterboxd movie data and generate Obsidian-friendly checklists
 
 Future planned importers include:
 
