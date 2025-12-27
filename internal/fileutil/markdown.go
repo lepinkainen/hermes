@@ -8,11 +8,20 @@ import (
 )
 
 // TagCollector helps collect and deduplicate tags for markdown frontmatter
+//
+// Deprecated: Use obsidian.TagSet instead. This type will be removed in v2.0.0.
+// Migration: Replace fileutil.NewTagCollector() with obsidian.NewTagSet()
+// Behavioral difference: obsidian.TagSet automatically normalizes tags according to
+// Obsidian conventions (converts whitespace to hyphens, removes special characters, etc.),
+// while TagCollector preserves tags exactly as provided.
 type TagCollector struct {
 	tags map[string]bool
 }
 
 // NewTagCollector creates a new tag collector
+//
+// Deprecated: Use obsidian.NewTagSet instead. This function will be removed in v2.0.0.
+// Migration: Replace fileutil.NewTagCollector() with obsidian.NewTagSet()
 func NewTagCollector() *TagCollector {
 	return &TagCollector{
 		tags: make(map[string]bool),
@@ -20,6 +29,8 @@ func NewTagCollector() *TagCollector {
 }
 
 // Add adds a single tag to the collector
+//
+// Deprecated: Use obsidian.TagSet.Add instead. This method will be removed in v2.0.0.
 func (tc *TagCollector) Add(tag string) *TagCollector {
 	if tag != "" {
 		tc.tags[tag] = true
@@ -28,6 +39,8 @@ func (tc *TagCollector) Add(tag string) *TagCollector {
 }
 
 // AddIf adds a tag only if the condition is true
+//
+// Deprecated: Use obsidian.TagSet.AddIf instead. This method will be removed in v2.0.0.
 func (tc *TagCollector) AddIf(condition bool, tag string) *TagCollector {
 	if condition && tag != "" {
 		tc.tags[tag] = true
@@ -36,6 +49,8 @@ func (tc *TagCollector) AddIf(condition bool, tag string) *TagCollector {
 }
 
 // AddFormat adds a formatted tag to the collector
+//
+// Deprecated: Use obsidian.TagSet.AddFormat instead. This method will be removed in v2.0.0.
 func (tc *TagCollector) AddFormat(format string, args ...interface{}) *TagCollector {
 	tag := fmt.Sprintf(format, args...)
 	if tag != "" {
@@ -45,6 +60,8 @@ func (tc *TagCollector) AddFormat(format string, args ...interface{}) *TagCollec
 }
 
 // GetSorted returns all collected tags as a sorted slice
+//
+// Deprecated: Use obsidian.TagSet.GetSorted instead. This method will be removed in v2.0.0.
 func (tc *TagCollector) GetSorted() []string {
 	tags := make([]string, 0, len(tc.tags))
 	for tag := range tc.tags {
