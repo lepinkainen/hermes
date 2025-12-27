@@ -13,6 +13,13 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+const (
+	// DefaultCacheTTL is the default time-to-live for cached entries (30 days)
+	DefaultCacheTTL = 720 * time.Hour
+	// NegativeCacheTTL is the TTL for "not found" responses (7 days)
+	NegativeCacheTTL = 168 * time.Hour
+)
+
 // FetchFunc represents a function that fetches data from an external source
 type FetchFunc[T any] func() (T, error)
 
@@ -186,6 +193,34 @@ func GetOrFetchWithPolicy[T any](tableName, cacheKey string, fetchFunc FetchFunc
 // The ttlSelector function is called after fetching to determine which TTL to use for caching.
 func GetOrFetchWithTTL[T any](tableName, cacheKey string, fetchFunc FetchFunc[T], ttlSelector func(T) time.Duration) (T, bool, error) {
 	return getOrFetchWithTTLSelector(tableName, cacheKey, fetchFunc, ttlSelector)
+}
+
+// SelectNegativeCacheTTL returns a standard TTL selector for negative caching.
+// Use this when you want to cache "not found" responses with a shorter TTL (7 days) than
+// successful responses (30 days).
+//
+// The isNotFound function should return true if the result represents a "not found" response.
+//
+// Example:
+//
+//	cache.GetOrFetchWithTTL("openlibrary_cache", isbn,
+//	    func() (*CachedBook, error) {
+//	        book, err := fetchFromAPI(isbn)
+//	        if err != nil && strings.Contains(err.Error(), "not found") {
+//	            return &CachedBook{Book: nil, NotFound: true}, nil
+//	        }
+//	        return &CachedBook{Book: book, NotFound: false}, nil
+//	    },
+//	    cache.SelectNegativeCacheTTL(func(r *CachedBook) bool {
+//	        return r.NotFound
+//	    }))
+func SelectNegativeCacheTTL[T any](isNotFound func(T) bool) func(T) time.Duration {
+	return func(result T) time.Duration {
+		if isNotFound(result) {
+			return NegativeCacheTTL
+		}
+		return DefaultCacheTTL
+	}
 }
 
 func getOrFetchWithPolicy[T any](tableName, cacheKey string, fetchFunc FetchFunc[T], shouldCache func(T) bool) (T, bool, error) {

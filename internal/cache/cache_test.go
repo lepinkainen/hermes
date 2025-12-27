@@ -470,3 +470,35 @@ func TestCacheDB_InvalidateSource_EmptyTable(t *testing.T) {
 		t.Errorf("Expected 0 rows deleted from empty table, got %d", rowsDeleted)
 	}
 }
+
+func TestSelectNegativeCacheTTL(t *testing.T) {
+	type CachedResult struct {
+		Data     *string `json:"data"`
+		NotFound bool    `json:"not_found"`
+	}
+
+	// Test with "not found" result
+	notFoundResult := CachedResult{Data: nil, NotFound: true}
+	selector := SelectNegativeCacheTTL(func(r CachedResult) bool {
+		return r.NotFound
+	})
+
+	ttl := selector(notFoundResult)
+	if ttl != NegativeCacheTTL {
+		t.Errorf("Expected NegativeCacheTTL (%v) for not found result, got %v", NegativeCacheTTL, ttl)
+	}
+	if ttl != 168*time.Hour {
+		t.Errorf("Expected 168h for not found result, got %v", ttl)
+	}
+
+	// Test with successful result
+	data := "test data"
+	foundResult := CachedResult{Data: &data, NotFound: false}
+	ttl = selector(foundResult)
+	if ttl != DefaultCacheTTL {
+		t.Errorf("Expected DefaultCacheTTL (%v) for found result, got %v", DefaultCacheTTL, ttl)
+	}
+	if ttl != 720*time.Hour {
+		t.Errorf("Expected 720h for found result, got %v", ttl)
+	}
+}

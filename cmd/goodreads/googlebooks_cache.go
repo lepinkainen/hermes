@@ -3,7 +3,6 @@ package goodreads
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/lepinkainen/hermes/internal/cache"
 )
@@ -30,13 +29,9 @@ func getCachedGoogleBook(isbn string) (*GoogleBooksBook, bool, error) {
 				Book:     book,
 				NotFound: false,
 			}, nil
-		}, func(result *CachedGoogleBooksBook) time.Duration {
-			// Use shorter TTL for "not found" responses
-			if result.NotFound {
-				return negativeCacheTTL // 7 days
-			}
-			return normalCacheTTL // 30 days
-		})
+		}, cache.SelectNegativeCacheTTL(func(r *CachedGoogleBooksBook) bool {
+			return r.NotFound
+		}))
 
 	if err != nil {
 		return nil, false, err

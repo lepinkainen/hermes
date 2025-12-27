@@ -5,16 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/lepinkainen/hermes/internal/cache"
-)
-
-const (
-	// Negative cache TTL for books not found in APIs (7 days)
-	negativeCacheTTL = 168 * time.Hour
-	// Normal cache TTL for found books (30 days)
-	normalCacheTTL = 720 * time.Hour
 )
 
 func getCachedBook(isbn string) (*Book, *OpenLibraryBook, bool, error) {
@@ -38,13 +30,9 @@ func getCachedBook(isbn string) (*Book, *OpenLibraryBook, bool, error) {
 			Book:     olBookData,
 			NotFound: false,
 		}, nil
-	}, func(result *CachedOpenLibraryBook) time.Duration {
-		// Use shorter TTL for "not found" responses
-		if result.NotFound {
-			return negativeCacheTTL // 7 days
-		}
-		return normalCacheTTL // 30 days
-	})
+	}, cache.SelectNegativeCacheTTL(func(r *CachedOpenLibraryBook) bool {
+		return r.NotFound
+	}))
 
 	if err != nil {
 		return nil, nil, false, err
