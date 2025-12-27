@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMDb vs Letterboxd Diff - {{.GeneratedAt.Format "2006-01-02"}}</title>
+    <style>
+        :root {
+            --imdb-bg: #f5f0e1;
+            --imdb-border: #d4a017;
+            --imdb-accent: #f5c518;
+            --letterboxd-bg: #e8f5f0;
+            --letterboxd-border: #00c030;
+            --letterboxd-accent: #40bcf4;
+            --checked-opacity: 0.5;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        header {
+            max-width: 1400px;
+            margin: 0 auto 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            margin: 0 0 15px;
+            font-size: 1.8em;
+        }
+
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .stat {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .stat.imdb {
+            background: var(--imdb-bg);
+            border: 2px solid var(--imdb-border);
+        }
+
+        .stat.letterboxd {
+            background: var(--letterboxd-bg);
+            border: 2px solid var(--letterboxd-border);
+        }
+
+        .stat.neutral {
+            background: #e9ecef;
+            border: 2px solid #adb5bd;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .controls button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .controls button:hover {
+            background: #f0f0f0;
+        }
+
+        .controls button.active {
+            background: #333;
+            color: white;
+            border-color: #333;
+        }
+
+        .columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 900px) {
+            .columns {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .column {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .column-header {
+            padding: 15px 20px;
+            font-weight: 600;
+            font-size: 1.1em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .column.imdb .column-header {
+            background: var(--imdb-bg);
+            border-bottom: 3px solid var(--imdb-border);
+        }
+
+        .column.letterboxd .column-header {
+            background: var(--letterboxd-bg);
+            border-bottom: 3px solid var(--letterboxd-border);
+        }
+
+        .progress {
+            font-size: 0.85em;
+            font-weight: normal;
+            color: #666;
+        }
+
+        .items {
+            padding: 10px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            transition: opacity 0.2s;
+        }
+
+        .item:last-child {
+            border-bottom: none;
+        }
+
+        .item.checked {
+            opacity: var(--checked-opacity);
+        }
+
+        .item.hidden {
+            display: none;
+        }
+
+        .item-main {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .item-main input[type="checkbox"] {
+            margin-top: 4px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .item-content {
+            flex: 1;
+        }
+
+        .item-title {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .item-meta {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .item-meta a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        .item-meta a:hover {
+            text-decoration: underline;
+        }
+
+        .item-rating {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+
+        .item-rating.imdb {
+            background: var(--imdb-accent);
+            color: #000;
+        }
+
+        .item-rating.letterboxd {
+            background: var(--letterboxd-accent);
+            color: #fff;
+        }
+
+        .no-rating {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 500;
+            background: #ffeeba;
+            color: #856404;
+            border: 1px solid #ffc107;
+        }
+
+        .add-link {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 4px 12px;
+            background: #333;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .add-link:hover {
+            background: #555;
+        }
+
+        .fuzzy-matches {
+            margin-top: 10px;
+            padding-left: 28px;
+        }
+
+        .fuzzy-header {
+            font-size: 0.8em;
+            color: #888;
+            margin-bottom: 6px;
+        }
+
+        .fuzzy-match {
+            font-size: 0.85em;
+            padding: 6px 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 4px;
+        }
+
+        .fuzzy-match a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        .fuzzy-match a:hover {
+            text-decoration: underline;
+        }
+
+        .empty-message {
+            padding: 40px 20px;
+            text-align: center;
+            color: #888;
+            font-style: italic;
+        }
+
+        footer {
+            max-width: 1400px;
+            margin: 20px auto 0;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        footer code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>IMDb vs Letterboxd Diff</h1>
+        <div class="stats">
+            <span class="stat imdb">IMDb-only: <span id="imdb-count">{{len .ImdbOnly}}</span></span>
+            <span class="stat letterboxd">Letterboxd-only: <span id="letterboxd-count">{{len .LetterboxdOnly}}</span></span>
+            <span class="stat neutral">Auto-resolved: {{.Stats.ResolvedTitleYear}}</span>
+        </div>
+        <div class="controls">
+            <button id="show-all" class="active">Show All</button>
+            <button id="show-unchecked">Show Unchecked Only</button>
+            <button id="clear-checked">Clear All Checks</button>
+        </div>
+    </header>
+
+    <div class="columns">
+        <div class="column imdb">
+            <div class="column-header">
+                <span>Missing from Letterboxd</span>
+                <span class="progress" id="imdb-progress">0 / {{len .ImdbOnly}} done</span>
+            </div>
+            <div class="items" id="imdb-items">
+                {{if not .ImdbOnly}}
+                <div class="empty-message">All synced!</div>
+                {{else}}
+                {{range .ImdbOnly}}
+                <div class="item" data-key="imdb:{{.Title}}|{{.Year}}">
+                    <div class="item-main">
+                        <input type="checkbox" class="item-checkbox">
+                        <div class="item-content">
+                            <div class="item-title">{{.Title}} ({{.Year}})</div>
+                            <div class="item-meta">
+                                {{if .ImdbID}}<span>{{.ImdbID}}</span> &middot; {{end}}
+                                {{if .ImdbURL}}<a href="{{.ImdbURL}}" target="_blank">IMDb</a> &middot; {{end}}
+                                {{if hasIntRating .ImdbRating}}<span class="item-rating imdb">{{.ImdbRating}}/10</span> <span class="item-rating letterboxd">→ {{printf "%.1f" (imdbToLetterboxd .ImdbRating)}}/5</span>{{end}}
+                            </div>
+                            <a class="add-link" href="{{letterboxdSearchURL .Title .Year}}" target="_blank">Add to Letterboxd{{if hasIntRating .ImdbRating}} ({{printf "%.1f" (imdbToLetterboxd .ImdbRating)}} stars){{end}}</a>
+                            {{if .FuzzyMatches}}
+                            <div class="fuzzy-matches">
+                                <div class="fuzzy-header">Possible matches:</div>
+                                {{range .FuzzyMatches}}
+                                <div class="fuzzy-match">
+                                    {{.Title}} ({{.Year}})
+                                    {{if .LetterboxdURI}} &middot; <a href="{{.LetterboxdURI}}" target="_blank">Letterboxd</a>{{end}}
+                                    {{if hasUserRating .LetterboxdRating}} &middot; <span class="item-rating letterboxd">{{printf "%.1f" .LetterboxdRating}}/5</span>{{end}}
+                                </div>
+                                {{end}}
+                            </div>
+                            {{end}}
+                        </div>
+                    </div>
+                </div>
+                {{end}}
+                {{end}}
+            </div>
+        </div>
+
+        <div class="column letterboxd">
+            <div class="column-header">
+                <span>Missing from IMDb</span>
+                <span class="progress" id="letterboxd-progress">0 / {{len .LetterboxdOnly}} done</span>
+            </div>
+            <div class="items" id="letterboxd-items">
+                {{if not .LetterboxdOnly}}
+                <div class="empty-message">All synced!</div>
+                {{else}}
+                {{range .LetterboxdOnly}}
+                <div class="item" data-key="letterboxd:{{.Title}}|{{.Year}}">
+                    <div class="item-main">
+                        <input type="checkbox" class="item-checkbox">
+                        <div class="item-content">
+                            <div class="item-title">{{.Title}} ({{.Year}})</div>
+                            <div class="item-meta">
+                                {{if .LetterboxdURI}}<a href="{{.LetterboxdURI}}" target="_blank">Letterboxd</a> &middot; {{end}}
+                                {{if hasUserRating .LetterboxdRating}}<span class="item-rating letterboxd">{{printf "%.1f" .LetterboxdRating}}/5</span> <span class="item-rating imdb">→ {{letterboxdToImdb .LetterboxdRating}}/10</span>{{else}}<span class="no-rating">Watched (no rating)</span>{{end}}
+                            </div>
+                            <a class="add-link" href="{{imdbSearchURL .Title .Year}}" target="_blank">Add to IMDb{{if hasUserRating .LetterboxdRating}} ({{letterboxdToImdb .LetterboxdRating}}/10){{end}}</a>
+                            {{if .FuzzyMatches}}
+                            <div class="fuzzy-matches">
+                                <div class="fuzzy-header">Possible matches:</div>
+                                {{range .FuzzyMatches}}
+                                <div class="fuzzy-match">
+                                    {{.Title}} ({{.Year}})
+                                    {{if .ImdbURL}} &middot; <a href="{{.ImdbURL}}" target="_blank">IMDb</a>{{end}}
+                                    {{if hasIntRating .ImdbRating}} &middot; <span class="item-rating imdb">{{.ImdbRating}}/10</span>{{end}}
+                                </div>
+                                {{end}}
+                            </div>
+                            {{end}}
+                        </div>
+                    </div>
+                </div>
+                {{end}}
+                {{end}}
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Generated: {{.GeneratedAt.Format "2006-01-02 15:04:05"}} &middot; Main DB: <code>{{.MainDBPath}}</code>{{if .CacheDBPath}} &middot; Cache DB: <code>{{.CacheDBPath}}</code>{{end}}</p>
+    </footer>
+
+    <script>
+        const STORAGE_KEY = 'imdb-letterboxd-diff-checked';
+
+        function loadCheckedState() {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+            } catch {
+                return {};
+            }
+        }
+
+        function saveCheckedState(state) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
+
+        function updateProgress() {
+            const imdbItems = document.querySelectorAll('#imdb-items .item');
+            const imdbChecked = document.querySelectorAll('#imdb-items .item.checked').length;
+            document.getElementById('imdb-progress').textContent = `${imdbChecked} / ${imdbItems.length} done`;
+
+            const letterboxdItems = document.querySelectorAll('#letterboxd-items .item');
+            const letterboxdChecked = document.querySelectorAll('#letterboxd-items .item.checked').length;
+            document.getElementById('letterboxd-progress').textContent = `${letterboxdChecked} / ${letterboxdItems.length} done`;
+        }
+
+        function applyFilter(showUncheckedOnly) {
+            document.querySelectorAll('.item').forEach(item => {
+                if (showUncheckedOnly && item.classList.contains('checked')) {
+                    item.classList.add('hidden');
+                } else {
+                    item.classList.remove('hidden');
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const checkedState = loadCheckedState();
+
+            // Restore checkbox states
+            document.querySelectorAll('.item').forEach(item => {
+                const key = item.dataset.key;
+                const checkbox = item.querySelector('.item-checkbox');
+                if (checkedState[key]) {
+                    checkbox.checked = true;
+                    item.classList.add('checked');
+                }
+            });
+
+            updateProgress();
+
+            // Handle checkbox changes
+            document.querySelectorAll('.item-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    const item = checkbox.closest('.item');
+                    const key = item.dataset.key;
+                    const state = loadCheckedState();
+
+                    if (checkbox.checked) {
+                        item.classList.add('checked');
+                        state[key] = true;
+                    } else {
+                        item.classList.remove('checked');
+                        delete state[key];
+                    }
+
+                    saveCheckedState(state);
+                    updateProgress();
+
+                    // Apply filter if unchecked-only mode is active
+                    if (document.getElementById('show-unchecked').classList.contains('active')) {
+                        applyFilter(true);
+                    }
+                });
+            });
+
+            // Filter controls
+            document.getElementById('show-all').addEventListener('click', () => {
+                document.getElementById('show-all').classList.add('active');
+                document.getElementById('show-unchecked').classList.remove('active');
+                applyFilter(false);
+            });
+
+            document.getElementById('show-unchecked').addEventListener('click', () => {
+                document.getElementById('show-unchecked').classList.add('active');
+                document.getElementById('show-all').classList.remove('active');
+                applyFilter(true);
+            });
+
+            // Clear all checks
+            document.getElementById('clear-checked').addEventListener('click', () => {
+                if (!confirm('Clear all checked items? This cannot be undone.')) return;
+
+                document.querySelectorAll('.item').forEach(item => {
+                    item.classList.remove('checked');
+                    item.querySelector('.item-checkbox').checked = false;
+                });
+
+                localStorage.removeItem(STORAGE_KEY);
+                updateProgress();
+                applyFilter(false);
+                document.getElementById('show-all').classList.add('active');
+                document.getElementById('show-unchecked').classList.remove('active');
+            });
+        });
+    </script>
+</body>
+</html>

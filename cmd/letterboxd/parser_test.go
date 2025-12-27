@@ -1,13 +1,16 @@
 package letterboxd
 
 import (
+	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/lepinkainen/hermes/internal/testutil"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
+	_ "modernc.org/sqlite"
 )
 
 func TestLoadExistingTMDBID(t *testing.T) {
@@ -238,19 +241,20 @@ func TestParseMovieRecord(t *testing.T) {
 
 func TestMovieToMap(t *testing.T) {
 	movie := Movie{
-		Date:          "2024-01-15",
-		Name:          "The Matrix",
-		Year:          1999,
-		LetterboxdID:  "the-matrix",
-		LetterboxdURI: "https://letterboxd.com/user/film/the-matrix/",
-		ImdbID:        "tt0133093",
-		Director:      "The Wachowskis",
-		Cast:          []string{"Keanu Reeves", "Laurence Fishburne"},
-		Genres:        []string{"Action", "Sci-Fi"},
-		Runtime:       136,
-		Rating:        4.5,
-		PosterURL:     "https://example.com/poster.jpg",
-		Description:   "A computer hacker learns from mysterious rebels about the true nature of his reality and his role in the war against its controllers.",
+		Date:            "2024-01-15",
+		Name:            "The Matrix",
+		Year:            1999,
+		LetterboxdID:    "the-matrix",
+		LetterboxdURI:   "https://letterboxd.com/user/film/the-matrix/",
+		ImdbID:          "tt0133093",
+		Director:        "The Wachowskis",
+		Cast:            []string{"Keanu Reeves", "Laurence Fishburne"},
+		Genres:          []string{"Action", "Sci-Fi"},
+		Runtime:         136,
+		Rating:          4.5,
+		CommunityRating: 8.7,
+		PosterURL:       "https://example.com/poster.jpg",
+		Description:     "A computer hacker learns from mysterious rebels about the true nature of his reality and his role in the war against its controllers.",
 	}
 
 	result := movieToMap(movie)
@@ -266,6 +270,7 @@ func TestMovieToMap(t *testing.T) {
 	require.Equal(t, "Action,Sci-Fi", result["genres"])
 	require.Equal(t, 136, result["runtime"])
 	require.Equal(t, 4.5, result["rating"])
+	require.Equal(t, 8.7, result["community_rating"])
 	require.Equal(t, "https://example.com/poster.jpg", result["poster_url"])
 	require.Contains(t, result["description"], "computer hacker")
 }
@@ -412,4 +417,86 @@ func TestParseLetterboxdCSV_GoldenFile(t *testing.T) {
 	require.Equal(t, "2019-04-12", slumdogMovie.Date)
 	require.Equal(t, "https://boxd.it/1S3E", slumdogMovie.LetterboxdURI)
 	require.Equal(t, "1S3E", slumdogMovie.LetterboxdID)
+}
+
+// TestUserRatingPreservedInDatabase verifies that when importing from CSV,
+// the user's personal Letterboxd rating (0.5-5 scale) is stored in the rating column
+// and NOT overwritten by OMDB/TMDB community ratings.
+func TestUserRatingPreservedInDatabase(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
+
+	// Create CSV with known ratings
+	csvContent := `Date,Name,Year,Letterboxd URI,Rating
+2024-01-15,The Matrix,1999,https://letterboxd.com/user/film/the-matrix,4.5
+2024-01-16,Inception,2010,https://letterboxd.com/user/film/inception,5
+2024-01-17,Unrated Movie,2020,https://letterboxd.com/user/film/unrated,
+`
+	csvPath := filepath.Join(tempDir, "test_ratings.csv")
+	err := os.WriteFile(csvPath, []byte(csvContent), 0644)
+	require.NoError(t, err)
+
+	// Set up temp database
+	dbPath := filepath.Join(tempDir, "test.db")
+
+	// Save and restore viper settings
+	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
+	prevDatasetteDB := viper.GetString("datasette.dbfile")
+	viper.Set("datasette.enabled", true)
+	viper.Set("datasette.dbfile", dbPath)
+	defer func() {
+		viper.Set("datasette.enabled", prevDatasetteEnabled)
+		viper.Set("datasette.dbfile", prevDatasetteDB)
+	}()
+
+	// Save and restore package globals
+	prevCSVFile := csvFile
+	prevOutputDir := outputDir
+	prevSkipEnrich := skipEnrich
+	prevOverwrite := overwrite
+	csvFile = csvPath
+	outputDir = tempDir
+	skipEnrich = true // Skip enrichment to test rating preservation without OMDB
+	overwrite = true
+	defer func() {
+		csvFile = prevCSVFile
+		outputDir = prevOutputDir
+		skipEnrich = prevSkipEnrich
+		overwrite = prevOverwrite
+	}()
+
+	// Run the parser
+	err = ParseLetterboxd()
+	require.NoError(t, err)
+
+	// Query the database directly to verify ratings
+	db, err := sql.Open("sqlite", dbPath)
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	// Check The Matrix rating (should be 4.5)
+	var matrixRating sql.NullFloat64
+	err = db.QueryRow("SELECT rating FROM letterboxd_movies WHERE name = 'The Matrix'").Scan(&matrixRating)
+	require.NoError(t, err)
+	require.True(t, matrixRating.Valid, "Matrix rating should be present")
+	require.Equal(t, 4.5, matrixRating.Float64, "Matrix user rating should be 4.5")
+
+	// Check Inception rating (should be 5.0)
+	var inceptionRating sql.NullFloat64
+	err = db.QueryRow("SELECT rating FROM letterboxd_movies WHERE name = 'Inception'").Scan(&inceptionRating)
+	require.NoError(t, err)
+	require.True(t, inceptionRating.Valid, "Inception rating should be present")
+	require.Equal(t, 5.0, inceptionRating.Float64, "Inception user rating should be 5.0")
+
+	// Check unrated movie (should be 0 or null)
+	var unratedRating sql.NullFloat64
+	err = db.QueryRow("SELECT rating FROM letterboxd_movies WHERE name = 'Unrated Movie'").Scan(&unratedRating)
+	require.NoError(t, err)
+	require.Equal(t, 0.0, unratedRating.Float64, "Unrated movie should have 0 rating")
+
+	// Verify community_rating column exists and is separate
+	var matrixCommunityRating sql.NullFloat64
+	err = db.QueryRow("SELECT community_rating FROM letterboxd_movies WHERE name = 'The Matrix'").Scan(&matrixCommunityRating)
+	require.NoError(t, err)
+	require.Equal(t, 0.0, matrixCommunityRating.Float64, "Community rating should be 0 when enrichment is skipped")
 }

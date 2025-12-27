@@ -53,8 +53,9 @@ type diffMatch struct {
 	LetterboxdRating float64
 }
 
-// BuildIMDbLetterboxdReport builds an Obsidian markdown report comparing IMDb and Letterboxd entries.
-func BuildIMDbLetterboxdReport(mainDBPath, cacheDBPath string, now time.Time) (*obsidian.Note, error) {
+// BuildDiffReport builds a diff report comparing IMDb and Letterboxd entries.
+// The returned diffReport can be used to generate either markdown or HTML output.
+func BuildDiffReport(mainDBPath, cacheDBPath string, now time.Time) (*diffReport, error) {
 	if !fileutil.FileExists(mainDBPath) {
 		return nil, fmt.Errorf("main database not found: %s", mainDBPath)
 	}
@@ -87,11 +88,17 @@ func BuildIMDbLetterboxdReport(mainDBPath, cacheDBPath string, now time.Time) (*
 
 	applyLetterboxdMappings(letterboxdMovies, mapping)
 
-	imdbOnly, letterboxdOnly := diffIMDbLetterboxd(imdbMovies, letterboxdMovies)
+	imdbOnly, letterboxdOnly, resolvedTitleYear := diffIMDbLetterboxd(imdbMovies, letterboxdMovies)
+	slog.Info(
+		"Diff summary",
+		"imdb_only", len(imdbOnly),
+		"letterboxd_only", len(letterboxdOnly),
+	)
 
 	stats := diffStats{
 		imdbOnlyCount:       len(imdbOnly),
 		letterboxdOnlyCount: len(letterboxdOnly),
+		resolvedTitleYear:   resolvedTitleYear,
 	}
 	for _, item := range imdbOnly {
 		if len(item.FuzzyMatches) > 0 {
@@ -104,14 +111,41 @@ func BuildIMDbLetterboxdReport(mainDBPath, cacheDBPath string, now time.Time) (*
 		}
 	}
 
-	return buildDiffNote(imdbOnly, letterboxdOnly, stats, now, mainDBPath, cacheDBPath), nil
+	return &diffReport{
+		ImdbOnly:       imdbOnly,
+		LetterboxdOnly: letterboxdOnly,
+		Stats:          stats,
+		GeneratedAt:    now,
+		MainDBPath:     mainDBPath,
+		CacheDBPath:    cacheDBPath,
+	}, nil
+}
+
+// BuildIMDbLetterboxdReport builds an Obsidian markdown report comparing IMDb and Letterboxd entries.
+func BuildIMDbLetterboxdReport(mainDBPath, cacheDBPath string, now time.Time) (*obsidian.Note, error) {
+	report, err := BuildDiffReport(mainDBPath, cacheDBPath, now)
+	if err != nil {
+		return nil, err
+	}
+	return buildDiffNote(report.ImdbOnly, report.LetterboxdOnly, report.Stats, report.GeneratedAt, report.MainDBPath, report.CacheDBPath), nil
 }
 
 type diffStats struct {
 	imdbOnlyCount           int
 	letterboxdOnlyCount     int
+	resolvedTitleYear       int
 	imdbOnlyWithFuzzy       int
 	letterboxdOnlyWithFuzzy int
+}
+
+// diffReport contains all data needed for diff output generation.
+type diffReport struct {
+	ImdbOnly       []diffItem
+	LetterboxdOnly []diffItem
+	Stats          diffStats
+	GeneratedAt    time.Time
+	MainDBPath     string
+	CacheDBPath    string
 }
 
 func loadImdbMovies(db *sql.DB) ([]imdbMovie, error) {
@@ -248,7 +282,7 @@ func applyLetterboxdMappings(movies []letterboxdMovie, mapping map[string]string
 	}
 }
 
-func diffIMDbLetterboxd(imdbMovies []imdbMovie, letterboxdMovies []letterboxdMovie) ([]diffItem, []diffItem) {
+func diffIMDbLetterboxd(imdbMovies []imdbMovie, letterboxdMovies []letterboxdMovie) ([]diffItem, []diffItem, int) {
 	imdbByID := make(map[string]imdbMovie)
 	imdbByKey := make(map[string][]imdbMovie)
 	for _, movie := range imdbMovies {
@@ -270,12 +304,48 @@ func diffIMDbLetterboxd(imdbMovies []imdbMovie, letterboxdMovies []letterboxdMov
 		addLetterboxdIndex(letterboxdByKey, movie.Name, movie)
 	}
 
+	matchedImdb := map[string]bool{}
+	matchedLetterboxd := map[string]bool{}
+
+	for imdbID, imdbMovie := range imdbByID {
+		letterboxdMovie, ok := letterboxdByID[imdbID]
+		if !ok {
+			continue
+		}
+		matchedImdb[imdbItemKey(imdbMovie)] = true
+		matchedLetterboxd[letterboxdItemKey(letterboxdMovie)] = true
+	}
+
+	resolvedTitleYear := 0
+	for key, imdbMatches := range imdbByKey {
+		letterboxdMatches, ok := letterboxdByKey[key]
+		if !ok {
+			continue
+		}
+		imdbUnique := uniqueImdbMovies(imdbMatches)
+		letterboxdUnique := uniqueLetterboxdMovies(letterboxdMatches)
+		if len(imdbUnique) == 0 || len(letterboxdUnique) == 0 {
+			continue
+		}
+		resolvedTitleYear++
+		for _, movie := range imdbUnique {
+			imdbKey := imdbItemKey(movie)
+			if imdbKey != "" {
+				matchedImdb[imdbKey] = true
+			}
+		}
+		for _, movie := range letterboxdUnique {
+			letterboxdKey := letterboxdItemKey(movie)
+			if letterboxdKey != "" {
+				matchedLetterboxd[letterboxdKey] = true
+			}
+		}
+	}
+
 	imdbOnly := []diffItem{}
 	for _, movie := range imdbMovies {
-		if movie.ImdbID != "" {
-			if _, ok := letterboxdByID[movie.ImdbID]; ok {
-				continue
-			}
+		if matchedImdb[imdbItemKey(movie)] {
+			continue
 		}
 		item := diffItem{
 			Title:      displayTitle(movie.Title, movie.OriginalTitle, movie.ImdbID),
@@ -293,10 +363,8 @@ func diffIMDbLetterboxd(imdbMovies []imdbMovie, letterboxdMovies []letterboxdMov
 
 	letterboxdOnly := []diffItem{}
 	for _, movie := range letterboxdMovies {
-		if movie.ImdbID != "" {
-			if _, ok := imdbByID[movie.ImdbID]; ok {
-				continue
-			}
+		if matchedLetterboxd[letterboxdItemKey(movie)] {
+			continue
 		}
 		item := diffItem{
 			Title:            displayTitle(movie.Name, "", movie.LetterboxdID),
@@ -315,7 +383,63 @@ func diffIMDbLetterboxd(imdbMovies []imdbMovie, letterboxdMovies []letterboxdMov
 
 	sortDiffItems(imdbOnly)
 	sortDiffItems(letterboxdOnly)
-	return imdbOnly, letterboxdOnly
+	return imdbOnly, letterboxdOnly, resolvedTitleYear
+}
+
+func imdbItemKey(movie imdbMovie) string {
+	if movie.ImdbID != "" {
+		return "imdb:" + movie.ImdbID
+	}
+	key := titleYearKey(movie.Title, movie.OriginalTitle, movie.Year)
+	if key != "" {
+		return "title:" + key
+	}
+	return ""
+}
+
+func letterboxdItemKey(movie letterboxdMovie) string {
+	if movie.ImdbID != "" {
+		return "imdb:" + movie.ImdbID
+	}
+	if movie.LetterboxdURI != "" {
+		return "uri:" + movie.LetterboxdURI
+	}
+	if movie.LetterboxdID != "" {
+		return "id:" + movie.LetterboxdID
+	}
+	key := titleYearKey(movie.Name, "", movie.Year)
+	if key != "" {
+		return "title:" + key
+	}
+	return ""
+}
+
+func uniqueImdbMovies(movies []imdbMovie) []imdbMovie {
+	seen := map[string]bool{}
+	result := make([]imdbMovie, 0, len(movies))
+	for _, movie := range movies {
+		key := imdbItemKey(movie)
+		if key == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		result = append(result, movie)
+	}
+	return result
+}
+
+func uniqueLetterboxdMovies(movies []letterboxdMovie) []letterboxdMovie {
+	seen := map[string]bool{}
+	result := make([]letterboxdMovie, 0, len(movies))
+	for _, movie := range movies {
+		key := letterboxdItemKey(movie)
+		if key == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		result = append(result, movie)
+	}
+	return result
 }
 
 func addImdbIndex(index map[string][]imdbMovie, title string, movie imdbMovie) {
@@ -480,6 +604,7 @@ func buildDiffNote(imdbOnly, letterboxdOnly []diffItem, stats diffStats, now tim
 	fm.Set("date", now.Format("2006-01-02"))
 	fm.Set("imdb_only", stats.imdbOnlyCount)
 	fm.Set("letterboxd_only", stats.letterboxdOnlyCount)
+	fm.Set("resolved_title_year", stats.resolvedTitleYear)
 	fm.Set("imdb_only_with_fuzzy", stats.imdbOnlyWithFuzzy)
 	fm.Set("letterboxd_only_with_fuzzy", stats.letterboxdOnlyWithFuzzy)
 
@@ -489,7 +614,7 @@ func buildDiffNote(imdbOnly, letterboxdOnly []diffItem, stats diffStats, now tim
 	tags.Add("movies")
 	fm.Set("tags", tags.GetSorted())
 
-	body := buildDiffBody(imdbOnly, letterboxdOnly, now, mainDBPath, cacheDBPath)
+	body := buildDiffBody(imdbOnly, letterboxdOnly, stats, now, mainDBPath, cacheDBPath)
 
 	return &obsidian.Note{
 		Frontmatter: fm,
@@ -497,7 +622,7 @@ func buildDiffNote(imdbOnly, letterboxdOnly []diffItem, stats diffStats, now tim
 	}
 }
 
-func buildDiffBody(imdbOnly, letterboxdOnly []diffItem, now time.Time, mainDBPath, cacheDBPath string) string {
+func buildDiffBody(imdbOnly, letterboxdOnly []diffItem, stats diffStats, now time.Time, mainDBPath, cacheDBPath string) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("# IMDb vs Letterboxd Diff (%s)\n\n", now.Format("2006-01-02")))
 	b.WriteString("This report compares IMDb and Letterboxd movie imports in SQLite. TV titles are excluded.\n\n")
@@ -505,7 +630,8 @@ func buildDiffBody(imdbOnly, letterboxdOnly []diffItem, now time.Time, mainDBPat
 	if cacheDBPath != "" {
 		b.WriteString(fmt.Sprintf("- Cache DB: `%s`\n", cacheDBPath))
 	}
-	b.WriteString("- Matching: IMDb ID first, then fuzzy title+year match\n\n")
+	b.WriteString("- Matching: IMDb ID, then auto-resolved title+year, then fuzzy suggestions\n")
+	b.WriteString(fmt.Sprintf("- Auto-resolved title+year matches: %d\n\n", stats.resolvedTitleYear))
 
 	writeDiffSection(&b, "IMDb-only (missing from Letterboxd)", imdbOnly)
 	writeDiffSection(&b, "Letterboxd-only (missing from IMDb)", letterboxdOnly)

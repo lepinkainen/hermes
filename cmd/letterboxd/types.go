@@ -12,13 +12,14 @@ type Movie struct {
 	ImdbID        string `json:"ImdbID,omitempty"` // IMDB ID when available
 
 	// Additional fields that might be enriched later
-	Director    string   `json:"Director,omitempty"`
-	Cast        []string `json:"Cast,omitempty"`
-	Genres      []string `json:"Genres,omitempty"`
-	Runtime     int      `json:"Runtime,omitempty"`
-	Rating      float64  `json:"Rating,omitempty"`
-	PosterURL   string   `json:"PosterURL,omitempty"`
-	Description string   `json:"Description,omitempty"`
+	Director        string   `json:"Director,omitempty"`
+	Cast            []string `json:"Cast,omitempty"`
+	Genres          []string `json:"Genres,omitempty"`
+	Runtime         int      `json:"Runtime,omitempty"`
+	Rating          float64  `json:"Rating,omitempty"`          // User's personal Letterboxd rating (0.5-5 scale)
+	CommunityRating float64  `json:"CommunityRating,omitempty"` // OMDB/TMDB community rating (0-10 scale)
+	PosterURL       string   `json:"PosterURL,omitempty"`
+	Description     string   `json:"Description,omitempty"`
 
 	// TMDB enrichment data
 	TMDBEnrichment *enrichment.TMDBEnrichment `json:"TMDBEnrichment,omitempty"`
