@@ -1,0 +1,24 @@
+{
+  "response": {
+    "game_count": 3,
+    "games": [
+      {
+        "appid": 12345,
+        "name": "Test Game One",
+        "playtime_forever": 120,
+        "playtime_2weeks": 30
+      },
+      {
+        "appid": 67890,
+        "name": "Test Game Two",
+        "playtime_forever": 0,
+        "playtime_2weeks": 0
+      },
+      {
+        "appid": 11111,
+        "name": "Test Game Three",
+        "playtime_forever": 3600
+      }
+    ]
+  }
+}

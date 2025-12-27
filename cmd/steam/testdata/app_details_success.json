@@ -1,0 +1,46 @@
+{
+  "12345": {
+    "success": true,
+    "data": {
+      "type": "game",
+      "name": "Test Game",
+      "steam_appid": 12345,
+      "required_age": 0,
+      "is_free": false,
+      "detailed_description": "This is a detailed description of the test game with lots of information about gameplay, features, and story.",
+      "short_description": "A test game for unit testing",
+      "header_image": "https://cdn.akamai.steamstatic.com/steam/apps/12345/header.jpg",
+      "developers": ["Developer One", "Developer Two"],
+      "publishers": ["Publisher One"],
+      "categories": [
+        {"id": 1, "description": "Single-player"},
+        {"id": 2, "description": "Multi-player"},
+        {"id": 22, "description": "Steam Achievements"}
+      ],
+      "genres": [
+        {"id": "1", "description": "Action"},
+        {"id": "2", "description": "Adventure"}
+      ],
+      "screenshots": [
+        {
+          "id": 0,
+          "path_thumbnail": "https://cdn.akamai.steamstatic.com/steam/apps/12345/ss_1_thumb.jpg",
+          "path_full": "https://cdn.akamai.steamstatic.com/steam/apps/12345/ss_1.jpg"
+        },
+        {
+          "id": 1,
+          "path_thumbnail": "https://cdn.akamai.steamstatic.com/steam/apps/12345/ss_2_thumb.jpg",
+          "path_full": "https://cdn.akamai.steamstatic.com/steam/apps/12345/ss_2.jpg"
+        }
+      ],
+      "release_date": {
+        "coming_soon": false,
+        "date": "15 Jan, 2023"
+      },
+      "metacritic": {
+        "score": 85,
+        "url": "https://www.metacritic.com/game/pc/test-game"
+      }
+    }
+  }
+}

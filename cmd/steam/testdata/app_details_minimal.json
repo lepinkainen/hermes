@@ -1,0 +1,26 @@
+{
+  "55555": {
+    "success": true,
+    "data": {
+      "type": "game",
+      "name": "Minimal Game",
+      "steam_appid": 55555,
+      "detailed_description": "Basic game",
+      "short_description": "Basic",
+      "header_image": "https://cdn.akamai.steamstatic.com/steam/apps/55555/header.jpg",
+      "developers": ["Solo Developer"],
+      "publishers": ["Self Published"],
+      "categories": [
+        {"id": 2, "description": "Single-player"}
+      ],
+      "genres": [
+        {"id": "23", "description": "Indie"}
+      ],
+      "screenshots": [],
+      "release_date": {
+        "coming_soon": false,
+        "date": "1 Jan, 2024"
+      }
+    }
+  }
+}
