@@ -187,7 +187,13 @@ func enrichMovieData(movie *Movie) error {
 	_, err := enrich.Enrich(movie, enrich.Options[Movie, *Movie]{
 		SkipOMDB: movie.Description != "",
 		FetchOMDB: func() (*Movie, error) {
-			return getCachedMovie(movie.Name, movie.Year)
+			cacheKey := fmt.Sprintf("%s_%d", strings.ToLower(strings.TrimSpace(movie.Name)), movie.Year)
+			movieData, _, err := omdb.GetCached(cacheKey, func() (*Movie, error) {
+				return fetchMovieData(movie.Name, movie.Year)
+			})
+			// Note: We don't seed by IMDb ID because letterboxd.Movie and imdb.MovieSeen
+			// are different struct types that can't be deserialized interchangeably.
+			return movieData, err
 		},
 		ApplyOMDB: func(target *Movie, enrichedMovie *Movie) {
 			if enrichedMovie == nil {

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/cmdutil"
 	"github.com/lepinkainen/hermes/internal/errors"
 	"github.com/spf13/viper"
@@ -73,7 +74,17 @@ func ParseSteam() error {
 	for _, game := range games {
 		slog.Debug("Fetching game details", "game", game.Name)
 
-		_, details, err := getCachedGame(strconv.Itoa(game.AppID))
+		appID := strconv.Itoa(game.AppID)
+		// Use the generic cache utility with SQLite backend
+		details, _, err := cache.GetOrFetch("steam_cache", appID, func() (*GameDetails, error) {
+			_, detailsData, fetchErr := fetchGameData(appID)
+			if fetchErr != nil {
+				return nil, fetchErr
+			}
+			// Ensure the AppID is set before caching
+			detailsData.AppID = game.AppID
+			return detailsData, nil
+		})
 		if err != nil {
 			if strings.Contains(err.Error(), "status code 429") {
 				return errors.NewRateLimitError("Rate limit reached. Please try again later (usually after a few minutes)")

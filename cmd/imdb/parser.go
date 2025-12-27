@@ -207,7 +207,10 @@ func enrichMovieData(movie *MovieSeen) error {
 	_, err := enrich.Enrich(movie, enrich.Options[MovieSeen, *MovieSeen]{
 		SkipOMDB: movie.Plot != "",
 		FetchOMDB: func() (*MovieSeen, error) {
-			return getCachedMovie(movie.ImdbId)
+			movieData, _, err := omdb.GetCached(movie.ImdbId, func() (*MovieSeen, error) {
+				return fetchMovieData(movie.ImdbId)
+			})
+			return movieData, err
 		},
 		ApplyOMDB: func(target *MovieSeen, omdbMovie *MovieSeen) {
 			if omdbMovie == nil {

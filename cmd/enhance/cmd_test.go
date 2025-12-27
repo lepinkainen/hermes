@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
@@ -55,20 +54,6 @@ func TestFindMarkdownFiles_WithParentheses(t *testing.T) {
 	files, err = findMarkdownFiles(env.RootDir(), true)
 	require.NoError(t, err)
 	gh.AssertGoldenString("recursive.txt", strings.Join(relPaths(t, env.RootDir(), files), "\n")+"\n")
-}
-
-func relPaths(t *testing.T, root string, files []string) []string {
-	t.Helper()
-
-	var rels []string
-	for _, f := range files {
-		rel, err := filepath.Rel(root, f)
-		require.NoError(t, err)
-		rels = append(rels, filepath.ToSlash(rel))
-	}
-
-	sort.Strings(rels)
-	return rels
 }
 
 func TestEnhanceNotes_ProcessesFilesWithParentheses(t *testing.T) {
@@ -216,22 +201,6 @@ func TestEnhanceNotes_FilesWithParenthesesFullWorkflow(t *testing.T) {
 	require.Contains(t, logs, "Movie (2025).md", "File with parentheses should be processed")
 	require.Contains(t, logs, "Show (Season 1).md", "File with parentheses should be processed")
 	require.Contains(t, logs, "Complex (2023) - Special Edition.md", "File with complex parentheses pattern should be processed")
-}
-
-func completeNote(title string, tmdbID int) string {
-	return fmt.Sprintf(`---
-title: %s
-tmdb_type: movie
-tmdb_id: %d
-cover: attachments/%s - cover.jpg
----
-
-Existing body
-
-<!-- TMDB_DATA_START -->
-Existing TMDB data
-<!-- TMDB_DATA_END -->
-`, title, tmdbID, title)
 }
 
 func TestUpdateNoteWithTMDBData(t *testing.T) {
