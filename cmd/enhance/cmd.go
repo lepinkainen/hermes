@@ -147,13 +147,17 @@ func EnhanceNotes(opts Options) error {
 		}
 
 		// Handle movie/TV enrichment with TMDB
+		// Get note directory for file existence checks
+		noteDir := filepath.Dir(file)
+
 		// Smart needs detection: determine what needs to be updated
-		needsCover := note.NeedsCover()
+		needsCover := note.NeedsCover(noteDir)
 		needsContent := note.NeedsContent()
+		needsMetadata := note.TMDBID == 0 // Missing tmdb_id in frontmatter
 
 		// Skip if already has everything and not forcing/regenerating
 		// Note: metadata is always fetched to ensure all fields are current (uses cache for efficiency)
-		if !opts.Force && !opts.RegenerateData && !needsCover && !needsContent {
+		if !opts.Force && !opts.RegenerateData && !needsCover && !needsContent && !needsMetadata {
 			slog.Info("Skipping file (already has all TMDB data)", "path", file, "tmdb_id", note.TMDBID)
 			skipCount++
 			continue
@@ -161,13 +165,12 @@ func EnhanceNotes(opts Options) error {
 
 		if opts.DryRun {
 			slog.Info("Would enhance", "title", note.Title, "year", note.Year, "file", file,
-				"needs_cover", needsCover, "needs_content", needsContent)
+				"needs_cover", needsCover, "needs_content", needsContent, "needs_metadata", needsMetadata)
 			successCount++
 			continue
 		}
 
 		// Prepare enrichment options based on what's needed
-		noteDir := filepath.Dir(file)
 
 		// Convert frontmatter to map for DetectMediaTypeFromTags
 		frontmatterMap := make(map[string]any)
@@ -335,7 +338,9 @@ func generateLetterboxdSearchURL(title string) string {
 // processGameNote handles enrichment for game notes using Steam.
 // Returns (success, skip) booleans.
 func processGameNote(ctx context.Context, file string, note *Note, opts Options, attachmentsDir string) (bool, bool) {
-	needsCover := note.NeedsCover()
+	noteDir := filepath.Dir(file)
+
+	needsCover := note.NeedsCover(noteDir)
 	needsContent := note.NeedsSteamContent()
 
 	// Skip if already has everything and not forcing/regenerating
@@ -349,8 +354,6 @@ func processGameNote(ctx context.Context, file string, note *Note, opts Options,
 			"needs_cover", needsCover, "needs_content", needsContent)
 		return true, false // success
 	}
-
-	noteDir := filepath.Dir(file)
 
 	steamOpts := enrichment.SteamEnrichmentOptions{
 		DownloadCover:   opts.TMDBDownloadCover && (needsCover || opts.RegenerateData),

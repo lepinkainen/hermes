@@ -97,10 +97,20 @@ func (n *Note) HasTMDBData() bool {
 }
 
 // NeedsCover checks if the note needs a cover image.
-// Returns true if the cover field is missing or empty.
-func (n *Note) NeedsCover() bool {
+// Returns true if the cover field is missing, empty, or the file doesn't exist.
+func (n *Note) NeedsCover(noteDir string) bool {
 	cover := n.Frontmatter.GetString("cover")
-	return cover == ""
+	if cover == "" {
+		return true
+	}
+
+	// Check if the cover file actually exists
+	coverPath := filepath.Join(noteDir, cover)
+	if _, err := os.Stat(coverPath); os.IsNotExist(err) {
+		return true
+	}
+
+	return false
 }
 
 // NeedsContent checks if the note needs TMDB content sections.

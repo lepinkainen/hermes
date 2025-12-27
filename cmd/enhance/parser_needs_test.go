@@ -1,16 +1,32 @@
 package enhance
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/lepinkainen/hermes/internal/obsidian"
 )
 
 func TestNeedsCover(t *testing.T) {
+	// Create a temporary directory for testing file existence
+	tempDir := t.TempDir()
+	attachmentsDir := filepath.Join(tempDir, "attachments")
+	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
+		t.Fatalf("Failed to create test attachments dir: %v", err)
+	}
+
+	// Create a test cover file
+	existingCover := filepath.Join(attachmentsDir, "existing-cover.jpg")
+	if err := os.WriteFile(existingCover, []byte("test"), 0644); err != nil {
+		t.Fatalf("Failed to create test cover file: %v", err)
+	}
+
 	tests := []struct {
-		name string
-		note *Note
-		want bool
+		name    string
+		note    *Note
+		noteDir string
+		want    bool
 	}{
 		{
 			name: "no cover field",
@@ -19,7 +35,8 @@ func TestNeedsCover(t *testing.T) {
 				fm.Set("title", "Test Movie")
 				return &Note{Frontmatter: fm}
 			}(),
-			want: true,
+			noteDir: tempDir,
+			want:    true,
 		},
 		{
 			name: "empty cover field",
@@ -29,17 +46,30 @@ func TestNeedsCover(t *testing.T) {
 				fm.Set("cover", "")
 				return &Note{Frontmatter: fm}
 			}(),
-			want: true,
+			noteDir: tempDir,
+			want:    true,
 		},
 		{
-			name: "cover field with value",
+			name: "cover field with existing file",
 			note: func() *Note {
 				fm := obsidian.NewFrontmatter()
 				fm.Set("title", "Test Movie")
-				fm.Set("cover", "_attachments/cover.jpg")
+				fm.Set("cover", "attachments/existing-cover.jpg")
 				return &Note{Frontmatter: fm}
 			}(),
-			want: false,
+			noteDir: tempDir,
+			want:    false,
+		},
+		{
+			name: "cover field with non-existent file",
+			note: func() *Note {
+				fm := obsidian.NewFrontmatter()
+				fm.Set("title", "Test Movie")
+				fm.Set("cover", "attachments/missing-cover.jpg")
+				return &Note{Frontmatter: fm}
+			}(),
+			noteDir: tempDir,
+			want:    true,
 		},
 		{
 			name: "cover field is not a string",
@@ -49,13 +79,14 @@ func TestNeedsCover(t *testing.T) {
 				fm.Set("cover", 12345)
 				return &Note{Frontmatter: fm}
 			}(),
-			want: true,
+			noteDir: tempDir,
+			want:    true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.note.NeedsCover(); got != tt.want {
+			if got := tt.note.NeedsCover(tt.noteDir); got != tt.want {
 				t.Errorf("NeedsCover() = %v, want %v", got, tt.want)
 			}
 		})

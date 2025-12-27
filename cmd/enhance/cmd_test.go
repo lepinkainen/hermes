@@ -63,6 +63,10 @@ func TestEnhanceNotes_ProcessesFilesWithParentheses(t *testing.T) {
 	env.WriteFileString("Plain.md", completeNote("Plain", 1001))
 	env.WriteFileString("Red Sonja (2025).md", completeNote("Red Sonja", 2002))
 
+	// Create the cover files so NeedsCover() returns false
+	env.WriteFileString("attachments/Plain - cover.jpg", "fake cover data")
+	env.WriteFileString("attachments/Red Sonja - cover.jpg", "fake cover data")
+
 	var buf bytes.Buffer
 	origLogger := slog.Default()
 	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
