@@ -205,6 +205,35 @@ The `enhance` command enriches existing markdown notes with TMDB data without re
 - Use custom error types from `internal/errors/` for specific conditions
 - Log significant errors but return them to let top level handle exit codes
 
+## Caching Patterns
+
+Use the appropriate caching strategy from `internal/cache`:
+
+- **`cache.GetOrFetch()`** - Cache all responses with global TTL (default 30 days)
+  - Use for: Steam games, TMDB details by ID
+  - Example: `cache.GetOrFetch("steam_cache", appID, fetchFunc)`
+
+- **`cache.GetOrFetchWithPolicy()`** - Cache only certain responses (conditional)
+  - Use for: TMDB searches (don't cache empty results)
+  - Example: `cache.GetOrFetchWithPolicy("tmdb_cache", key, fetchFunc, shouldCache)`
+
+- **`cache.GetOrFetchWithTTL()`** - Different TTLs for different result types (negative caching)
+  - Use for: Goodreads books (7 days for "not found", 30 days for successful)
+  - Helper: `cache.SelectNegativeCacheTTL(func(r *CachedResult) bool { return r.NotFound })`
+  - Example: See `cmd/goodreads/cache.go` for reference implementation
+
+**When adding new cached operations:**
+1. Choose appropriate strategy (GetOrFetch, GetOrFetchWithPolicy, or GetOrFetchWithTTL)
+2. Design deterministic cache keys (normalize if needed)
+3. Add table schema to `internal/cache/schema.go`
+4. Add table name to `ValidCacheTableNames` map
+5. Add source to cache invalidation in `internal/cache/cmd.go`
+
+**For detailed guidance:**
+- Developer guide: `docs/cache-architecture.md`
+- User documentation: `docs/caching.md`
+- Architecture decisions: `docs/decisions/001-cache-architecture.md`
+
 ## Testing Requirements
 
 - Write unit tests for parsing logic, API interaction, and output generation

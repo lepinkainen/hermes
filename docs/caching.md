@@ -31,6 +31,20 @@ TTL accepts any Go duration string (e.g., `24h`, `7h30m`, `30m`).
 - Cached lookups that fail to unmarshal are retried and replaced with fresh data.
 - Negative TMDB results (empty searches or missing IMDb IDs) are not cached, so subsequent runs can discover newly added titles.
 
+## Negative Caching
+
+Negative caching stores "not found" responses with a shorter TTL than successful responses. This prevents repeated API calls for non-existent items while allowing the cache to refresh sooner if new data becomes available.
+
+**Current implementation:**
+- **Goodreads (OpenLibrary & Google Books)**: "Not found" responses cached for **7 days**, successful responses for **30 days**
+- **TMDB**: Empty search results are **not cached** at all (policy-based caching)
+- **Other sources**: Standard 30-day TTL for all responses
+
+**Why use negative caching:**
+- Reduces API load for repeatedly queried non-existent items
+- Shorter TTL allows quicker recovery when data becomes available
+- Different from "don't cache" - preserves API rate limits while maintaining freshness
+
 ## Cache warming
 
 The cache warms itself on demand—whenever a provider fetches data, the response is cached. If you want warm caches before a larger run, execute the relevant importer once (e.g., `hermes import imdb --input imdb.csv`) to seed entries; subsequent runs will reuse them until TTL expiry.
