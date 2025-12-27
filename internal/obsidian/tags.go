@@ -66,7 +66,6 @@ func NormalizeTags(tags []string) []string {
 }
 
 // TagSet provides tag collection with automatic normalization and deduplication.
-// It replaces the fileutil.TagCollector with built-in normalization.
 type TagSet struct {
 	tags map[string]bool
 }
@@ -111,7 +110,6 @@ func (ts *TagSet) GetSorted() []string {
 }
 
 // MergeTags combines two tag slices, normalizes them, and returns a sorted, deduplicated result.
-// This replaces enrichment.MergeTags with normalization built-in.
 func MergeTags(existing, new []string) []string {
 	seen := make(map[string]bool)
 
@@ -142,7 +140,6 @@ func MergeTags(existing, new []string) []string {
 
 // TagsFromAny safely extracts a string slice from a polymorphic YAML value.
 // YAML unmarshaling can produce []interface{} or []string, this handles both.
-// This replaces enrichment.TagsFromAny.
 func TagsFromAny(val any) []string {
 	if val == nil {
 		return []string{}
