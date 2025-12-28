@@ -134,21 +134,21 @@ func (b *TMDBOptionsBuilder) Build() TMDBEnrichmentOptions {
 // TMDBEnrichment holds TMDB enrichment data.
 type TMDBEnrichment struct {
 	// TMDBID is the TMDB numeric identifier
-	TMDBID int
+	TMDBID int `json:"tmdbId"`
 	// TMDBType is either "movie" or "tv"
-	TMDBType string
+	TMDBType string `json:"tmdbType"`
 	// CoverPath is the relative path to the downloaded cover image
-	CoverPath string
+	CoverPath string `json:"coverPath,omitempty"`
 	// CoverFilename is just the filename of the cover
-	CoverFilename string
+	CoverFilename string `json:"coverFilename,omitempty"`
 	// RuntimeMins is the runtime in minutes
-	RuntimeMins int
+	RuntimeMins int `json:"runtimeMins,omitempty"`
 	// TotalEpisodes is the total number of episodes (TV shows only)
-	TotalEpisodes int
+	TotalEpisodes int `json:"totalEpisodes,omitempty"`
 	// GenreTags are the TMDB genre tags
-	GenreTags []string
+	GenreTags []string `json:"genreTags,omitempty"`
 	// ContentMarkdown is the generated TMDB content
-	ContentMarkdown string
+	ContentMarkdown string `json:"contentMarkdown,omitempty"`
 	// Finished indicates if a TV show has ended (true for "Ended" or "Canceled" status)
-	Finished *bool
+	Finished *bool `json:"finished,omitempty"`
 }

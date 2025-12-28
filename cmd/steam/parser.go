@@ -17,11 +17,11 @@ const steamGamesSchema = `CREATE TABLE IF NOT EXISTS steam_games (
 		appid INTEGER PRIMARY KEY,
 		name TEXT,
 		playtime_forever INTEGER,
-		playtime_recent INTEGER,
+		playtime_2weeks INTEGER,
 		last_played TEXT,
 		details_fetched BOOLEAN,
-		description TEXT,
-		short_desc TEXT,
+		detailed_description TEXT,
+		short_description TEXT,
 		header_image TEXT,
 		screenshots TEXT,
 		developers TEXT,
@@ -37,24 +37,24 @@ const steamGamesSchema = `CREATE TABLE IF NOT EXISTS steam_games (
 // Convert GameDetails to map[string]any for database insertion
 func gameDetailsToMap(details GameDetails) map[string]any {
 	return map[string]any{
-		"appid":            details.AppID,
-		"name":             details.Name,
-		"playtime_forever": details.PlaytimeForever,
-		"playtime_recent":  details.PlaytimeRecent,
-		"last_played":      details.LastPlayed.String(),
-		"details_fetched":  details.DetailsFetched,
-		"description":      details.Description,
-		"short_desc":       details.ShortDesc,
-		"header_image":     details.HeaderImage,
-		"screenshots":      "", // Could serialize as JSON if needed
-		"developers":       strings.Join(details.Developers, ","),
-		"publishers":       strings.Join(details.Publishers, ","),
-		"release_date":     details.ReleaseDate.Date,
-		"coming_soon":      details.ReleaseDate.ComingSoon,
-		"categories":       "", // Could serialize as JSON if needed
-		"genres":           "", // Could serialize as JSON if needed
-		"metacritic_score": details.Metacritic.Score,
-		"metacritic_url":   details.Metacritic.URL,
+		"appid":                details.AppID,
+		"name":                 details.Name,
+		"playtime_forever":     details.PlaytimeForever,
+		"playtime_2weeks":      details.PlaytimeRecent,
+		"last_played":          details.LastPlayed.String(),
+		"details_fetched":      details.DetailsFetched,
+		"detailed_description": details.Description,
+		"short_description":    details.ShortDesc,
+		"header_image":         details.HeaderImage,
+		"screenshots":          "", // Could serialize as JSON if needed
+		"developers":           strings.Join(details.Developers, ","),
+		"publishers":           strings.Join(details.Publishers, ","),
+		"release_date":         details.ReleaseDate.Date,
+		"coming_soon":          details.ReleaseDate.ComingSoon,
+		"categories":           "", // Could serialize as JSON if needed
+		"genres":               "", // Could serialize as JSON if needed
+		"metacritic_score":     details.Metacritic.Score,
+		"metacritic_url":       details.Metacritic.URL,
 	}
 }
 

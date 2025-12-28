@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/lepinkainen/hermes/internal/cache"
@@ -146,6 +147,35 @@ func TestSteamImportE2E(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, detailsCount, 0, "At least some games should have details fetched from cache")
 	t.Logf("Games with details fetched: %d out of %d", detailsCount, count)
+
+	// Verify markdown output structure
+	outputPath := filepath.Join(tempDir, "output")
+	files, err := filepath.Glob(filepath.Join(outputPath, "*.md"))
+	require.NoError(t, err)
+	require.Greater(t, len(files), 0, "Should generate markdown files")
+	require.Equal(t, 3, len(files), "Should generate 3 markdown files (one per game)")
+
+	// Sort for deterministic selection
+	sort.Strings(files)
+
+	// Read and verify first file
+	content, err := os.ReadFile(files[0])
+	require.NoError(t, err)
+	contentStr := string(content)
+
+	// Verify YAML frontmatter structure
+	require.Contains(t, contentStr, "---\n", "Should have YAML frontmatter")
+	require.Contains(t, contentStr, "title:", "Should have title field")
+
+	// Steam-specific field checks
+	require.Contains(t, contentStr, "type: game")
+	require.Contains(t, contentStr, "playtime:")
+	require.Contains(t, contentStr, "release_date:")
+
+	// Verify markdown content exists (not just frontmatter)
+	require.Regexp(t, `(?m)^#+ `, contentStr, "Should have markdown headers")
+
+	t.Logf("Successfully verified markdown output for %d games", len(files))
 }
 
 // populateSteamCacheForTesting populates the cache with test data using the cache API
@@ -201,4 +231,266 @@ func populateSteamCacheForTesting(t *testing.T) {
 	}
 
 	t.Logf("Pre-populated cache with %d entries", len(testCases))
+}
+
+func TestSteamImportE2E_DatasetteDisabled(t *testing.T) {
+	// Setup test environment
+	env := testutil.NewTestEnv(t)
+	testutil.SetTestConfig(t)
+	tempDir := env.RootDir()
+
+	// Setup cache database
+	cacheDBPath := filepath.Join(tempDir, "cache.db")
+	viper.Set("cache.dbfile", cacheDBPath)
+	defer viper.Set("cache.dbfile", "./cache.db")
+
+	// Reset global cache after setting viper config
+	resetErr := cache.ResetGlobalCache()
+	require.NoError(t, resetErr)
+	defer func() { _ = cache.ResetGlobalCache() }()
+
+	// Disable datasette
+	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
+	viper.Set("datasette.enabled", false)
+	defer viper.Set("datasette.enabled", prevDatasetteEnabled)
+
+	// Override markdown output directory to tempDir
+	viper.Set("markdownoutputdir", tempDir)
+	defer viper.Set("markdownoutputdir", "markdown")
+
+	// Pre-populate cache with game details (similar to main E2E test)
+	populateSteamCacheForTesting(t)
+
+	// Mock ImportSteamGames to return test data without hitting the API
+	prevImportFunc := ImportSteamGamesFunc
+	ImportSteamGamesFunc = func(sid, key string) ([]Game, error) {
+		// Load test fixture
+		fixtureData, err := os.ReadFile("testdata/owned_games_response.json")
+		if err != nil {
+			return nil, err
+		}
+
+		var steamResp SteamResponse
+		err = json.Unmarshal(fixtureData, &steamResp)
+		if err != nil {
+			return nil, err
+		}
+
+		return steamResp.Response.Games, nil
+	}
+	defer func() {
+		ImportSteamGamesFunc = prevImportFunc
+	}()
+
+	// Run importer using ParseSteamWithParams
+	err := ParseSteamWithParams(
+		"test-steam-id",
+		"test-api-key",
+		"output", // relative path - will become tempDir/output
+		false,    // writeJSON
+		"",       // jsonOutput
+	)
+	require.NoError(t, err)
+
+	// Verify NO database file was created
+	defaultDBPath := filepath.Join(".", "hermes.db")
+	require.False(t, fileExists(defaultDBPath),
+		"Database file should not be created when datasette is disabled")
+
+	// Verify markdown files WERE created
+	outputPath := filepath.Join(tempDir, "output")
+	require.DirExists(t, outputPath, "Markdown output directory should exist")
+
+	// Count markdown files
+	files, err := filepath.Glob(filepath.Join(outputPath, "*.md"))
+	require.NoError(t, err)
+	require.Greater(t, len(files), 0, "Markdown files should be generated even when datasette is disabled")
+	require.Equal(t, 3, len(files), "Expected 3 markdown files (one per game)")
+	t.Logf("Generated %d markdown files with datasette disabled", len(files))
+}
+
+func TestSteamImportE2E_JSON(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	testutil.SetTestConfig(t)
+	tempDir := env.RootDir()
+
+	// Setup database (required for JSON output)
+	dbPath := filepath.Join(tempDir, "test.db")
+	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
+	prevDatasetteDB := viper.GetString("datasette.dbfile")
+	viper.Set("datasette.enabled", true)
+	viper.Set("datasette.dbfile", dbPath)
+	defer func() {
+		viper.Set("datasette.enabled", prevDatasetteEnabled)
+		viper.Set("datasette.dbfile", prevDatasetteDB)
+	}()
+
+	// Setup temp cache database and pre-populate it
+	cacheDBPath := filepath.Join(tempDir, "cache.db")
+	viper.Set("cache.dbfile", cacheDBPath)
+	defer viper.Set("cache.dbfile", "./cache.db")
+
+	// Reset the global cache
+	resetErr := cache.ResetGlobalCache()
+	require.NoError(t, resetErr)
+	defer func() { _ = cache.ResetGlobalCache() }()
+
+	// Populate cache
+	populateSteamCacheForTesting(t)
+
+	// Override markdown output directory
+	viper.Set("markdownoutputdir", tempDir)
+	defer viper.Set("markdownoutputdir", "markdown")
+
+	// Mock ImportSteamGames
+	prevImportFunc := ImportSteamGamesFunc
+	ImportSteamGamesFunc = func(sid, key string) ([]Game, error) {
+		fixtureData, err := os.ReadFile("testdata/owned_games_response.json")
+		if err != nil {
+			return nil, err
+		}
+		var steamResp SteamResponse
+		err = json.Unmarshal(fixtureData, &steamResp)
+		if err != nil {
+			return nil, err
+		}
+		return steamResp.Response.Games, nil
+	}
+	defer func() { ImportSteamGamesFunc = prevImportFunc }()
+
+	// Enable JSON output
+	jsonPath := filepath.Join(tempDir, "output.json")
+
+	// Run importer
+	err := ParseSteamWithParams(
+		"test-steam-id",
+		"test-api-key",
+		"output",
+		true,     // writeJSON
+		jsonPath, // jsonOutput
+	)
+	require.NoError(t, err)
+
+	// Verify JSON file exists
+	require.FileExists(t, jsonPath)
+
+	// Parse JSON
+	content, err := os.ReadFile(jsonPath)
+	require.NoError(t, err)
+
+	var items []map[string]interface{}
+	err = json.Unmarshal(content, &items)
+	require.NoError(t, err)
+	require.Len(t, items, 3, "Expected 3 items in JSON output")
+
+	// Verify schema - spot-check first item
+	firstItem := items[0]
+	require.Contains(t, firstItem, "name")
+	require.NotEmpty(t, firstItem["name"])
+
+	// Steam-specific field checks
+	require.Contains(t, firstItem, "appid")
+	require.Contains(t, firstItem, "playtime_forever")
+
+	t.Logf("Successfully verified JSON output for %d games", len(items))
+}
+
+func TestSteamImportE2E_CacheHit(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	testutil.SetTestConfig(t)
+	tempDir := env.RootDir()
+
+	// Setup cache DB
+	cacheDBPath := filepath.Join(tempDir, "cache.db")
+	viper.Set("cache.dbfile", cacheDBPath)
+	defer viper.Set("cache.dbfile", "./cache.db")
+
+	// Setup datasette DB
+	dbPath := filepath.Join(tempDir, "test.db")
+	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
+	prevDatasetteDB := viper.GetString("datasette.dbfile")
+	viper.Set("datasette.enabled", true)
+	viper.Set("datasette.dbfile", dbPath)
+	defer func() {
+		viper.Set("datasette.enabled", prevDatasetteEnabled)
+		viper.Set("datasette.dbfile", prevDatasetteDB)
+	}()
+
+	// Override markdown output directory
+	viper.Set("markdownoutputdir", tempDir)
+	defer viper.Set("markdownoutputdir", "markdown")
+
+	// Reset global cache to pick up test DB
+	resetErr := cache.ResetGlobalCache()
+	require.NoError(t, resetErr)
+	defer func() { _ = cache.ResetGlobalCache() }()
+
+	// Pre-populate cache with game details
+	populateSteamCacheForTesting(t)
+
+	// Mock ImportSteamGames to return test data
+	prevImportFunc := ImportSteamGamesFunc
+	ImportSteamGamesFunc = func(sid, key string) ([]Game, error) {
+		fixtureData, err := os.ReadFile("testdata/owned_games_response.json")
+		if err != nil {
+			return nil, err
+		}
+
+		var steamResp SteamResponse
+		err = json.Unmarshal(fixtureData, &steamResp)
+		if err != nil {
+			return nil, err
+		}
+
+		return steamResp.Response.Games, nil
+	}
+	defer func() {
+		ImportSteamGamesFunc = prevImportFunc
+	}()
+
+	// FIRST RUN: Should use pre-populated cache
+	err := ParseSteamWithParams(
+		"test-steam-id",
+		"test-api-key",
+		"output",
+		false, // writeJSON
+		"",    // jsonOutput
+	)
+	require.NoError(t, err)
+
+	// Verify cache entries exist
+	cacheDB, err := sql.Open("sqlite", cacheDBPath)
+	require.NoError(t, err)
+	defer func() { _ = cacheDB.Close() }()
+
+	var cacheCount int
+	err = cacheDB.QueryRow("SELECT COUNT(*) FROM steam_cache").Scan(&cacheCount)
+	require.NoError(t, err)
+	require.Equal(t, 3, cacheCount, "Cache should have 3 entries from pre-population")
+
+	initialCacheCount := cacheCount
+
+	// SECOND RUN: Should use cache without adding new entries
+	err = ParseSteamWithParams(
+		"test-steam-id",
+		"test-api-key",
+		"output",
+		false, // writeJSON
+		"",    // jsonOutput
+	)
+	require.NoError(t, err)
+
+	// Verify cache count unchanged
+	err = cacheDB.QueryRow("SELECT COUNT(*) FROM steam_cache").Scan(&cacheCount)
+	require.NoError(t, err)
+	require.Equal(t, initialCacheCount, cacheCount,
+		"Cache count should be unchanged on second run (cache hit)")
+
+	t.Logf("Cache verified: %d Steam entries reused", initialCacheCount)
+}
+
+// fileExists checks if a file exists
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

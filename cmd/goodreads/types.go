@@ -2,34 +2,34 @@ package goodreads
 
 // Book struct represents a book entry in the CSV
 type Book struct {
-	ID                       int      `json:"Book Id"`
-	Title                    string   `json:"Title"`
-	Authors                  []string `json:"Authors"`
-	ISBN                     string   `json:"ISBN"`
-	ISBN13                   string   `json:"ISBN13"`
-	MyRating                 float64  `json:"My Rating"`
-	AverageRating            float64  `json:"Average Rating"`
-	Publisher                string   `json:"Publisher"`
-	Binding                  string   `json:"Binding"`
-	NumberOfPages            int      `json:"Number of Pages"`
-	YearPublished            int      `json:"Year Published"`
-	OriginalPublicationYear  int      `json:"Original Publication Year"`
-	DateRead                 string   `json:"Date Read"`
-	DateAdded                string   `json:"Date Added"`
-	Bookshelves              []string `json:"Bookshelves"`
-	BookshelvesWithPositions []string `json:"Bookshelves with positions"`
-	ExclusiveShelf           string   `json:"Exclusive Shelf"`
-	MyReview                 string   `json:"My Review"`
-	Spoiler                  string   `json:"Spoiler"`
-	PrivateNotes             string   `json:"Private Notes"`
-	ReadCount                int      `json:"Read Count"`
-	OwnedCopies              int      `json:"Owned Copies"`
-	Description              string   `json:"Description"`
-	Subjects                 []string `json:"Subjects"`
-	CoverID                  int      `json:"Cover ID"`
-	CoverURL                 string   `json:"Cover URL"`
-	SubjectPeople            []string `json:"Subject People"`
-	Subtitle                 string   `json:"Subtitle"`
+	ID                       int      `json:"bookId"`
+	Title                    string   `json:"title"`
+	Authors                  []string `json:"authors"`
+	ISBN                     string   `json:"isbn"`
+	ISBN13                   string   `json:"isbn13"`
+	MyRating                 float64  `json:"myRating"`
+	AverageRating            float64  `json:"averageRating"`
+	Publisher                string   `json:"publisher"`
+	Binding                  string   `json:"binding"`
+	NumberOfPages            int      `json:"numberOfPages"`
+	YearPublished            int      `json:"yearPublished"`
+	OriginalPublicationYear  int      `json:"originalPublicationYear"`
+	DateRead                 string   `json:"dateRead"`
+	DateAdded                string   `json:"dateAdded"`
+	Bookshelves              []string `json:"bookshelves"`
+	BookshelvesWithPositions []string `json:"bookshelvesWithPositions"`
+	ExclusiveShelf           string   `json:"exclusiveShelf"`
+	MyReview                 string   `json:"myReview"`
+	Spoiler                  string   `json:"spoiler"`
+	PrivateNotes             string   `json:"privateNotes"`
+	ReadCount                int      `json:"readCount"`
+	OwnedCopies              int      `json:"ownedCopies"`
+	Description              string   `json:"description"`
+	Subjects                 []string `json:"subjects"`
+	CoverID                  int      `json:"coverId"`
+	CoverURL                 string   `json:"coverUrl"`
+	SubjectPeople            []string `json:"subjectPeople"`
+	Subtitle                 string   `json:"subtitle"`
 }
 
 // OpenLibraryBook struct represents the response from the OpenLibrary API

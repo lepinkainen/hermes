@@ -20,7 +20,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/omdb"
 )
 
-const letterboxdMoviesSchema = `CREATE TABLE IF NOT EXISTS letterboxd_movies (
+const LetterboxdMoviesSchema = `CREATE TABLE IF NOT EXISTS letterboxd_movies (
 		date TEXT,
 		name TEXT,
 		year INTEGER,
@@ -96,7 +96,7 @@ func ParseLetterboxd() error {
 	}
 
 	// Datasette integration
-	if err := cmdutil.WriteToDatastore(movies, letterboxdMoviesSchema, "letterboxd_movies", "Letterboxd movies", movieToMap); err != nil {
+	if err := cmdutil.WriteToDatastore(movies, LetterboxdMoviesSchema, "letterboxd_movies", "Letterboxd movies", movieToMap); err != nil {
 		return err
 	}
 

@@ -4,51 +4,51 @@ import "github.com/lepinkainen/hermes/internal/enrichment"
 
 // MovieSeen represents a watched movie from IMDB export
 type MovieSeen struct {
-	Position      int      `json:"Position,omitempty"`
-	ImdbId        string   `json:"ImdbId"`
-	MyRating      int      `json:"My Rating"`
-	DateRated     string   `json:"Date Rated"`
-	Created       string   `json:"Created,omitempty"`
-	Modified      string   `json:"Modified,omitempty"`
-	Description   string   `json:"Description,omitempty"`
-	Title         string   `json:"Title"`
-	OriginalTitle string   `json:"Original Title"`
-	URL           string   `json:"URL"`
-	TitleType     string   `json:"Title Type"`
-	IMDbRating    float64  `json:"IMDb Rating"`
-	RuntimeMins   int      `json:"Runtime (mins)"`
-	Year          int      `json:"Year"`
-	Genres        []string `json:"Genres"`
-	NumVotes      int      `json:"Num Votes"`
-	ReleaseDate   string   `json:"Release Date"`
-	Directors     []string `json:"Directors"`
-	Plot          string   `json:"Plot"`
-	ContentRated  string   `json:"Content Rated"`
-	Awards        string   `json:"Awards"`
-	PosterURL     string   `json:"Poster URL"`
+	Position      int      `json:"position,omitempty"`
+	ImdbId        string   `json:"imdbId"`
+	MyRating      int      `json:"myRating"`
+	DateRated     string   `json:"dateRated"`
+	Created       string   `json:"created,omitempty"`
+	Modified      string   `json:"modified,omitempty"`
+	Description   string   `json:"description,omitempty"`
+	Title         string   `json:"title"`
+	OriginalTitle string   `json:"originalTitle"`
+	URL           string   `json:"url"`
+	TitleType     string   `json:"titleType"`
+	IMDbRating    float64  `json:"imdbRating"`
+	RuntimeMins   int      `json:"runtimeMins"`
+	Year          int      `json:"year"`
+	Genres        []string `json:"genres"`
+	NumVotes      int      `json:"numVotes"`
+	ReleaseDate   string   `json:"releaseDate"`
+	Directors     []string `json:"directors"`
+	Plot          string   `json:"plot"`
+	ContentRated  string   `json:"contentRated"`
+	Awards        string   `json:"awards"`
+	PosterURL     string   `json:"posterUrl"`
 	// TMDB enrichment data
 	TMDBEnrichment *enrichment.TMDBEnrichment `json:"tmdb,omitempty"`
 }
 
 // MovieWatchlist represents a movie in the watchlist
 type MovieWatchlist struct {
-	Const         string  `json:"ImdbId"`
-	Created       string  `json:"Created"`
-	Modified      string  `json:"Modified"`
-	Description   string  `json:"Description"`
-	Title         string  `json:"Title"`
-	OriginalTitle string  `json:"Original Title"`
-	URL           string  `json:"URL"`
-	TitleType     string  `json:"Title Type"`
-	IMDbRating    float64 `json:"IMDb Rating"`
-	RuntimeMins   int     `json:"Runtime (mins)"`
-	Year          int     `json:"Year"`
-	Genres        []string
-	NumVotes      int    `json:"Num Votes"`
-	ReleaseDate   string `json:"Release Date"`
-	Directors     []string
-	YourRating    string `json:"Your Rating"`
-	DateRated     string `json:"Date Rated"`
+	Const         string   `json:"imdbId"`
+	Created       string   `json:"created"`
+	Modified      string   `json:"modified"`
+	Description   string   `json:"description"`
+	Title         string   `json:"title"`
+	OriginalTitle string   `json:"originalTitle"`
+	URL           string   `json:"url"`
+	TitleType     string   `json:"titleType"`
+	IMDbRating    float64  `json:"imdbRating"`
+	RuntimeMins   int      `json:"runtimeMins"`
+	Year          int      `json:"year"`
+	Genres        []string `json:"genres"`
+	NumVotes      int      `json:"numVotes"`
+	ReleaseDate   string   `json:"releaseDate"`
+	Directors     []string `json:"directors"`
+	YourRating    string   `json:"yourRating"`
+	DateRated     string   `json:"dateRated"`
 }
 
 type OMDbMovie struct {

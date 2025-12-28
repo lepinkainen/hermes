@@ -2,11 +2,14 @@ package goodreads
 
 import (
 	"database/sql"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/lepinkainen/hermes/internal/automation"
+	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
@@ -97,6 +100,35 @@ func TestGoodreadsImportE2E(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, booksWithISBN, 0, "At least some books should have ISBN data")
 	t.Logf("Books with ISBN data: %d out of %d", booksWithISBN, count)
+
+	// Verify markdown output structure
+	outputPath := filepath.Join(tempDir, "output")
+	files, err := filepath.Glob(filepath.Join(outputPath, "*.md"))
+	require.NoError(t, err)
+	require.Greater(t, len(files), 0, "Should generate markdown files")
+	require.Equal(t, 20, len(files), "Should generate 20 markdown files (one per book)")
+
+	// Sort for deterministic selection
+	sort.Strings(files)
+
+	// Read and verify first file
+	content, err := os.ReadFile(files[0])
+	require.NoError(t, err)
+	contentStr := string(content)
+
+	// Verify YAML frontmatter structure
+	require.Contains(t, contentStr, "---\n", "Should have YAML frontmatter")
+	require.Contains(t, contentStr, "title:", "Should have title field")
+
+	// Goodreads-specific field checks
+	require.Contains(t, contentStr, "type: book")
+	require.Contains(t, contentStr, "goodreads_id:")
+	require.Contains(t, contentStr, "authors:")
+	require.Contains(t, contentStr, "year:")
+	// Note: my_rating is optional (only present if book has been rated)
+	// Note: markdown headers (like ## Review) are optional - only present if book has review/notes
+
+	t.Logf("Successfully verified markdown output for %d books", len(files))
 }
 
 func TestGoodreadsImportE2E_DatasetteDisabled(t *testing.T) {
@@ -148,6 +180,162 @@ func TestGoodreadsImportE2E_DatasetteDisabled(t *testing.T) {
 	require.Greater(t, len(files), 0, "Markdown files should be generated even when datasette is disabled")
 	require.Equal(t, 20, len(files), "Expected 20 markdown files (one per book)")
 	t.Logf("Generated %d markdown files with datasette disabled", len(files))
+}
+
+func TestGoodreadsImportE2E_JSON(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	testutil.SetTestConfig(t)
+	tempDir := env.RootDir()
+
+	// Copy fixture
+	csvPath := filepath.Join(tempDir, "books.csv")
+	env.CopyFile("testdata/goodreads_sample.csv", "books.csv")
+
+	// Setup database (required for JSON output)
+	dbPath := filepath.Join(tempDir, "test.db")
+	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
+	prevDatasetteDB := viper.GetString("datasette.dbfile")
+	viper.Set("datasette.enabled", true)
+	viper.Set("datasette.dbfile", dbPath)
+	defer func() {
+		viper.Set("datasette.enabled", prevDatasetteEnabled)
+		viper.Set("datasette.dbfile", prevDatasetteDB)
+	}()
+
+	// Override markdown output directory
+	viper.Set("markdownoutputdir", tempDir)
+	defer viper.Set("markdownoutputdir", "markdown")
+
+	// Enable JSON output
+	jsonPath := filepath.Join(tempDir, "output.json")
+
+	err := ParseGoodreadsWithParams(
+		ParseParams{
+			CSVPath:    csvPath,
+			OutputDir:  "output",
+			WriteJSON:  true,
+			JSONOutput: jsonPath,
+		},
+		ParseGoodreads,
+		DefaultDownloadGoodreadsCSVFunc,
+		&automation.DefaultCDPRunner{},
+	)
+	require.NoError(t, err)
+
+	// Verify JSON file exists
+	require.FileExists(t, jsonPath)
+
+	// Parse JSON
+	content, err := os.ReadFile(jsonPath)
+	require.NoError(t, err)
+
+	var items []map[string]interface{}
+	err = json.Unmarshal(content, &items)
+	require.NoError(t, err)
+	require.Len(t, items, 20, "Expected 20 items in JSON output")
+
+	// Verify schema - spot-check first item
+	firstItem := items[0]
+	require.Contains(t, firstItem, "title")
+	require.NotEmpty(t, firstItem["title"])
+
+	// Goodreads-specific field checks
+	require.Contains(t, firstItem, "bookId")
+	require.Contains(t, firstItem, "authors")
+	require.Contains(t, firstItem, "yearPublished")
+
+	t.Logf("Successfully verified JSON output for %d books", len(items))
+}
+
+func TestGoodreadsImportE2E_CacheHit(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	testutil.SetTestConfig(t)
+	tempDir := env.RootDir()
+
+	// Setup cache DB
+	cacheDBPath := filepath.Join(tempDir, "cache.db")
+	viper.Set("cache.dbfile", cacheDBPath)
+	defer viper.Set("cache.dbfile", "./cache.db")
+
+	// Setup datasette DB
+	dbPath := filepath.Join(tempDir, "test.db")
+	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
+	prevDatasetteDB := viper.GetString("datasette.dbfile")
+	viper.Set("datasette.enabled", true)
+	viper.Set("datasette.dbfile", dbPath)
+	defer func() {
+		viper.Set("datasette.enabled", prevDatasetteEnabled)
+		viper.Set("datasette.dbfile", prevDatasetteDB)
+	}()
+
+	// Override markdown output directory
+	viper.Set("markdownoutputdir", tempDir)
+	defer viper.Set("markdownoutputdir", "markdown")
+
+	// Reset global cache to pick up test DB
+	resetErr := cache.ResetGlobalCache()
+	require.NoError(t, resetErr)
+	defer func() { _ = cache.ResetGlobalCache() }()
+
+	// Copy fixture
+	csvPath := filepath.Join(tempDir, "books.csv")
+	env.CopyFile("testdata/goodreads_sample.csv", "books.csv")
+
+	// FIRST RUN: Populate cache
+	err := ParseGoodreadsWithParams(
+		ParseParams{
+			CSVPath:    csvPath,
+			OutputDir:  "output",
+			WriteJSON:  false,
+			JSONOutput: "",
+		},
+		ParseGoodreads,
+		DefaultDownloadGoodreadsCSVFunc,
+		&automation.DefaultCDPRunner{},
+	)
+	require.NoError(t, err)
+
+	// Verify cache entries created (openlibrary or googlebooks)
+	cacheDB, err := sql.Open("sqlite", cacheDBPath)
+	require.NoError(t, err)
+	defer func() { _ = cacheDB.Close() }()
+
+	// Check openlibrary_cache
+	var openlibraryCount int
+	_ = cacheDB.QueryRow("SELECT COUNT(*) FROM openlibrary_cache").Scan(&openlibraryCount)
+
+	// Check googlebooks_cache
+	var googlebooksCount int
+	_ = cacheDB.QueryRow("SELECT COUNT(*) FROM googlebooks_cache").Scan(&googlebooksCount)
+
+	totalCacheCount := openlibraryCount + googlebooksCount
+	require.Greater(t, totalCacheCount, 0, "Cache should have entries after first run")
+
+	// SECOND RUN: Should use cache
+	err = ParseGoodreadsWithParams(
+		ParseParams{
+			CSVPath:    csvPath,
+			OutputDir:  "output",
+			WriteJSON:  false,
+			JSONOutput: "",
+		},
+		ParseGoodreads,
+		DefaultDownloadGoodreadsCSVFunc,
+		&automation.DefaultCDPRunner{},
+	)
+	require.NoError(t, err)
+
+	// Verify cache count unchanged (cache reused)
+	var newOpenlibraryCount, newGooglebooksCount int
+	_ = cacheDB.QueryRow("SELECT COUNT(*) FROM openlibrary_cache").Scan(&newOpenlibraryCount)
+	_ = cacheDB.QueryRow("SELECT COUNT(*) FROM googlebooks_cache").Scan(&newGooglebooksCount)
+
+	newTotalCount := newOpenlibraryCount + newGooglebooksCount
+	require.Equal(t, totalCacheCount, newTotalCount,
+		"Cache count should be unchanged on second run (cache hit)")
+
+	t.Logf("Cache verified: %d OpenLibrary + %d GoogleBooks entries reused",
+		openlibraryCount, googlebooksCount)
 }
 
 // fileExists checks if a file exists

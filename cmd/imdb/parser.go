@@ -19,7 +19,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/omdb"
 )
 
-const imdbMoviesSchema = `CREATE TABLE IF NOT EXISTS imdb_movies (
+const IMDbMoviesSchema = `CREATE TABLE IF NOT EXISTS imdb_movies (
 		position INTEGER,
 		imdb_id TEXT PRIMARY KEY,
 		my_rating INTEGER,
@@ -110,7 +110,7 @@ func ParseImdb() error {
 	}
 
 	// Write to Datasette if enabled
-	if err := cmdutil.WriteToDatastore(movies, imdbMoviesSchema, "imdb_movies", "IMDB movies", movieToMap); err != nil {
+	if err := cmdutil.WriteToDatastore(movies, IMDbMoviesSchema, "imdb_movies", "IMDB movies", movieToMap); err != nil {
 		return err
 	}
 
