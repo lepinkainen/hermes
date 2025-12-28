@@ -338,3 +338,223 @@ func TestWriteMarkdownFile_EmptyContent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "", string(actualContent))
 }
+
+func TestEnsureDir(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
+
+	testCases := []struct {
+		name string
+		path string
+	}{
+		{
+			name: "create single directory",
+			path: filepath.Join(tempDir, "testdir"),
+		},
+		{
+			name: "create nested directories",
+			path: filepath.Join(tempDir, "level1", "level2", "level3"),
+		},
+		{
+			name: "create directory that already exists",
+			path: tempDir, // Already exists
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := EnsureDir(tc.path)
+			require.NoError(t, err)
+
+			// Verify directory exists
+			info, err := os.Stat(tc.path)
+			require.NoError(t, err)
+			assert.True(t, info.IsDir())
+		})
+	}
+}
+
+func TestEnsureDir_WithPermissions(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
+
+	dirPath := filepath.Join(tempDir, "permtest")
+
+	err := EnsureDir(dirPath)
+	require.NoError(t, err)
+
+	// Verify directory has correct permissions (0755)
+	info, err := os.Stat(dirPath)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0755)|os.ModeDir, info.Mode())
+}
+
+func TestRelativeTo(t *testing.T) {
+	testCases := []struct {
+		name     string
+		base     string
+		target   string
+		expected string
+		wantErr  bool
+	}{
+		{
+			name:     "simple relative path",
+			base:     "/home/user/project",
+			target:   "/home/user/project/src/main.go",
+			expected: "src/main.go",
+			wantErr:  false,
+		},
+		{
+			name:     "parent directory",
+			base:     "/home/user/project/src",
+			target:   "/home/user/project/README.md",
+			expected: "../README.md",
+			wantErr:  false,
+		},
+		{
+			name:     "same directory",
+			base:     "/home/user/project",
+			target:   "/home/user/project",
+			expected: ".",
+			wantErr:  false,
+		},
+		{
+			name:     "different paths with common root",
+			base:     "/home/user/project",
+			target:   "/home/other/file.txt",
+			expected: "../../other/file.txt",
+			wantErr:  false,
+		},
+		{
+			name:     "converts backslashes to forward slashes",
+			base:     "/home/user",
+			target:   "/home/user/docs/file.txt",
+			expected: "docs/file.txt",
+			wantErr:  false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := RelativeTo(tc.base, tc.target)
+
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestCopyFile(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
+
+	testCases := []struct {
+		name        string
+		content     string
+		permissions os.FileMode
+	}{
+		{
+			name:        "copy text file",
+			content:     "Hello, World!",
+			permissions: 0644,
+		},
+		{
+			name:        "copy empty file",
+			content:     "",
+			permissions: 0644,
+		},
+		{
+			name:        "copy file with multiple lines",
+			content:     "Line 1\nLine 2\nLine 3\n",
+			permissions: 0644,
+		},
+		{
+			name:        "copy binary-like content",
+			content:     "\x00\x01\x02\x03\xFF\xFE",
+			permissions: 0644,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			srcPath := filepath.Join(tempDir, "source.txt")
+			dstPath := filepath.Join(tempDir, "dest.txt")
+
+			// Create source file
+			err := os.WriteFile(srcPath, []byte(tc.content), tc.permissions)
+			require.NoError(t, err)
+
+			// Copy file
+			err = CopyFile(srcPath, dstPath)
+			require.NoError(t, err)
+
+			// Verify destination file exists
+			assert.True(t, FileExists(dstPath))
+
+			// Verify content matches
+			dstContent, err := os.ReadFile(dstPath)
+			require.NoError(t, err)
+			assert.Equal(t, tc.content, string(dstContent))
+
+			// Clean up for next iteration
+			_ = os.Remove(srcPath)
+			_ = os.Remove(dstPath)
+		})
+	}
+}
+
+func TestCopyFile_SourceDoesNotExist(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
+
+	srcPath := filepath.Join(tempDir, "nonexistent.txt")
+	dstPath := filepath.Join(tempDir, "dest.txt")
+
+	err := CopyFile(srcPath, dstPath)
+	require.Error(t, err)
+}
+
+func TestCopyFile_DestinationDirectoryDoesNotExist(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
+
+	srcPath := filepath.Join(tempDir, "source.txt")
+	dstPath := filepath.Join(tempDir, "nonexistent", "dest.txt")
+
+	// Create source file
+	err := os.WriteFile(srcPath, []byte("test"), 0644)
+	require.NoError(t, err)
+
+	// Copy should fail because destination directory doesn't exist
+	err = CopyFile(srcPath, dstPath)
+	require.Error(t, err)
+}
+
+func TestCopyFile_OverwriteExisting(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	tempDir := env.RootDir()
+
+	srcPath := filepath.Join(tempDir, "source.txt")
+	dstPath := filepath.Join(tempDir, "dest.txt")
+
+	// Create source file
+	err := os.WriteFile(srcPath, []byte("new content"), 0644)
+	require.NoError(t, err)
+
+	// Create existing destination file
+	err = os.WriteFile(dstPath, []byte("old content"), 0644)
+	require.NoError(t, err)
+
+	// Copy should overwrite
+	err = CopyFile(srcPath, dstPath)
+	require.NoError(t, err)
+
+	// Verify destination has new content
+	dstContent, err := os.ReadFile(dstPath)
+	require.NoError(t, err)
+	assert.Equal(t, "new content", string(dstContent))
+}

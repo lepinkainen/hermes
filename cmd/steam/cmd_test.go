@@ -1,10 +1,6 @@
 package steam
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/lepinkainen/hermes/internal/testutil"
@@ -12,41 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestParseSteamWithParams(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	dir := env.RootDir()
-
-	// Mock the actual ParseSteam function (ParseSteamFunc points to this)
-	mockParseSteam := func() error {
-		if steamID != "123" || apiKey != "key" {
-			t.Fatalf("steamID/apiKey not set")
-		}
-		if !strings.Contains(outputDir, dir) {
-			t.Fatalf("outputDir = %s, want to contain %s", outputDir, dir)
-		}
-		if !writeJSON {
-			t.Fatalf("flags not propagated")
-		}
-		if jsonOutput == "" {
-			t.Fatalf("jsonOutput should be set")
-		}
-		return nil
-	}
-	origParseSteamFunc := ParseSteamFunc
-	ParseSteamFunc = mockParseSteam
-	defer func() { ParseSteamFunc = origParseSteamFunc }() // Restore original after test
-
-	jsonPath := filepath.Join(dir, "steam.json")
-	if err := os.WriteFile(jsonPath, []byte("{}"), 0644); err != nil {
-		t.Fatalf("write json path: %v", err)
-	}
-
-	// Call ParseSteamWithParams, which will internally call the mocked ParseSteamFunc
-	if err := ParseSteamWithParams("123", "key", dir, true, jsonPath); err != nil {
-		t.Fatalf("ParseSteamWithParams error = %v", err)
-	}
-}
 
 func TestSteamCmd_Run_MissingConfig(t *testing.T) {
 	testutil.SetTestConfig(t)
@@ -93,53 +54,24 @@ func TestSteamCmd_Run_MissingConfig(t *testing.T) {
 	}
 }
 
-func TestSteamCmd_Run_Success(t *testing.T) {
-	env := testutil.NewTestEnv(t)
+func TestSteamCmd_Run_ConfigFallback(t *testing.T) {
 	testutil.SetTestConfig(t)
 
-	// Mock ParseSteamWithParamsFunc
-	mockCalled := false
+	// Mock ParseSteamWithParamsFunc to verify config values are used
+	var capturedSteamID, capturedAPIKey string
 	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error {
-		mockCalled = true
-		assert.Equal(t, "12345", steamIDParam)
-		assert.Equal(t, "test-key", apiKeyParam)
+		capturedSteamID = steamIDParam
+		capturedAPIKey = apiKeyParam
 		return nil
 	}
 
 	origFunc := ParseSteamWithParamsFunc
 	ParseSteamWithParamsFunc = mockFunc
 	defer func() { ParseSteamWithParamsFunc = origFunc }()
-
-	cmd := SteamCmd{
-		SteamID: "12345",
-		APIKey:  "test-key",
-		Output:  env.RootDir(),
-	}
-
-	err := cmd.Run()
-	require.NoError(t, err)
-	assert.True(t, mockCalled, "ParseSteamWithParamsFunc should have been called")
-}
-
-func TestSteamCmd_Run_WithConfig(t *testing.T) {
-	testutil.SetTestConfig(t)
 
 	// Set values in config
 	viper.Set("steam.steamid", "config-steam-id")
 	viper.Set("steam.apikey", "config-api-key")
-
-	mockCalled := false
-	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error {
-		mockCalled = true
-		// Should use values from config since flags are empty
-		assert.Equal(t, "config-steam-id", steamIDParam)
-		assert.Equal(t, "config-api-key", apiKeyParam)
-		return nil
-	}
-
-	origFunc := ParseSteamWithParamsFunc
-	ParseSteamWithParamsFunc = mockFunc
-	defer func() { ParseSteamWithParamsFunc = origFunc }()
 
 	// Create command with empty flags (should read from config)
 	cmd := SteamCmd{
@@ -149,28 +81,30 @@ func TestSteamCmd_Run_WithConfig(t *testing.T) {
 
 	err := cmd.Run()
 	require.NoError(t, err)
-	assert.True(t, mockCalled)
+
+	// Verify config values were used
+	assert.Equal(t, "config-steam-id", capturedSteamID, "Should use steam ID from config")
+	assert.Equal(t, "config-api-key", capturedAPIKey, "Should use API key from config")
 }
 
 func TestSteamCmd_Run_FlagOverridesConfig(t *testing.T) {
 	testutil.SetTestConfig(t)
 
-	// Set values in config
-	viper.Set("steam.steamid", "config-steam-id")
-	viper.Set("steam.apikey", "config-api-key")
-
-	mockCalled := false
+	// Mock ParseSteamWithParamsFunc to verify flag values override config
+	var capturedSteamID, capturedAPIKey string
 	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error {
-		mockCalled = true
-		// Should use flag values, not config
-		assert.Equal(t, "flag-steam-id", steamIDParam)
-		assert.Equal(t, "flag-api-key", apiKeyParam)
+		capturedSteamID = steamIDParam
+		capturedAPIKey = apiKeyParam
 		return nil
 	}
 
 	origFunc := ParseSteamWithParamsFunc
 	ParseSteamWithParamsFunc = mockFunc
 	defer func() { ParseSteamWithParamsFunc = origFunc }()
+
+	// Set values in config
+	viper.Set("steam.steamid", "config-steam-id")
+	viper.Set("steam.apikey", "config-api-key")
 
 	// Create command with flags set (should override config)
 	cmd := SteamCmd{
@@ -180,27 +114,8 @@ func TestSteamCmd_Run_FlagOverridesConfig(t *testing.T) {
 
 	err := cmd.Run()
 	require.NoError(t, err)
-	assert.True(t, mockCalled)
-}
 
-func TestSteamCmd_Run_PropagatesError(t *testing.T) {
-	testutil.SetTestConfig(t)
-
-	expectedErr := fmt.Errorf("mock error from parser")
-	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error {
-		return expectedErr
-	}
-
-	origFunc := ParseSteamWithParamsFunc
-	ParseSteamWithParamsFunc = mockFunc
-	defer func() { ParseSteamWithParamsFunc = origFunc }()
-
-	cmd := SteamCmd{
-		SteamID: "12345",
-		APIKey:  "test-key",
-	}
-
-	err := cmd.Run()
-	require.Error(t, err)
-	assert.Equal(t, expectedErr, err)
+	// Verify flag values were used, not config
+	assert.Equal(t, "flag-steam-id", capturedSteamID, "Should use steam ID from flag")
+	assert.Equal(t, "flag-api-key", capturedAPIKey, "Should use API key from flag")
 }

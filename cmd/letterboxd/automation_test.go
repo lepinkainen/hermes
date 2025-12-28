@@ -10,30 +10,7 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
-	"github.com/lepinkainen/hermes/internal/automation"
 )
-
-func TestPrepareDownloadDirCreatesTemp(t *testing.T) {
-	dir, cleanup, err := automation.PrepareDownloadDir("", "hermes-letterboxd-test-*")
-	require.NoError(t, err)
-	require.DirExists(t, dir)
-	require.NotNil(t, cleanup)
-
-	cleanup()
-	_, statErr := os.Stat(dir)
-	require.True(t, os.IsNotExist(statErr), "temp dir should be removed after cleanup")
-}
-
-func TestPrepareDownloadDirCreatesCustom(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	customDir := env.Path("custom-downloads")
-
-	dir, cleanup, err := automation.PrepareDownloadDir(customDir, "hermes-letterboxd-test-*")
-	require.NoError(t, err)
-	require.DirExists(t, dir)
-	require.Nil(t, cleanup) // No cleanup for custom dirs
-	require.Equal(t, customDir, dir)
-}
 
 func TestExtractLetterboxdCSVs(t *testing.T) {
 	env := testutil.NewTestEnv(t)
@@ -203,24 +180,6 @@ func TestFindDownloadedZipIgnoresNonLetterboxdFiles(t *testing.T) {
 	path, err := findDownloadedZip(env.RootDir(), startTime)
 	require.NoError(t, err)
 	require.Contains(t, filepath.Base(path), "letterboxd-")
-}
-
-func TestCopyFile(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-
-	src := env.Path("source.txt")
-	dst := env.Path("dest.txt")
-
-	testContent := "test file content"
-	require.NoError(t, os.WriteFile(src, []byte(testContent), 0644))
-
-	err := automation.CopyFile(src, dst)
-	require.NoError(t, err)
-	require.FileExists(t, dst)
-
-	content, err := os.ReadFile(dst)
-	require.NoError(t, err)
-	require.Equal(t, testContent, string(content))
 }
 
 func TestFindDownloadedZipRespectsStartTime(t *testing.T) {

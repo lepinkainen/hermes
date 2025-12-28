@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -500,5 +501,370 @@ func TestSelectNegativeCacheTTL(t *testing.T) {
 	}
 	if ttl != 720*time.Hour {
 		t.Errorf("Expected 720h for found result, got %v", ttl)
+	}
+}
+
+func TestCacheDB_QueryRow(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	// Insert test data
+	testKey := "test-key"
+	testData := `{"id":123,"name":"QueryRow Test"}`
+	err := cache.Set("test_cache", testKey, testData)
+	if err != nil {
+		t.Fatalf("Failed to set cache: %v", err)
+	}
+
+	// Use QueryRow to retrieve the data
+	var cachedKey string
+	var cachedData string
+	row := cache.QueryRow("SELECT cache_key, data FROM test_cache WHERE cache_key = ?", testKey)
+	err = row.Scan(&cachedKey, &cachedData)
+	if err != nil {
+		t.Fatalf("QueryRow failed: %v", err)
+	}
+
+	// Verify the results
+	if cachedKey != testKey {
+		t.Errorf("Expected cache_key %s, got %s", testKey, cachedKey)
+	}
+	if cachedData != testData {
+		t.Errorf("Expected data %s, got %s", testData, cachedData)
+	}
+}
+
+func TestCacheDB_QueryRow_NoResults(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	// Query for non-existent key
+	var cachedData string
+	row := cache.QueryRow("SELECT data FROM test_cache WHERE cache_key = ?", "nonexistent")
+	err := row.Scan(&cachedData)
+
+	// Should return sql.ErrNoRows
+	if err != sql.ErrNoRows {
+		t.Errorf("Expected sql.ErrNoRows, got %v", err)
+	}
+}
+
+func TestCacheDB_Exec(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	// Insert test data using Set
+	testKey := "test-key"
+	testData := `{"id":456,"name":"Exec Test"}`
+	err := cache.Set("test_cache", testKey, testData)
+	if err != nil {
+		t.Fatalf("Failed to set cache: %v", err)
+	}
+
+	// Use Exec to update the data
+	newData := `{"id":789,"name":"Updated"}`
+	err = cache.Exec("UPDATE test_cache SET data = ? WHERE cache_key = ?", newData, testKey)
+	if err != nil {
+		t.Fatalf("Exec failed: %v", err)
+	}
+
+	// Verify the update
+	var cachedData string
+	row := cache.QueryRow("SELECT data FROM test_cache WHERE cache_key = ?", testKey)
+	err = row.Scan(&cachedData)
+	if err != nil {
+		t.Fatalf("Failed to verify update: %v", err)
+	}
+
+	if cachedData != newData {
+		t.Errorf("Expected data %s, got %s", newData, cachedData)
+	}
+}
+
+func TestCacheDB_Exec_Delete(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	// Insert test data
+	testKey := "test-key"
+	testData := `{"id":999,"name":"Delete Test"}`
+	err := cache.Set("test_cache", testKey, testData)
+	if err != nil {
+		t.Fatalf("Failed to set cache: %v", err)
+	}
+
+	// Verify it exists
+	if !cache.CacheExists("test_cache", testKey) {
+		t.Fatal("Expected cache entry to exist before deletion")
+	}
+
+	// Use Exec to delete the data
+	err = cache.Exec("DELETE FROM test_cache WHERE cache_key = ?", testKey)
+	if err != nil {
+		t.Fatalf("Exec delete failed: %v", err)
+	}
+
+	// Verify it's deleted
+	if cache.CacheExists("test_cache", testKey) {
+		t.Error("Expected cache entry to be deleted")
+	}
+}
+
+func TestGetOrFetchWithPolicy_CacheAll(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	withGlobalCache(t, cache)
+
+	testKey := "policy-test-key"
+	expectedData := TestData{ID: 100, Name: "Policy Test"}
+
+	fetchCalled := 0
+	fetchFunc := func() (TestData, error) {
+		fetchCalled++
+		return expectedData, nil
+	}
+
+	// nil policy means cache everything (default behavior)
+	result, fromCache, err := GetOrFetchWithPolicy("test_cache", testKey, fetchFunc, nil)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if fromCache {
+		t.Error("Expected fromCache to be false on first call")
+	}
+	if fetchCalled != 1 {
+		t.Errorf("Expected fetch to be called once, got %d", fetchCalled)
+	}
+
+	// Verify it was cached
+	if !cache.CacheExists("test_cache", testKey) {
+		t.Error("Expected data to be cached")
+	}
+
+	// Second call should hit cache
+	result, fromCache, err = GetOrFetchWithPolicy("test_cache", testKey, fetchFunc, nil)
+	if err != nil {
+		t.Fatalf("Expected no error on second call, got %v", err)
+	}
+	if !fromCache {
+		t.Error("Expected fromCache to be true on second call")
+	}
+	if fetchCalled != 1 {
+		t.Errorf("Expected fetch not to be called again, got %d calls", fetchCalled)
+	}
+	if result.ID != expectedData.ID {
+		t.Errorf("Expected data %+v, got %+v", expectedData, result)
+	}
+}
+
+func TestGetOrFetchWithPolicy_SkipCaching(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	withGlobalCache(t, cache)
+
+	testKey := "skip-cache-key"
+
+	fetchCalled := 0
+	fetchFunc := func() (TestData, error) {
+		fetchCalled++
+		return TestData{ID: 0, Name: ""}, nil // Empty result
+	}
+
+	// Policy: don't cache if ID is 0
+	shouldCache := func(data TestData) bool {
+		return data.ID != 0
+	}
+
+	_, fromCache, err := GetOrFetchWithPolicy("test_cache", testKey, fetchFunc, shouldCache)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if fromCache {
+		t.Error("Expected fromCache to be false")
+	}
+	if fetchCalled != 1 {
+		t.Errorf("Expected fetch to be called once, got %d", fetchCalled)
+	}
+
+	// Verify it was NOT cached
+	if cache.CacheExists("test_cache", testKey) {
+		t.Error("Expected data NOT to be cached per policy")
+	}
+
+	// Second call should fetch again (not cached)
+	_, fromCache, err = GetOrFetchWithPolicy("test_cache", testKey, fetchFunc, shouldCache)
+	if err != nil {
+		t.Fatalf("Expected no error on second call, got %v", err)
+	}
+	if fromCache {
+		t.Error("Expected fromCache to be false on second call")
+	}
+	if fetchCalled != 2 {
+		t.Errorf("Expected fetch to be called twice (not cached), got %d calls", fetchCalled)
+	}
+}
+
+func TestGetOrFetchWithPolicy_SelectiveCaching(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	withGlobalCache(t, cache)
+
+	// Policy: only cache if Name is not empty
+	shouldCache := func(data TestData) bool {
+		return data.Name != ""
+	}
+
+	// Test with data that should be cached
+	testKey1 := "cache-key-1"
+	expectedData1 := TestData{ID: 1, Name: "Cached"}
+	fetchFunc1 := func() (TestData, error) {
+		return expectedData1, nil
+	}
+
+	_, _, err := GetOrFetchWithPolicy("test_cache", testKey1, fetchFunc1, shouldCache)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if !cache.CacheExists("test_cache", testKey1) {
+		t.Error("Expected data to be cached (Name is not empty)")
+	}
+
+	// Test with data that should NOT be cached
+	testKey2 := "cache-key-2"
+	expectedData2 := TestData{ID: 2, Name: ""}
+	fetchFunc2 := func() (TestData, error) {
+		return expectedData2, nil
+	}
+
+	_, _, err = GetOrFetchWithPolicy("test_cache", testKey2, fetchFunc2, shouldCache)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if cache.CacheExists("test_cache", testKey2) {
+		t.Error("Expected data NOT to be cached (Name is empty)")
+	}
+}
+
+func TestGetOrFetchWithTTL_CustomTTL(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	withGlobalCache(t, cache)
+
+	testKey := "ttl-test-key"
+	expectedData := TestData{ID: 200, Name: "TTL Test"}
+
+	fetchCalled := 0
+	fetchFunc := func() (TestData, error) {
+		fetchCalled++
+		return expectedData, nil
+	}
+
+	// TTL selector: use 2 hours for this test
+	ttlSelector := func(data TestData) time.Duration {
+		return 2 * time.Hour
+	}
+
+	_, fromCache, err := GetOrFetchWithTTL("test_cache", testKey, fetchFunc, ttlSelector)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if fromCache {
+		t.Error("Expected fromCache to be false on first call")
+	}
+	if fetchCalled != 1 {
+		t.Errorf("Expected fetch to be called once, got %d", fetchCalled)
+	}
+
+	// Verify it was cached
+	if !cache.CacheExists("test_cache", testKey) {
+		t.Error("Expected data to be cached")
+	}
+
+	// Second call should hit cache
+	_, fromCache, err = GetOrFetchWithTTL("test_cache", testKey, fetchFunc, ttlSelector)
+	if err != nil {
+		t.Fatalf("Expected no error on second call, got %v", err)
+	}
+	if !fromCache {
+		t.Error("Expected fromCache to be true on second call")
+	}
+	if fetchCalled != 1 {
+		t.Errorf("Expected fetch not to be called again, got %d calls", fetchCalled)
+	}
+}
+
+func TestGetOrFetchWithTTL_NegativeCaching(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	withGlobalCache(t, cache)
+
+	type CachedBook struct {
+		Title    string
+		NotFound bool
+	}
+
+	// Test not-found result
+	testKeyNotFound := "book-not-found"
+	fetchFunc1 := func() (CachedBook, error) {
+		return CachedBook{Title: "", NotFound: true}, nil
+	}
+
+	ttlSelector := SelectNegativeCacheTTL(func(r CachedBook) bool {
+		return r.NotFound
+	})
+
+	result, fromCache, err := GetOrFetchWithTTL("test_cache", testKeyNotFound, fetchFunc1, ttlSelector)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if fromCache {
+		t.Error("Expected fromCache to be false on first call")
+	}
+	if !result.NotFound {
+		t.Error("Expected NotFound to be true")
+	}
+
+	// Verify it was cached
+	if !cache.CacheExists("test_cache", testKeyNotFound) {
+		t.Error("Expected not-found result to be cached")
+	}
+
+	// Test found result
+	testKeyFound := "book-found"
+	fetchFunc2 := func() (CachedBook, error) {
+		return CachedBook{Title: "The Great Book", NotFound: false}, nil
+	}
+
+	result, fromCache, err = GetOrFetchWithTTL("test_cache", testKeyFound, fetchFunc2, ttlSelector)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if fromCache {
+		t.Error("Expected fromCache to be false on first call")
+	}
+	if result.NotFound {
+		t.Error("Expected NotFound to be false")
+	}
+	if result.Title != "The Great Book" {
+		t.Errorf("Expected title 'The Great Book', got '%s'", result.Title)
+	}
+
+	// Verify it was cached
+	if !cache.CacheExists("test_cache", testKeyFound) {
+		t.Error("Expected found result to be cached")
 	}
 }

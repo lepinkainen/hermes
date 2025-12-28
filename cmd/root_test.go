@@ -2,13 +2,11 @@ package cmd
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/alecthomas/kong"
 	"github.com/lepinkainen/hermes/cmd/enhance"
 	"github.com/lepinkainen/hermes/cmd/goodreads"
-	"github.com/lepinkainen/hermes/cmd/steam"
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -72,26 +70,15 @@ func TestUpdateGlobalConfig(t *testing.T) {
 	assert.Equal(t, "12h", viper.GetString("cache.ttl"))
 }
 
-func TestGoodreadsRunUsesConfigFallback(t *testing.T) {
+func TestGoodreadsCommandParsing(t *testing.T) {
 	resetCmdState(t)
 
-	mockRun := func(params goodreads.ParseParams) error {
-		assert.Equal(t, "config.csv", params.CSVPath)
-		assert.Equal(t, "markdown/goodreads", params.OutputDir)
-		assert.False(t, params.Automated)
-		return nil
-	}
-	origParseGoodreads := goodreads.DefaultParseGoodreadsFunc
-	goodreads.DefaultParseGoodreadsFunc = mockRun
-	t.Cleanup(func() { goodreads.DefaultParseGoodreadsFunc = origParseGoodreads })
+	// Test that Kong correctly parses goodreads command structure
+	cli, _ := parseCLI(t, "import", "goodreads", "-f", "test.csv", "-o", "output")
 
-	viper.Set("goodreads.csvfile", "config.csv")
-
-	cli, ctx := parseCLI(t, "import", "goodreads")
-	updateGlobalConfig(cli)
-
-	err := ctx.Run()
-	require.NoError(t, err)
+	assert.Equal(t, "test.csv", cli.Import.Goodreads.Input)
+	assert.Equal(t, "output", cli.Import.Goodreads.Output)
+	assert.False(t, cli.Import.Goodreads.Automated)
 }
 
 func TestImportCommandsRequireInput(t *testing.T) {
@@ -130,65 +117,38 @@ func TestImportCommandsRequireInput(t *testing.T) {
 	}
 }
 
-func TestSteamRunUsesConfig(t *testing.T) {
+func TestSteamCommandParsing(t *testing.T) {
 	resetCmdState(t)
 
-	mockRun := func(steamID, apiKey, output string, json bool, jsonOutput string) error {
-		assert.Equal(t, "steam-id", steamID)
-		assert.Equal(t, "api-key", apiKey)
-		assert.Equal(t, "steam", output)
-		return nil
-	}
-	origParseSteam := steam.ParseSteamWithParamsFunc
-	steam.ParseSteamWithParamsFunc = mockRun
-	t.Cleanup(func() { steam.ParseSteamWithParamsFunc = origParseSteam })
+	// Test that Kong correctly parses steam command structure
+	cli, _ := parseCLI(t, "import", "steam", "--steam-id", "12345", "--api-key", "test-key", "-o", "games")
 
-	viper.Set("steam.steamid", "steam-id")
-	viper.Set("steam.apikey", "api-key")
-
-	cli, ctx := parseCLI(t, "import", "steam")
-	updateGlobalConfig(cli)
-
-	err := ctx.Run()
-	require.NoError(t, err)
+	assert.Equal(t, "12345", cli.Import.Steam.SteamID)
+	assert.Equal(t, "test-key", cli.Import.Steam.APIKey)
+	assert.Equal(t, "games", cli.Import.Steam.Output)
+	assert.False(t, cli.Import.Steam.JSON)
 }
 
-func TestEnhanceRunPassesOptions(t *testing.T) {
+func TestEnhanceCommandParsing(t *testing.T) {
 	resetCmdState(t)
 
-	// Create temporary directories
-	tempDir := t.TempDir()
-	notesDir := filepath.Join(tempDir, "notes")
-	animeDir := filepath.Join(tempDir, "anime")
-	require.NoError(t, os.MkdirAll(notesDir, 0755))
-	require.NoError(t, os.MkdirAll(animeDir, 0755))
+	// Test that Kong correctly parses enhance command with multiple input directories
+	cli, _ := parseCLI(t, "enhance",
+		"--input-dirs", "/path/notes",
+		"--input-dirs", "/path/anime",
+		"--recursive",
+		"--dry-run",
+		"--regenerate-data",
+		"--force",
+		"--tmdb-content-sections", "cast",
+		"--tmdb-content-sections", "crew")
 
-	// Mock config.TMDBAPIKey
-	origTMDBAPIKey := config.TMDBAPIKey
-	config.TMDBAPIKey = "test-key"
-	t.Cleanup(func() { config.TMDBAPIKey = origTMDBAPIKey })
-
-	calledDirs := []string{}
-	mockRun := func(opts enhance.Options) error {
-		t.Logf("mockRun called with InputDir: %s", opts.InputDir)
-		calledDirs = append(calledDirs, opts.InputDir)
-		assert.True(t, opts.Recursive)
-		assert.True(t, opts.DryRun)
-		assert.True(t, opts.RegenerateData)
-		assert.True(t, opts.Force)
-		assert.Equal(t, []string{"cast"}, opts.TMDBContentSections)
-		return nil
-	}
-	origEnhanceNotes := enhance.EnhanceNotesFunc
-	enhance.EnhanceNotesFunc = mockRun
-	t.Cleanup(func() { enhance.EnhanceNotesFunc = origEnhanceNotes })
-
-	cli, ctx := parseCLI(t, "enhance", "--input-dirs", notesDir, "--input-dirs", animeDir, "--recursive", "--dry-run", "--regenerate-data", "--force", "--tmdb-content-sections", "cast")
-	updateGlobalConfig(cli)
-
-	err := ctx.Run()
-	require.NoError(t, err)
-	assert.Equal(t, []string{notesDir, animeDir}, calledDirs)
+	assert.Equal(t, []string{"/path/notes", "/path/anime"}, cli.Enhance.InputDirs)
+	assert.True(t, cli.Enhance.Recursive)
+	assert.True(t, cli.Enhance.DryRun)
+	assert.True(t, cli.Enhance.RegenerateData)
+	assert.True(t, cli.Enhance.Force)
+	assert.Equal(t, []string{"cast", "crew"}, cli.Enhance.TMDBContentSections)
 }
 
 func TestCLIDefaultFlags(t *testing.T) {

@@ -397,28 +397,13 @@ func TestResolveLetterboxdURI(t *testing.T) {
 	}
 }
 
-func TestEnhanceCmd_Run_Success(t *testing.T) {
+func TestEnhanceCmd_Run_OptionsMapping(t *testing.T) {
 	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"))
 	env := testutil.NewTestEnv(t)
 
-	// Create test markdown files
-	env.WriteFileString("Movie1.md", `---
-title: Movie 1
----
-Body`)
-	env.WriteFileString("Movie2.md", `---
-title: Movie 2
----
-Body`)
-
-	mockCalled := false
+	var capturedOpts Options
 	mockFunc := func(opts Options) error {
-		mockCalled = true
-		assert.Equal(t, env.RootDir(), opts.InputDir)
-		assert.False(t, opts.Recursive)
-		assert.False(t, opts.DryRun)
-		assert.True(t, opts.TMDBDownloadCover)
-		assert.True(t, opts.TMDBInteractive)
+		capturedOpts = opts
 		return nil
 	}
 
@@ -432,7 +417,13 @@ Body`)
 
 	err := cmd.Run()
 	require.NoError(t, err)
-	assert.True(t, mockCalled, "EnhanceNotesFunc should have been called")
+
+	// Verify default options are set correctly
+	assert.Equal(t, env.RootDir(), capturedOpts.InputDir)
+	assert.False(t, capturedOpts.Recursive)
+	assert.False(t, capturedOpts.DryRun)
+	assert.True(t, capturedOpts.TMDBDownloadCover)
+	assert.True(t, capturedOpts.TMDBInteractive)
 }
 
 func TestEnhanceCmd_Run_MultipleDirectories(t *testing.T) {
@@ -443,11 +434,8 @@ func TestEnhanceCmd_Run_MultipleDirectories(t *testing.T) {
 	env.MkdirAll("dir1")
 	env.MkdirAll("dir2")
 
-	callCount := 0
 	var calledDirs []string
-
 	mockFunc := func(opts Options) error {
-		callCount++
 		calledDirs = append(calledDirs, opts.InputDir)
 		return nil
 	}
@@ -465,7 +453,9 @@ func TestEnhanceCmd_Run_MultipleDirectories(t *testing.T) {
 
 	err := cmd.Run()
 	require.NoError(t, err)
-	assert.Equal(t, 2, callCount, "EnhanceNotesFunc should be called twice")
+
+	// Verify both directories were processed
+	require.Len(t, calledDirs, 2)
 	assert.Contains(t, calledDirs[0], "dir1")
 	assert.Contains(t, calledDirs[1], "dir2")
 }

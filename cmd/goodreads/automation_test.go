@@ -8,22 +8,8 @@ import (
 	"time"
 
 	"github.com/chromedp/chromedp"
-	"github.com/lepinkainen/hermes/internal/automation"
 	"github.com/stretchr/testify/require"
 )
-
-func TestPrepareDownloadDirCreatesTemp(t *testing.T) {
-	dir, cleanup, err := automation.PrepareDownloadDir("", "hermes-goodreads-test-*")
-	require.NoError(t, err)
-	require.DirExists(t, dir)
-	require.NotNil(t, cleanup)
-
-	cleanup()
-
-	_, statErr := os.Stat(dir)
-	require.Error(t, statErr)
-	require.True(t, os.IsNotExist(statErr))
-}
 
 func TestMoveDownloadedCSVToCustomDir(t *testing.T) {
 	tempDir := t.TempDir()
