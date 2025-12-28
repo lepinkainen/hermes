@@ -65,14 +65,14 @@ Movie body
 	require.NoError(t, err)
 
 	prevOutputDir := outputDir
-	prevSkipEnrich := skipEnrich
+	prevTMDBEnabled := tmdbEnabled
 	prevOverwrite := overwrite
 	outputDir = tempDir
-	skipEnrich = true
+	tmdbEnabled = false
 	overwrite = true
 	defer func() {
 		outputDir = prevOutputDir
-		skipEnrich = prevSkipEnrich
+		tmdbEnabled = prevTMDBEnabled
 		overwrite = prevOverwrite
 	}()
 
@@ -452,16 +452,16 @@ func TestUserRatingPreservedInDatabase(t *testing.T) {
 	// Save and restore package globals
 	prevCSVFile := csvFile
 	prevOutputDir := outputDir
-	prevSkipEnrich := skipEnrich
+	prevTMDBEnabled := tmdbEnabled
 	prevOverwrite := overwrite
 	csvFile = csvPath
 	outputDir = tempDir
-	skipEnrich = true // Skip enrichment to test rating preservation without OMDB
+	tmdbEnabled = false // Disable enrichment to test rating preservation without OMDB/TMDB
 	overwrite = true
 	defer func() {
 		csvFile = prevCSVFile
 		outputDir = prevOutputDir
-		skipEnrich = prevSkipEnrich
+		tmdbEnabled = prevTMDBEnabled
 		overwrite = prevOverwrite
 	}()
 

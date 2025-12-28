@@ -170,8 +170,8 @@ func writeMoviesToJSON(movies []Movie, jsonOutput string) error {
 		// If we already have a TMDB ID in an existing note, use it directly to avoid searching
 		loadExistingTMDBID(&movies[i], outputDir)
 
-		// Enrich with OMDB/TMDB data unless explicitly skipped
-		if skipEnrich {
+		// Enrich with OMDB/TMDB data if tmdbEnabled
+		if !tmdbEnabled {
 			continue
 		}
 
@@ -311,8 +311,8 @@ func writeMoviesToMarkdown(movies []Movie, directory string) error {
 		// If a TMDB ID already exists in the note, reuse it instead of searching
 		loadExistingTMDBID(&movies[i], directory)
 
-		// Enrich with OMDB data if not skipped
-		if !skipEnrich {
+		// Enrich with OMDB data if tmdbEnabled
+		if tmdbEnabled {
 			if err := enrichMovieData(&movies[i]); err != nil {
 				if errors.IsStopProcessingError(err) {
 					return err

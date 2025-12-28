@@ -32,7 +32,6 @@ type DownloadLetterboxdCSVFuncType func(ctx context.Context, runner automation.C
 var (
 	csvFile     string
 	skipInvalid bool
-	skipEnrich  bool
 	cmdConfig   *cmdutil.BaseCommandConfig
 	// Global variables referenced by the parser
 	outputDir  string
@@ -185,7 +184,6 @@ func ParseLetterboxdWithParams(
 	// Set the global variables that ParseLetterboxd expects
 	csvFile = inputFile
 	skipInvalid = false // Default value
-	skipEnrich = false  // Default value
 
 	// Set TMDB flags
 	tmdbEnabled = tmdbEnabledFlag
