@@ -94,3 +94,9 @@ func ImportSteamGames(steamID string, apiKey string) ([]Game, error) {
 
 	return steamResp.Response.Games, nil
 }
+
+// ImportSteamGamesFuncType is the signature of the ImportSteamGames function
+type ImportSteamGamesFuncType func(steamID string, apiKey string) ([]Game, error)
+
+// ImportSteamGamesFunc is a variable that can be overridden for testing purposes
+var ImportSteamGamesFunc ImportSteamGamesFuncType = ImportSteamGames

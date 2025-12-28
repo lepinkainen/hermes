@@ -64,7 +64,7 @@ func ParseSteam() error {
 		return fmt.Errorf("error creating output directory: %w", err)
 	}
 
-	games, err := ImportSteamGames(steamID, apiKey)
+	games, err := ImportSteamGamesFunc(steamID, apiKey)
 	if err != nil {
 		return fmt.Errorf("error importing games: %w", err)
 	}

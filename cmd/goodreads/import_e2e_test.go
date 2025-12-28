@@ -2,6 +2,7 @@ package goodreads
 
 import (
 	"database/sql"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -96,4 +97,61 @@ func TestGoodreadsImportE2E(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, booksWithISBN, 0, "At least some books should have ISBN data")
 	t.Logf("Books with ISBN data: %d out of %d", booksWithISBN, count)
+}
+
+func TestGoodreadsImportE2E_DatasetteDisabled(t *testing.T) {
+	// Setup test environment
+	env := testutil.NewTestEnv(t)
+	testutil.SetTestConfig(t)
+	tempDir := env.RootDir()
+
+	// Copy golden CSV to test environment
+	csvPath := filepath.Join(tempDir, "books.csv")
+	env.CopyFile("testdata/goodreads_sample.csv", "books.csv")
+
+	// Disable datasette
+	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
+	viper.Set("datasette.enabled", false)
+	defer viper.Set("datasette.enabled", prevDatasetteEnabled)
+
+	// Override markdown output directory to tempDir
+	viper.Set("markdownoutputdir", tempDir)
+	defer viper.Set("markdownoutputdir", "markdown")
+
+	// Run importer
+	err := ParseGoodreadsWithParams(
+		ParseParams{
+			CSVPath:    csvPath,
+			OutputDir:  "output", // Relative path - will become tempDir/output
+			WriteJSON:  false,
+			JSONOutput: "",
+		},
+		ParseGoodreads,
+		DefaultDownloadGoodreadsCSVFunc,
+		&automation.DefaultCDPRunner{},
+	)
+	require.NoError(t, err)
+
+	// Verify NO database file was created
+	// (We don't set a dbfile path when datasette is disabled, so check the default)
+	defaultDBPath := filepath.Join(".", "hermes.db")
+	require.False(t, fileExists(defaultDBPath),
+		"Database file should not be created when datasette is disabled")
+
+	// Verify markdown files WERE created
+	outputPath := filepath.Join(tempDir, "output")
+	require.DirExists(t, outputPath, "Markdown output directory should exist")
+
+	// Count markdown files
+	files, err := filepath.Glob(filepath.Join(outputPath, "*.md"))
+	require.NoError(t, err)
+	require.Greater(t, len(files), 0, "Markdown files should be generated even when datasette is disabled")
+	require.Equal(t, 20, len(files), "Expected 20 markdown files (one per book)")
+	t.Logf("Generated %d markdown files with datasette disabled", len(files))
+}
+
+// fileExists checks if a file exists
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
