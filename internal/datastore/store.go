@@ -1,6 +1,6 @@
 package datastore
 
-// Store defines the interface for both local SQLite and remote Datasette storage
+// Store defines the interface for local SQLite storage
 type Store interface {
 	// Connect establishes a connection to the data store
 	Connect() error

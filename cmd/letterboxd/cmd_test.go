@@ -27,7 +27,7 @@ func TestParseLetterboxdWithParams(t *testing.T) {
 	}
 	defer func() { parseLetterboxdFunc = ParseLetterboxd }()
 
-	err := ParseLetterboxdWithParams(csv, dir, false, "", true, true, false, true, true, []string{"overview"}, false, "", &automation.DefaultCDPRunner{})
+	err := ParseLetterboxdWithParams(csv, dir, false, "", true, false, true, true, []string{"overview"}, false, "", &automation.DefaultCDPRunner{})
 	require.NoError(t, err, "ParseLetterboxdWithParams should not error")
 	require.True(t, called, "expected parser to run")
 }

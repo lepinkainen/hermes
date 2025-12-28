@@ -25,7 +25,7 @@ func TestParseSteamWithParams(t *testing.T) {
 		if !strings.Contains(outputDir, dir) {
 			t.Fatalf("outputDir = %s, want to contain %s", outputDir, dir)
 		}
-		if !writeJSON || !overwrite {
+		if !writeJSON {
 			t.Fatalf("flags not propagated")
 		}
 		if jsonOutput == "" {
@@ -43,7 +43,7 @@ func TestParseSteamWithParams(t *testing.T) {
 	}
 
 	// Call ParseSteamWithParams, which will internally call the mocked ParseSteamFunc
-	if err := ParseSteamWithParams("123", "key", dir, true, jsonPath, true); err != nil {
+	if err := ParseSteamWithParams("123", "key", dir, true, jsonPath); err != nil {
 		t.Fatalf("ParseSteamWithParams error = %v", err)
 	}
 }
@@ -99,7 +99,7 @@ func TestSteamCmd_Run_Success(t *testing.T) {
 
 	// Mock ParseSteamWithParamsFunc
 	mockCalled := false
-	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string, overwriteParam bool) error {
+	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error {
 		mockCalled = true
 		assert.Equal(t, "12345", steamIDParam)
 		assert.Equal(t, "test-key", apiKeyParam)
@@ -129,7 +129,7 @@ func TestSteamCmd_Run_WithConfig(t *testing.T) {
 	viper.Set("steam.apikey", "config-api-key")
 
 	mockCalled := false
-	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string, overwriteParam bool) error {
+	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error {
 		mockCalled = true
 		// Should use values from config since flags are empty
 		assert.Equal(t, "config-steam-id", steamIDParam)
@@ -160,7 +160,7 @@ func TestSteamCmd_Run_FlagOverridesConfig(t *testing.T) {
 	viper.Set("steam.apikey", "config-api-key")
 
 	mockCalled := false
-	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string, overwriteParam bool) error {
+	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error {
 		mockCalled = true
 		// Should use flag values, not config
 		assert.Equal(t, "flag-steam-id", steamIDParam)
@@ -187,7 +187,7 @@ func TestSteamCmd_Run_PropagatesError(t *testing.T) {
 	testutil.SetTestConfig(t)
 
 	expectedErr := fmt.Errorf("mock error from parser")
-	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string, overwriteParam bool) error {
+	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error {
 		return expectedErr
 	}
 

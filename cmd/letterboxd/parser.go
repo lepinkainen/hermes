@@ -59,16 +59,8 @@ func movieToMap(movie Movie) map[string]any {
 
 // ParseLetterboxd parses a Letterboxd CSV export file
 func ParseLetterboxd() error {
-	// Double check overwrite flag with global config
-	if overwrite != config.OverwriteFiles {
-		slog.Warn("Overwrite flag mismatch! Using global value",
-			"local", overwrite,
-			"global", config.OverwriteFiles)
-		overwrite = config.OverwriteFiles
-	}
-
 	// Log the config at startup
-	slog.Info("Starting Letterboxd parser", "overwrite", overwrite)
+	slog.Info("Starting Letterboxd parser", "overwrite", config.OverwriteFiles)
 
 	// Create output directories once before processing
 	if err := os.MkdirAll(outputDir, 0755); err != nil {

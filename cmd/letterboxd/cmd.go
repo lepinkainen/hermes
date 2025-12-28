@@ -17,7 +17,6 @@ type ParseLetterboxdFuncType func(
 	inputFile, outputDirParam string,
 	writeJSONFlag bool,
 	jsonOutputPath string,
-	overwriteFlag bool,
 	tmdbEnabledFlag bool,
 	tmdbDownloadCoverFlag bool,
 	tmdbGenerateContentFlag bool,
@@ -157,7 +156,6 @@ func (l *LetterboxdCmd) Run() error {
 		l.Output,
 		l.JSON,
 		l.JSONOutput,
-		false, // overwrite
 		l.TMDBEnabled,
 		l.TMDBDownloadCover,
 		l.TMDBGenerateContent,
@@ -175,7 +173,6 @@ func ParseLetterboxdWithParams(
 	inputFile, outputDirParam string,
 	writeJSONFlag bool,
 	jsonOutputPath string,
-	overwriteFlag bool,
 	tmdbEnabledFlag bool,
 	tmdbDownloadCoverFlag bool,
 	tmdbGenerateContentFlag bool,
@@ -205,7 +202,6 @@ func ParseLetterboxdWithParams(
 		ConfigKey:  "letterboxd",
 		WriteJSON:  writeJSONFlag,
 		JSONOutput: jsonOutputPath,
-		Overwrite:  overwriteFlag,
 	}
 
 	if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
@@ -216,7 +212,6 @@ func ParseLetterboxdWithParams(
 	outputDir = cmdConfig.OutputDir
 	writeJSON = cmdConfig.WriteJSON
 	jsonOutput = cmdConfig.JSONOutput
-	overwrite = cmdConfig.Overwrite
 
 	// Call the existing parser
 	return parseLetterboxdFunc()

@@ -36,7 +36,7 @@ func (s *SteamCmd) Run() error {
 		return fmt.Errorf("steam API key is required (provide via --apikey flag or steam.apikey in config)")
 	}
 
-	return ParseSteamWithParamsFunc(steamID, apiKey, s.Output, s.JSON, s.JSONOutput, false)
+	return ParseSteamWithParamsFunc(steamID, apiKey, s.Output, s.JSON, s.JSONOutput)
 }
 
 var (
@@ -45,7 +45,6 @@ var (
 	outputDir  string
 	writeJSON  bool
 	jsonOutput string
-	overwrite  bool
 	cmdConfig  *cmdutil.BaseCommandConfig
 )
 
@@ -56,15 +55,14 @@ type ParseSteamFuncType func() error
 var ParseSteamFunc ParseSteamFuncType = ParseSteam
 
 // ParseSteamWithParamsFuncType is the signature of the ParseSteamWithParams function
-type ParseSteamWithParamsFuncType func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string, overwriteParam bool) error
+type ParseSteamWithParamsFuncType func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error
 
 // ParseSteamWithParamsFunc is a variable that can be overridden for testing purposes
 var ParseSteamWithParamsFunc ParseSteamWithParamsFuncType = ParseSteamWithParams
 
-
 // ParseSteamWithParams allows calling steam parsing with specific parameters
 // This is used by the Kong-based CLI implementation
-func ParseSteamWithParams(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string, overwriteParam bool) error {
+func ParseSteamWithParams(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error {
 	// Set the global variables that ParseSteam expects
 	steamID = steamIDParam
 	apiKey = apiKeyParam
@@ -75,7 +73,6 @@ func ParseSteamWithParams(steamIDParam, apiKeyParam, outputDirParam string, writ
 		ConfigKey:  "steam",
 		WriteJSON:  writeJSONParam,
 		JSONOutput: jsonOutputParam,
-		Overwrite:  overwriteParam,
 	}
 
 	if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
@@ -86,7 +83,6 @@ func ParseSteamWithParams(steamIDParam, apiKeyParam, outputDirParam string, writ
 	outputDir = cmdConfig.OutputDir
 	writeJSON = cmdConfig.WriteJSON
 	jsonOutput = cmdConfig.JSONOutput
-	overwrite = cmdConfig.Overwrite
 
 	// Call the existing parser
 	return ParseSteamFunc()

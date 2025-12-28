@@ -28,7 +28,7 @@ func TestParseImdbWithParams(t *testing.T) {
 	}
 	defer func() { parseImdbFunc = ParseImdb }()
 
-	err := ParseImdbWithParams(csv, dir, true, env.Path("imdb.json"), true, true, true, true, false, []string{"overview"}, false, "")
+	err := ParseImdbWithParams(csv, dir, true, env.Path("imdb.json"), true, true, true, false, []string{"overview"}, false, "")
 	require.NoError(t, err, "ParseImdbWithParams should not error")
 	require.True(t, called, "expected parseImdbFunc to be called")
 }

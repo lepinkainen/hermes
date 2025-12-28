@@ -33,7 +33,6 @@ func TestParseGoodreadsWithParams(t *testing.T) {
 		OutputDir:  env.Path("output"),
 		WriteJSON:  true,
 		JSONOutput: env.Path("books.json"),
-		Overwrite:  true,
 	}, mockParseGoodreads, DefaultDownloadGoodreadsCSVFunc, &automation.DefaultCDPRunner{})
 
 	require.NoError(t, err, "ParseGoodreadsWithParams should not error")

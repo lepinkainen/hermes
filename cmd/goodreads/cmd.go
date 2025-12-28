@@ -18,7 +18,6 @@ type ParseParams struct {
 	OutputDir         string
 	WriteJSON         bool
 	JSONOutput        string
-	Overwrite         bool
 	Automated         bool
 	DryRun            bool
 	AutomationOptions AutomationOptions
@@ -39,7 +38,6 @@ func ParseGoodreadsWithParams(params ParseParams, parseFunc ParseGoodreadsFuncTy
 		ConfigKey:  "goodreads",
 		WriteJSON:  params.WriteJSON,
 		JSONOutput: params.JSONOutput,
-		Overwrite:  params.Overwrite,
 	}
 
 	if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
@@ -49,7 +47,6 @@ func ParseGoodreadsWithParams(params ParseParams, parseFunc ParseGoodreadsFuncTy
 	params.OutputDir = cmdConfig.OutputDir
 	params.WriteJSON = cmdConfig.WriteJSON
 	params.JSONOutput = cmdConfig.JSONOutput
-	params.Overwrite = cmdConfig.Overwrite
 
 	if params.Automated {
 		if params.AutomationOptions.Timeout == 0 {

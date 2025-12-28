@@ -133,11 +133,10 @@ func TestImportCommandsRequireInput(t *testing.T) {
 func TestSteamRunUsesConfig(t *testing.T) {
 	resetCmdState(t)
 
-	mockRun := func(steamID, apiKey, output string, json bool, jsonOutput string, overwrite bool) error {
+	mockRun := func(steamID, apiKey, output string, json bool, jsonOutput string) error {
 		assert.Equal(t, "steam-id", steamID)
 		assert.Equal(t, "api-key", apiKey)
 		assert.Equal(t, "steam", output)
-		assert.False(t, overwrite)
 		return nil
 	}
 	origParseSteam := steam.ParseSteamWithParamsFunc

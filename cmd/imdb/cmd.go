@@ -2,6 +2,7 @@ package imdb
 
 import (
 	"fmt"
+
 	"github.com/lepinkainen/hermes/internal/cmdutil"
 	"github.com/spf13/viper"
 )
@@ -37,7 +38,6 @@ func (i *IMDBCmd) Run() error {
 		i.Output,
 		i.JSON,
 		i.JSONOutput,
-		false, // overwrite
 		i.TMDBEnabled,
 		i.TMDBDownloadCover,
 		i.TMDBGenerateContent,
@@ -55,7 +55,6 @@ var (
 	writeJSON   bool
 	jsonOutput  string
 	skipInvalid bool
-	overwrite   bool
 	cmdConfig   *cmdutil.BaseCommandConfig
 	// TMDB enrichment options
 	tmdbEnabled         bool
@@ -76,7 +75,6 @@ func ParseImdbWithParams(
 	inputFile, outputDirParam string,
 	writeJSONFlag bool,
 	jsonOutputPath string,
-	overwriteFlag bool,
 	tmdbEnabledFlag bool,
 	tmdbDownloadCoverFlag bool,
 	tmdbGenerateContentFlag bool,
@@ -104,7 +102,6 @@ func ParseImdbWithParams(
 		ConfigKey:  "imdb",
 		WriteJSON:  writeJSONFlag,
 		JSONOutput: jsonOutputPath,
-		Overwrite:  overwriteFlag,
 	}
 
 	if err := cmdutil.SetupOutputDir(cmdConfig); err != nil {
@@ -115,7 +112,6 @@ func ParseImdbWithParams(
 	outputDir = cmdConfig.OutputDir
 	writeJSON = cmdConfig.WriteJSON
 	jsonOutput = cmdConfig.JSONOutput
-	overwrite = cmdConfig.Overwrite
 
 	// Call the existing parser
 	return parseImdbFunc()
