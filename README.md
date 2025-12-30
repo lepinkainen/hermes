@@ -1,5 +1,7 @@
 # Hermes
 
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lepinkainen/hermes/build-and-test.yml?style=for-the-badge)
+
 Hermes is a tool to own your data. It can parse exported data from different sources and collect them in a JSON, Obsidian flavoured markdown, or SQLite/remote Datasette format on your own computer.
 
 Partially ✨Vibe coded✨ with Cursor, Claude Code and Cline
