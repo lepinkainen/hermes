@@ -5,17 +5,18 @@ import (
 )
 
 const (
-	// SteamDataStart is the HTML comment marker for the start of Steam content
+	// SteamDataStart is the start marker for Steam content
 	SteamDataStart = "<!-- STEAM_DATA_START -->"
-	// SteamDataEnd is the HTML comment marker for the end of Steam content
+	// SteamDataEnd is the end marker for Steam content
 	SteamDataEnd = "<!-- STEAM_DATA_END -->"
 )
 
-// WrapWithSteamMarkers wraps content with Steam data markers.
+// WrapWithSteamMarkers wraps content with Steam markers
 func WrapWithSteamMarkers(content string) string {
 	if content == "" {
 		return ""
 	}
+
 	var builder strings.Builder
 	builder.WriteString(SteamDataStart)
 	builder.WriteString("\n")
@@ -25,23 +26,24 @@ func WrapWithSteamMarkers(content string) string {
 	return builder.String()
 }
 
-// HasSteamContentMarkers returns true if the body contains both Steam markers.
-func HasSteamContentMarkers(body string) bool {
-	return strings.Contains(body, SteamDataStart) && strings.Contains(body, SteamDataEnd)
+// HasSteamContentMarkers checks if note contains Steam content markers
+func HasSteamContentMarkers(noteContent string) bool {
+	return strings.Contains(noteContent, SteamDataStart) &&
+		strings.Contains(noteContent, SteamDataEnd)
 }
 
-// GetSteamContent extracts content between Steam markers if they exist.
-// Returns the content and true if markers found, empty string and false otherwise.
-func GetSteamContent(body string) (string, bool) {
-	if !HasSteamContentMarkers(body) {
+// GetSteamContent extracts content between Steam markers
+func GetSteamContent(noteContent string) (string, bool) {
+	startIndex := strings.Index(noteContent, SteamDataStart)
+	endIndex := strings.Index(noteContent, SteamDataEnd)
+
+	if startIndex == -1 || endIndex == -1 || endIndex <= startIndex {
 		return "", false
 	}
-	startIdx := strings.Index(body, SteamDataStart)
-	endIdx := strings.Index(body, SteamDataEnd)
-	if startIdx == -1 || endIdx == -1 || endIdx <= startIdx {
-		return "", false
-	}
-	content := body[startIdx+len(SteamDataStart) : endIdx]
+
+	// Extract content between markers
+	start := startIndex + len(SteamDataStart)
+	content := noteContent[start:endIndex]
 	return strings.TrimSpace(content), true
 }
 
