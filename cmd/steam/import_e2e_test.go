@@ -100,6 +100,7 @@ func TestSteamImportE2E(t *testing.T) {
 		"output", // relative path - will become tempDir/output
 		false,    // writeJSON
 		"",       // jsonOutput
+		false,    // fetchAchievements
 	)
 	require.NoError(t, err)
 
@@ -226,7 +227,7 @@ func populateSteamCacheForTesting(t *testing.T) {
 		require.NoError(t, err)
 
 		// Use the cache API to store the data
-		err = globalCache.Set("steam_cache", tc.appID, string(detailsJSON))
+		err = globalCache.Set("steam_cache", tc.appID, string(detailsJSON), 0)
 		require.NoError(t, err)
 	}
 
@@ -289,6 +290,7 @@ func TestSteamImportE2E_DatasetteDisabled(t *testing.T) {
 		"output", // relative path - will become tempDir/output
 		false,    // writeJSON
 		"",       // jsonOutput
+		false,    // fetchAchievements
 	)
 	require.NoError(t, err)
 
@@ -368,6 +370,7 @@ func TestSteamImportE2E_JSON(t *testing.T) {
 		"output",
 		true,     // writeJSON
 		jsonPath, // jsonOutput
+		false,    // fetchAchievements
 	)
 	require.NoError(t, err)
 
@@ -455,6 +458,7 @@ func TestSteamImportE2E_CacheHit(t *testing.T) {
 		"output",
 		false, // writeJSON
 		"",    // jsonOutput
+		false, // fetchAchievements
 	)
 	require.NoError(t, err)
 
@@ -477,6 +481,7 @@ func TestSteamImportE2E_CacheHit(t *testing.T) {
 		"output",
 		false, // writeJSON
 		"",    // jsonOutput
+		false, // fetchAchievements
 	)
 	require.NoError(t, err)
 

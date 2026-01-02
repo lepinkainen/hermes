@@ -56,7 +56,8 @@ func TestGetCoverURLByIDNoPoster(t *testing.T) {
 		WithHTTPClient(server.Client()),
 	)
 
-	_, err := client.GetCoverURLByID(context.Background(), 101, "movie")
+	// Use unique movie ID to avoid cache collision with other tests
+	_, err := client.GetCoverURLByID(context.Background(), 102, "movie")
 	if err == nil || err != ErrNoPoster {
 		t.Fatalf("expected ErrNoPoster, got %v", err)
 	}
@@ -77,7 +78,8 @@ func TestGetCoverAndMetadataByIDWithMissingPoster(t *testing.T) {
 		WithHTTPClient(server.Client()),
 	)
 
-	cover, meta, err := client.GetCoverAndMetadataByID(context.Background(), 101, "movie")
+	// Use unique movie ID to avoid cache collision with other tests
+	cover, meta, err := client.GetCoverAndMetadataByID(context.Background(), 103, "movie")
 	if err != nil {
 		t.Fatalf("GetCoverAndMetadataByID error = %v", err)
 	}
@@ -87,8 +89,11 @@ func TestGetCoverAndMetadataByIDWithMissingPoster(t *testing.T) {
 	if meta == nil || meta.Runtime == nil || *meta.Runtime != 123 {
 		t.Fatalf("expected runtime metadata, got %+v", meta)
 	}
-	if atomic.LoadInt32(&calls) < 2 {
-		t.Fatalf("expected multiple calls for cover and metadata, got %d", calls)
+	// With caching enabled, both GetCoverURLByID and GetMetadataByID use CachedGetMovieDetails
+	// The first call fetches and caches, the second call uses the cache
+	// So we expect 1 HTTP call, not 2
+	if atomic.LoadInt32(&calls) != 1 {
+		t.Fatalf("expected 1 call due to caching, got %d", calls)
 	}
 }
 

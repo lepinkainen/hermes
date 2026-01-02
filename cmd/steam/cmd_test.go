@@ -59,7 +59,7 @@ func TestSteamCmd_Run_ConfigFallback(t *testing.T) {
 
 	// Mock ParseSteamWithParamsFunc to verify config values are used
 	var capturedSteamID, capturedAPIKey string
-	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error {
+	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string, fetchAchievementsParam bool) error {
 		capturedSteamID = steamIDParam
 		capturedAPIKey = apiKeyParam
 		return nil
@@ -92,7 +92,7 @@ func TestSteamCmd_Run_FlagOverridesConfig(t *testing.T) {
 
 	// Mock ParseSteamWithParamsFunc to verify flag values override config
 	var capturedSteamID, capturedAPIKey string
-	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error {
+	mockFunc := func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string, fetchAchievementsParam bool) error {
 		capturedSteamID = steamIDParam
 		capturedAPIKey = apiKeyParam
 		return nil

@@ -140,7 +140,7 @@ func TestLetterboxdImportE2E(t *testing.T) {
 	require.Contains(t, contentStr, "date_watched:")
 
 	// Verify markdown content exists (not just frontmatter)
-	require.Contains(t, contentStr, ">[!info]- Letterboxd", "Should have Letterboxd info block")
+	require.Contains(t, contentStr, "<!-- LETTERBOXD_DATA_START -->", "Should have Letterboxd content markers")
 
 	t.Logf("Successfully verified markdown output for %d movies", len(files))
 }

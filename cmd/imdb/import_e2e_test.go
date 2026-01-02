@@ -132,7 +132,7 @@ func TestImdbImportE2E(t *testing.T) {
 	require.Contains(t, contentStr, "seen: true")
 
 	// Verify markdown content exists (not just frontmatter)
-	require.Contains(t, contentStr, ">[!info]- IMDb", "Should have IMDb info block")
+	require.Contains(t, contentStr, "<!-- IMDB_DATA_START -->", "Should have IMDb content markers")
 
 	t.Logf("Successfully verified markdown output for %d movies", len(files))
 }
