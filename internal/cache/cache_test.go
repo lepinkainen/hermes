@@ -92,7 +92,7 @@ func TestGetOrFetch_CacheHit(t *testing.T) {
 
 	// Store in cache directly
 	jsonData := `{"id":1,"name":"Test"}`
-	if err := cache.Set("test_cache", testKey, jsonData); err != nil {
+	if err := cache.Set("test_cache", testKey, jsonData, 0); err != nil {
 		t.Fatalf("Failed to pre-populate cache: %v", err)
 	}
 
@@ -189,7 +189,7 @@ func TestGetOrFetch_RespectsTTLExpiration(t *testing.T) {
 	staleData := `{"id":1,"name":"stale"}`
 	freshData := TestData{ID: 2, Name: "Fresh"}
 
-	if err := cache.Set("test_cache", testKey, staleData); err != nil {
+	if err := cache.Set("test_cache", testKey, staleData, 0); err != nil {
 		t.Fatalf("Failed to seed stale cache: %v", err)
 	}
 	setCachedAt(t, cache, "test_cache", testKey, time.Now().Add(-2*time.Hour))
@@ -271,7 +271,7 @@ func TestCacheDB_GetSet(t *testing.T) {
 	testData := `{"id":1,"name":"Test"}`
 
 	// Test Set
-	err := cache.Set("test_cache", testKey, testData)
+	err := cache.Set("test_cache", testKey, testData, 0)
 	if err != nil {
 		t.Fatalf("Failed to set cache: %v", err)
 	}
@@ -298,7 +298,7 @@ func TestCacheDB_GetExpired(t *testing.T) {
 	testData := `{"id":1,"name":"Test"}`
 
 	// Set cache
-	err := cache.Set("test_cache", testKey, testData)
+	err := cache.Set("test_cache", testKey, testData, 0)
 	if err != nil {
 		t.Fatalf("Failed to set cache: %v", err)
 	}
@@ -323,9 +323,9 @@ func TestCacheDB_ClearExpired(t *testing.T) {
 	defer func() { _ = os.Remove(dbPath) }()
 
 	// Add some test entries
-	_ = cache.Set("test_cache", "key1", `{"id":1}`)
-	_ = cache.Set("test_cache", "key2", `{"id":2}`)
-	_ = cache.Set("test_cache", "key3", `{"id":3}`)
+	_ = cache.Set("test_cache", "key1", `{"id":1}`, 0)
+	_ = cache.Set("test_cache", "key2", `{"id":2}`, 0)
+	_ = cache.Set("test_cache", "key3", `{"id":3}`, 0)
 
 	setCachedAt(t, cache, "test_cache", "key1", time.Now().Add(-2*time.Hour))
 	setCachedAt(t, cache, "test_cache", "key2", time.Now().Add(-30*time.Minute))
@@ -352,9 +352,9 @@ func TestCacheDB_ClearAll(t *testing.T) {
 	defer func() { _ = os.Remove(dbPath) }()
 
 	// Add some test entries
-	_ = cache.Set("test_cache", "key1", `{"id":1}`)
-	_ = cache.Set("test_cache", "key2", `{"id":2}`)
-	_ = cache.Set("test_cache", "key3", `{"id":3}`)
+	_ = cache.Set("test_cache", "key1", `{"id":1}`, 0)
+	_ = cache.Set("test_cache", "key2", `{"id":2}`, 0)
+	_ = cache.Set("test_cache", "key3", `{"id":3}`, 0)
 
 	// Clear all entries
 	err := cache.ClearAll("test_cache")
@@ -383,7 +383,7 @@ func TestCacheDB_CacheExists(t *testing.T) {
 	nonExistingKey := "non-existing"
 
 	// Create one cache entry
-	_ = cache.Set("test_cache", existingKey, `{"id":1}`)
+	_ = cache.Set("test_cache", existingKey, `{"id":1}`, 0)
 
 	// Test existing entry
 	if !cache.CacheExists("test_cache", existingKey) {
@@ -411,9 +411,9 @@ func TestCacheDB_InvalidateSource(t *testing.T) {
 	defer func() { _ = os.Remove(dbPath) }()
 
 	// Add some test entries
-	_ = cache.Set("test_cache", "key1", `{"id":1}`)
-	_ = cache.Set("test_cache", "key2", `{"id":2}`)
-	_ = cache.Set("test_cache", "key3", `{"id":3}`)
+	_ = cache.Set("test_cache", "key1", `{"id":1}`, 0)
+	_ = cache.Set("test_cache", "key2", `{"id":2}`, 0)
+	_ = cache.Set("test_cache", "key3", `{"id":3}`, 0)
 
 	// Verify entries exist
 	if !cache.CacheExists("test_cache", "key1") {
@@ -512,7 +512,7 @@ func TestCacheDB_QueryRow(t *testing.T) {
 	// Insert test data
 	testKey := "test-key"
 	testData := `{"id":123,"name":"QueryRow Test"}`
-	err := cache.Set("test_cache", testKey, testData)
+	err := cache.Set("test_cache", testKey, testData, 0)
 	if err != nil {
 		t.Fatalf("Failed to set cache: %v", err)
 	}
@@ -559,7 +559,7 @@ func TestCacheDB_Exec(t *testing.T) {
 	// Insert test data using Set
 	testKey := "test-key"
 	testData := `{"id":456,"name":"Exec Test"}`
-	err := cache.Set("test_cache", testKey, testData)
+	err := cache.Set("test_cache", testKey, testData, 0)
 	if err != nil {
 		t.Fatalf("Failed to set cache: %v", err)
 	}
@@ -592,7 +592,7 @@ func TestCacheDB_Exec_Delete(t *testing.T) {
 	// Insert test data
 	testKey := "test-key"
 	testData := `{"id":999,"name":"Delete Test"}`
-	err := cache.Set("test_cache", testKey, testData)
+	err := cache.Set("test_cache", testKey, testData, 0)
 	if err != nil {
 		t.Fatalf("Failed to set cache: %v", err)
 	}

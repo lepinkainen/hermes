@@ -250,7 +250,7 @@ func (c *Client) cacheTMDBValue(cacheKey string, payload any) {
 		return
 	}
 
-	if err := cacheDB.Set("tmdb_cache", cacheKey, string(data)); err != nil {
+	if err := cacheDB.Set("tmdb_cache", cacheKey, string(data), 0); err != nil {
 		slog.Warn("Failed to update TMDB cache entry", "key", cacheKey, "error", err)
 	}
 }

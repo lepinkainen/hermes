@@ -20,6 +20,14 @@ const (
 	NegativeCacheTTL = 168 * time.Hour
 )
 
+// cacheEntryV1 wraps cached data with TTL metadata
+// This allows different cache entries to have different TTL values
+type cacheEntryV1 struct {
+	Data         string `json:"data"`
+	TTLSeconds   int64  `json:"ttl_seconds"`
+	CachedAtUnix int64  `json:"cached_at_unix"`
+}
+
 // FetchFunc represents a function that fetches data from an external source
 type FetchFunc[T any] func() (T, error)
 
@@ -268,12 +276,12 @@ func getOrFetchWithPolicy[T any](tableName, cacheKey string, fetchFunc FetchFunc
 		return data, false, nil
 	}
 
-	// Cache the result
+	// Cache the result (no custom TTL, use default)
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		slog.Warn("Failed to marshal data for caching", "table", tableName, "key", cacheKey, "error", err)
 	} else {
-		if err := cache.Set(tableName, cacheKey, string(jsonData)); err != nil {
+		if err := cache.Set(tableName, cacheKey, string(jsonData), 0); err != nil {
 			// Log error but don't fail - caching failure shouldn't stop the process
 			slog.Warn("Failed to cache data", "table", tableName, "key", cacheKey, "error", err)
 		} else {
@@ -336,7 +344,7 @@ func getOrFetchWithTTLSelector[T any](tableName, cacheKey string, fetchFunc Fetc
 	if err != nil {
 		slog.Warn("Failed to marshal data for caching", "table", tableName, "key", cacheKey, "error", err)
 	} else {
-		if err := cache.Set(tableName, cacheKey, string(jsonData)); err != nil {
+		if err := cache.Set(tableName, cacheKey, string(jsonData), selectedTTL); err != nil {
 			// Log error but don't fail - caching failure shouldn't stop the process
 			slog.Warn("Failed to cache data", "table", tableName, "key", cacheKey, "error", err)
 		} else {
@@ -349,7 +357,8 @@ func getOrFetchWithTTLSelector[T any](tableName, cacheKey string, fetchFunc Fetc
 
 // Get retrieves a cached value from the specified table
 // Returns the cached data, whether it was from cache, and any error
-func (c *CacheDB) Get(tableName, key string, ttl time.Duration) (string, bool, error) {
+// The ttl parameter is used as fallback for old cache entries without TTL metadata
+func (c *CacheDB) Get(tableName, key string, fallbackTTL time.Duration) (string, bool, error) {
 	if err := validateTableName(tableName); err != nil {
 		return "", false, err
 	}
@@ -373,18 +382,33 @@ func (c *CacheDB) Get(tableName, key string, ttl time.Duration) (string, bool, e
 		return "", false, fmt.Errorf("failed to query cache: %w", err)
 	}
 
-	// Check if cache has expired
+	// Try to unmarshal as wrapped entry (new format with custom TTL)
+	var wrapper cacheEntryV1
+	if err := json.Unmarshal([]byte(data), &wrapper); err == nil && wrapper.Data != "" {
+		// New format - use stored TTL
+		ttl := time.Duration(wrapper.TTLSeconds) * time.Second
+		age := time.Now().UTC().Sub(cachedAt)
+		if age > ttl {
+			slog.Debug("Cache expired (custom TTL)", "table", tableName, "key", key, "age", age, "ttl", ttl)
+			return "", false, nil
+		}
+		return wrapper.Data, true, nil
+	}
+
+	// Old format (plain data) or unmarshal failed - use fallback TTL for backward compatibility
 	age := time.Now().UTC().Sub(cachedAt)
-	if age > ttl {
-		slog.Debug("Cache expired", "table", tableName, "key", key, "age", age)
+	if age > fallbackTTL {
+		slog.Debug("Cache expired (fallback TTL)", "table", tableName, "key", key, "age", age, "ttl", fallbackTTL)
 		return "", false, nil
 	}
 
 	return data, true, nil
 }
 
-// Set stores a value in the cache
-func (c *CacheDB) Set(tableName, key, data string) error {
+// Set stores a value in the cache with optional custom TTL
+// If ttl is 0, the data is stored without TTL metadata (backward compatible)
+// If ttl > 0, the data is wrapped with TTL metadata for custom expiration
+func (c *CacheDB) Set(tableName, key, data string, ttl time.Duration) error {
 	if err := validateTableName(tableName); err != nil {
 		return err
 	}
@@ -392,12 +416,30 @@ func (c *CacheDB) Set(tableName, key, data string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	// If TTL is provided, wrap the data with metadata
+	var dataToStore string
+	if ttl > 0 {
+		wrapper := cacheEntryV1{
+			Data:         data,
+			TTLSeconds:   int64(ttl.Seconds()),
+			CachedAtUnix: time.Now().UTC().Unix(),
+		}
+		wrapperJSON, err := json.Marshal(wrapper)
+		if err != nil {
+			return fmt.Errorf("failed to marshal cache wrapper: %w", err)
+		}
+		dataToStore = string(wrapperJSON)
+	} else {
+		// No TTL provided, store data as-is (backward compatible)
+		dataToStore = data
+	}
+
 	query := fmt.Sprintf(`
 		INSERT OR REPLACE INTO %s (cache_key, data, cached_at)
 		VALUES (?, ?, CURRENT_TIMESTAMP)
 	`, tableName)
 
-	_, err := c.db.Exec(query, key, data)
+	_, err := c.db.Exec(query, key, dataToStore)
 	if err != nil {
 		return fmt.Errorf("failed to set cache: %w", err)
 	}

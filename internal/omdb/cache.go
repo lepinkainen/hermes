@@ -55,7 +55,7 @@ func SeedCacheByID(imdbID string, data any) error {
 		return err
 	}
 
-	if err := cacheDB.Set("omdb_cache", imdbID, string(jsonData)); err != nil {
+	if err := cacheDB.Set("omdb_cache", imdbID, string(jsonData), 0); err != nil {
 		slog.Warn("Failed to seed OMDB cache by IMDb ID", "imdb_id", imdbID, "error", err)
 		return err
 	}
