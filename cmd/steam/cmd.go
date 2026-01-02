@@ -9,11 +9,12 @@ import (
 
 // SteamCmd represents the steam import command
 type SteamCmd struct {
-	SteamID    string `help:"Steam ID to fetch data for"`
-	APIKey     string `help:"Steam API key"`
-	Output     string `short:"o" help:"Subdirectory under markdown output directory for Steam files" default:"steam"`
-	JSON       bool   `help:"Write data to JSON format"`
-	JSONOutput string `help:"Path to JSON output file (defaults to json/steam.json)"`
+	SteamID      string `help:"Steam ID to fetch data for"`
+	APIKey       string `help:"Steam API key"`
+	Output       string `short:"o" help:"Subdirectory under markdown output directory for Steam files" default:"steam"`
+	JSON         bool   `help:"Write data to JSON format"`
+	JSONOutput   string `help:"Path to JSON output file (defaults to json/steam.json)"`
+	Achievements bool   `help:"Fetch player achievements for each game" default:"true"`
 }
 
 func (s *SteamCmd) Run() error {
@@ -36,16 +37,17 @@ func (s *SteamCmd) Run() error {
 		return fmt.Errorf("steam API key is required (provide via --apikey flag or steam.apikey in config)")
 	}
 
-	return ParseSteamWithParamsFunc(steamID, apiKey, s.Output, s.JSON, s.JSONOutput)
+	return ParseSteamWithParamsFunc(steamID, apiKey, s.Output, s.JSON, s.JSONOutput, s.Achievements)
 }
 
 var (
-	steamID    string
-	apiKey     string
-	outputDir  string
-	writeJSON  bool
-	jsonOutput string
-	cmdConfig  *cmdutil.BaseCommandConfig
+	steamID           string
+	apiKey            string
+	outputDir         string
+	writeJSON         bool
+	jsonOutput        string
+	fetchAchievements bool
+	cmdConfig         *cmdutil.BaseCommandConfig
 )
 
 // ParseSteamFuncType is the signature of the low-level steam parser function (ParseSteam)
@@ -55,17 +57,18 @@ type ParseSteamFuncType func() error
 var ParseSteamFunc ParseSteamFuncType = ParseSteam
 
 // ParseSteamWithParamsFuncType is the signature of the ParseSteamWithParams function
-type ParseSteamWithParamsFuncType func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error
+type ParseSteamWithParamsFuncType func(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string, fetchAchievementsParam bool) error
 
 // ParseSteamWithParamsFunc is a variable that can be overridden for testing purposes
 var ParseSteamWithParamsFunc ParseSteamWithParamsFuncType = ParseSteamWithParams
 
 // ParseSteamWithParams allows calling steam parsing with specific parameters
 // This is used by the Kong-based CLI implementation
-func ParseSteamWithParams(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string) error {
+func ParseSteamWithParams(steamIDParam, apiKeyParam, outputDirParam string, writeJSONParam bool, jsonOutputParam string, fetchAchievementsParam bool) error {
 	// Set the global variables that ParseSteam expects
 	steamID = steamIDParam
 	apiKey = apiKeyParam
+	fetchAchievements = fetchAchievementsParam
 
 	// Set up command config similar to PreRunE logic
 	cmdConfig = &cmdutil.BaseCommandConfig{
