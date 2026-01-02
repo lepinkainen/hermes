@@ -20,8 +20,8 @@ func EnrichFromSteam(ctx context.Context, title string, existingSteamAppID int, 
 		return nil, nil
 	}
 
-	// Fetch game details
-	details, err := steam.GetGameDetails(appID)
+	// Fetch game details (using cached wrapper)
+	details, _, err := steam.GetCachedGameDetails(appID)
 	if err != nil {
 		slog.Warn("Failed to fetch Steam game details", "appid", appID, "error", err)
 		return nil, nil

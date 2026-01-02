@@ -18,9 +18,9 @@ func (c *Client) GetCoverURLByID(ctx context.Context, mediaID int, mediaType str
 
 	switch mediaType {
 	case "movie":
-		details, err = c.GetMovieDetails(ctx, mediaID)
+		details, _, err = c.CachedGetMovieDetails(ctx, mediaID)
 	case "tv":
-		details, err = c.GetTVDetails(ctx, mediaID, "")
+		details, _, err = c.CachedGetTVDetails(ctx, mediaID, "")
 	default:
 		return "", ErrInvalidMediaType
 	}

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lepinkainen/hermes/internal/cache"
 	hermeserrors "github.com/lepinkainen/hermes/internal/errors"
 	"github.com/lepinkainen/hermes/internal/tui"
 )
@@ -29,6 +30,11 @@ type SteamStoreSearchResult struct {
 type SteamStoreSearchResponse struct {
 	Total int                      `json:"total"`
 	Items []SteamStoreSearchResult `json:"items"`
+}
+
+// CachedSteamSearchResults wraps search results for caching
+type CachedSteamSearchResults struct {
+	Results []tui.SteamSearchResult `json:"results"`
 }
 
 func resolveSteamAppID(ctx context.Context, title string, existingAppID int, opts SteamEnrichmentOptions) (int, error) {
@@ -62,8 +68,37 @@ func searchSteamAppID(ctx context.Context, title string, opts SteamEnrichmentOpt
 	return selection.AppID, nil
 }
 
-// searchSteamStore searches the Steam Store for games matching the query.
+// searchSteamStore searches the Steam Store for games matching the query with caching.
 func searchSteamStore(ctx context.Context, query string) ([]tui.SteamSearchResult, error) {
+	// Normalize query for cache key
+	cacheKey := normalizeSteamQuery(query)
+
+	// Use cached search with policy to avoid caching empty results
+	cached, _, err := cache.GetOrFetchWithPolicy(
+		"steam_search_cache",
+		cacheKey,
+		func() (*CachedSteamSearchResults, error) {
+			results, fetchErr := fetchSteamStoreSearch(ctx, query)
+			if fetchErr != nil {
+				return nil, fetchErr
+			}
+			return &CachedSteamSearchResults{Results: results}, nil
+		},
+		func(result *CachedSteamSearchResults) bool {
+			// Only cache if we got results
+			return result != nil && len(result.Results) > 0
+		},
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return cached.Results, nil
+}
+
+// fetchSteamStoreSearch performs the actual Steam Store search API call
+func fetchSteamStoreSearch(ctx context.Context, query string) ([]tui.SteamSearchResult, error) {
 	encodedQuery := url.QueryEscape(query)
 	searchURL := fmt.Sprintf(steamSearchURL, encodedQuery)
 
@@ -104,6 +139,21 @@ func searchSteamStore(ctx context.Context, query string) ([]tui.SteamSearchResul
 	}
 
 	return results, nil
+}
+
+// normalizeSteamQuery normalizes a query string for use as a cache key
+func normalizeSteamQuery(query string) string {
+	// Convert to lowercase and replace spaces with underscores
+	normalized := strings.ToLower(strings.TrimSpace(query))
+	normalized = strings.ReplaceAll(normalized, " ", "_")
+	// Remove special characters that might cause issues
+	normalized = strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			return r
+		}
+		return '_'
+	}, normalized)
+	return normalized
 }
 
 func selectSteamResult(results []tui.SteamSearchResult, title string, interactive bool) (*tui.SteamSearchResult, error) {
