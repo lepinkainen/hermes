@@ -1,0 +1,26 @@
+{
+  "playerstats": {
+    "steamID": "12345678901234567",
+    "gameName": "Test Game",
+    "achievements": [
+      {
+        "apiname": "FIRST_KILL",
+        "achieved": 1,
+        "unlocktime": 1609459200,
+        "name": "First Blood",
+        "description": "Get your first kill",
+        "percent": 75.5
+      },
+      {
+        "apiname": "WIN_GAME",
+        "achieved": 0,
+        "unlocktime": 0,
+        "name": "Victory",
+        "description": "Win a match",
+        "percent": 45.2
+      }
+    ],
+    "success": true,
+    "error": ""
+  }
+}

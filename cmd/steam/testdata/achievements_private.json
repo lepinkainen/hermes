@@ -1,0 +1,9 @@
+{
+  "playerstats": {
+    "steamID": "12345678901234567",
+    "gameName": "Private Game",
+    "achievements": [],
+    "success": false,
+    "error": "Profile is private"
+  }
+}

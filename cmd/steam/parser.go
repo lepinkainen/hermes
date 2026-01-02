@@ -1,6 +1,8 @@
 package steam
 
 import (
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -31,30 +33,76 @@ const steamGamesSchema = `CREATE TABLE IF NOT EXISTS steam_games (
 		categories TEXT,
 		genres TEXT,
 		metacritic_score INTEGER,
-		metacritic_url TEXT
+		metacritic_url TEXT,
+		achievements_total INTEGER,
+		achievements_unlocked INTEGER,
+		achievements_data TEXT
 	)`
 
 // Convert GameDetails to map[string]any for database insertion
 func gameDetailsToMap(details GameDetails) map[string]any {
+	// Calculate achievement stats
+	achievementsTotal := len(details.Achievements)
+	achievementsUnlocked := 0
+	for _, ach := range details.Achievements {
+		if ach.Achieved == 1 {
+			achievementsUnlocked++
+		}
+	}
+
+	// Serialize achievements to JSON
+	var achievementsJSON string
+	if achievementsTotal > 0 {
+		data, _ := json.Marshal(details.Achievements)
+		achievementsJSON = string(data)
+	}
+
 	return map[string]any{
-		"appid":                details.AppID,
-		"name":                 details.Name,
-		"playtime_forever":     details.PlaytimeForever,
-		"playtime_2weeks":      details.PlaytimeRecent,
-		"last_played":          details.LastPlayed.String(),
-		"details_fetched":      details.DetailsFetched,
-		"detailed_description": details.Description,
-		"short_description":    details.ShortDesc,
-		"header_image":         details.HeaderImage,
-		"screenshots":          "", // Could serialize as JSON if needed
-		"developers":           strings.Join(details.Developers, ","),
-		"publishers":           strings.Join(details.Publishers, ","),
-		"release_date":         details.ReleaseDate.Date,
-		"coming_soon":          details.ReleaseDate.ComingSoon,
-		"categories":           "", // Could serialize as JSON if needed
-		"genres":               "", // Could serialize as JSON if needed
-		"metacritic_score":     details.Metacritic.Score,
-		"metacritic_url":       details.Metacritic.URL,
+		"appid":                 details.AppID,
+		"name":                  details.Name,
+		"playtime_forever":      details.PlaytimeForever,
+		"playtime_2weeks":       details.PlaytimeRecent,
+		"last_played":           details.LastPlayed.String(),
+		"details_fetched":       details.DetailsFetched,
+		"detailed_description":  details.Description,
+		"short_description":     details.ShortDesc,
+		"header_image":          details.HeaderImage,
+		"screenshots":           "", // Could serialize as JSON if needed
+		"developers":            strings.Join(details.Developers, ","),
+		"publishers":            strings.Join(details.Publishers, ","),
+		"release_date":          details.ReleaseDate.Date,
+		"coming_soon":           details.ReleaseDate.ComingSoon,
+		"categories":            "", // Could serialize as JSON if needed
+		"genres":                "", // Could serialize as JSON if needed
+		"metacritic_score":      details.Metacritic.Score,
+		"metacritic_url":        details.Metacritic.URL,
+		"achievements_total":    achievementsTotal,
+		"achievements_unlocked": achievementsUnlocked,
+		"achievements_data":     achievementsJSON,
+	}
+}
+
+// logGameProgress logs progress at percentage milestones (10%, 25%, 50%, 75%, 90%, 100%)
+func logGameProgress(processed, total int) {
+	if total == 0 || processed == 0 {
+		return
+	}
+
+	percentage := float64(processed) / float64(total) * 100
+
+	// Log at milestones: 10%, 25%, 50%, 75%, 90%, 100%
+	milestones := []float64{10, 25, 50, 75, 90, 100}
+	prevPercentage := float64(processed-1) / float64(total) * 100
+
+	for _, milestone := range milestones {
+		if percentage >= milestone && prevPercentage < milestone {
+			slog.Info("Processing games",
+				"processed", processed,
+				"total", total,
+				"percentage", fmt.Sprintf("%.1f%%", percentage),
+			)
+			break
+		}
 	}
 }
 
@@ -64,12 +112,18 @@ func ParseSteam() error {
 		return fmt.Errorf("error creating output directory: %w", err)
 	}
 
-	games, err := ImportSteamGamesFunc(steamID, apiKey)
+	games, fromCache, err := GetCachedOwnedGames(steamID, apiKey)
 	if err != nil {
 		return fmt.Errorf("error importing games: %w", err)
 	}
+	if fromCache {
+		slog.Debug("Using cached owned games list")
+	} else {
+		slog.Debug("Fetched owned games list from Steam API")
+	}
 
 	var processedGames []GameDetails
+	totalGames := len(games)
 
 	for _, game := range games {
 		slog.Debug("Fetching game details", "game", game.Name)
@@ -86,9 +140,16 @@ func ParseSteam() error {
 			return detailsData, nil
 		})
 		if err != nil {
+			// Check for RateLimitError first (preserves RetryAfter timing)
+			if errors.IsRateLimitError(err) {
+				return err
+			}
+
+			// Fallback: string matching for backward compatibility
 			if strings.Contains(err.Error(), "status code 429") {
 				return errors.NewRateLimitError("Rate limit reached. Please try again later (usually after a few minutes)")
 			}
+
 			slog.Warn("Error fetching game details", "game", game.Name, "error", err)
 			continue
 		}
@@ -100,15 +161,53 @@ func ParseSteam() error {
 		details.LastPlayed = game.LastPlayed
 		details.DetailsFetched = true
 
+		// Fetch achievements if enabled
+		if fetchAchievements {
+			slog.Debug("Fetching achievements", "game", game.Name, "appid", game.AppID)
+			achievements, fromCache, err := getCachedAchievements(steamID, apiKey, game.AppID)
+			if err != nil {
+				// Check for profile access errors (should stop processing)
+				if errors.IsSteamProfileError(err) {
+					return fmt.Errorf("steam profile access error (check API key and profile privacy): %w", err)
+				}
+				// Check if rate limit error - should stop processing
+				if errors.IsRateLimitError(err) {
+					return err
+				}
+				slog.Warn("Error fetching achievements", "game", game.Name, "error", err)
+			} else {
+				details.Achievements = achievements
+				if fromCache {
+					slog.Debug("Achievement cache hit", "count", len(achievements))
+				} else {
+					slog.Debug("Fetched achievements from API", "count", len(achievements))
+				}
+			}
+		}
+
 		if err := CreateMarkdownFile(game, details, outputDir); err != nil {
 			slog.Error("Error creating markdown", "game", game.Name, "error", err)
 			continue
 		}
 
 		processedGames = append(processedGames, *details)
+		logGameProgress(len(processedGames), totalGames)
 	}
 
 	// Datasette integration
+	// Run migration before writing to datastore
+	if viper.GetBool("datasette.enabled") {
+		dbPath := viper.GetString("datasette.dbfile")
+		db, err := sql.Open("sqlite", dbPath)
+		if err == nil {
+			// Run migration to add achievement columns if they don't exist
+			if migErr := MigrateAchievementColumns(db); migErr != nil {
+				slog.Warn("Achievement column migration failed", "error", migErr)
+			}
+			_ = db.Close()
+		}
+	}
+
 	if err := cmdutil.WriteToDatastore(processedGames, steamGamesSchema, "steam_games", "Steam games", gameDetailsToMap); err != nil {
 		return err
 	}

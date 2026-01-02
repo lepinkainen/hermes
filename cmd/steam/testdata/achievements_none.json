@@ -1,0 +1,9 @@
+{
+  "playerstats": {
+    "steamID": "12345678901234567",
+    "gameName": "No Achievements Game",
+    "achievements": [],
+    "success": false,
+    "error": "Requested app has no stats"
+  }
+}
