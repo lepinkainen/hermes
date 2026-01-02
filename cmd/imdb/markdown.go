@@ -19,46 +19,54 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	// Get the file path using the common utility
 	filePath := fileutil.GetMarkdownFilePath(movie.Title, directory)
 
-	// Use the MarkdownBuilder to construct the document
-	mb := fileutil.NewMarkdownBuilder()
+	// Create frontmatter using obsidian.Note
+	fm := obsidian.NewFrontmatter()
 
 	// Handle titles - remove problematic characters and handle original titles
 	movie.Title = fileutil.SanitizeFilename(movie.Title)
-	mb.AddTitle(movie.Title)
+	fm.Set("title", movie.Title)
 
 	if movie.OriginalTitle != "" && movie.OriginalTitle != movie.Title {
 		movie.OriginalTitle = fileutil.SanitizeFilename(movie.OriginalTitle)
-		mb.AddField("original_title", movie.OriginalTitle)
+		fm.Set("original_title", movie.OriginalTitle)
 	}
 
 	// Add type-specific metadata
-	mb.AddType(mapTypeToType(movie.TitleType))
+	fm.Set("type", mapTypeToType(movie.TitleType))
 
 	// Add seen flag if movie has a rating
 	if movie.MyRating > 0 {
-		mb.AddField("seen", true)
+		fm.Set("seen", true)
 	}
 
 	// Basic metadata
-	mb.AddField("imdb_id", movie.ImdbId)
-	mb.AddYear(movie.Year)
-	mb.AddField("imdb_rating", movie.IMDbRating)
-	mb.AddField("my_rating", movie.MyRating)
+	fm.Set("imdb_id", movie.ImdbId)
+	if movie.Year > 0 {
+		fm.Set("year", movie.Year)
+	}
+	if movie.IMDbRating > 0 {
+		fm.Set("imdb_rating", movie.IMDbRating)
+	}
+	if movie.MyRating > 0 {
+		fm.Set("my_rating", movie.MyRating)
+	}
 
 	// Format date in a more readable way
 	if movie.DateRated != "" {
-		mb.AddDate("date_rated", movie.DateRated)
+		fm.Set("date_rated", movie.DateRated)
 	}
 
 	// Add runtime and duration
 	if movie.RuntimeMins > 0 {
-		mb.AddField("runtime", movie.RuntimeMins)
-		mb.AddDuration(movie.RuntimeMins)
+		fm.Set("runtime", movie.RuntimeMins)
+		hours := movie.RuntimeMins / 60
+		mins := movie.RuntimeMins % 60
+		fm.Set("duration", fmt.Sprintf("%dh %dm", hours, mins))
 	}
 
 	// Add directors as an array
 	if len(movie.Directors) > 0 {
-		mb.AddStringArray("directors", movie.Directors)
+		fm.Set("directors", movie.Directors)
 	}
 
 	// Collect all tags using TagSet for deduplication and normalization
@@ -91,64 +99,104 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 		}
 	}
 
-	mb.AddTags(tc.GetSorted()...)
+	fm.Set("tags", tc.GetSorted())
 
 	// Add content rating if available
 	if movie.ContentRated != "" {
-		mb.AddField("content_rating", movie.ContentRated)
+		fm.Set("content_rating", movie.ContentRated)
 	}
 
 	// Add awards if available
 	if movie.Awards != "" {
-		mb.AddField("awards", movie.Awards)
+		fm.Set("awards", movie.Awards)
 	}
 
-	// Add poster image - prefer TMDB cover (higher resolution), fall back to OMDB poster
-	coverOpts := fileutil.AddCoverOptions{
-		FallbackURL:  movie.PosterURL,
-		Title:        movie.Title,
-		Directory:    directory,
-		Width:        defaultCoverWidth,
-		UpdateCovers: config.UpdateCovers,
-	}
-	if movie.TMDBEnrichment != nil {
-		coverOpts.TMDBCoverPath = movie.TMDBEnrichment.CoverPath
-		coverOpts.TMDBCoverFilename = movie.TMDBEnrichment.CoverFilename
-	}
-	fileutil.AddCoverToMarkdown(mb, coverOpts)
-
-	// Add plot summary in a callout if available
-	if movie.Plot != "" {
-		mb.AddCallout("summary", "Plot", movie.Plot)
-	}
-
-	// Add awards in a callout if available
-	if movie.Awards != "" {
-		mb.AddCallout("award", "Awards", movie.Awards)
-	}
-
-	// Add IMDb link as info callout
-	links := map[string]string{
-		"View on IMDb": movie.URL,
-	}
-	mb.AddExternalLinksCallout("IMDb", links)
-
-	// Add TMDB data if available
-	if movie.TMDBEnrichment != nil {
-		wrappedContent := ""
-		if movie.TMDBEnrichment.ContentMarkdown != "" {
-			wrappedContent = content.WrapWithMarkers(movie.TMDBEnrichment.ContentMarkdown)
+	// Handle cover image
+	coverFilename := ""
+	if movie.TMDBEnrichment != nil && movie.TMDBEnrichment.CoverFilename != "" {
+		coverFilename = movie.TMDBEnrichment.CoverFilename
+		fm.Set("cover", movie.TMDBEnrichment.CoverPath)
+	} else if movie.PosterURL != "" {
+		// Download cover from poster URL
+		coverOpts := fileutil.CoverDownloadOptions{
+			URL:          movie.PosterURL,
+			OutputDir:    directory,
+			Filename:     fileutil.BuildCoverFilename(movie.Title),
+			UpdateCovers: config.UpdateCovers,
 		}
-		mb.AddTMDBEnrichmentFields(
-			movie.TMDBEnrichment.TMDBID,
-			movie.TMDBEnrichment.TMDBType,
-			movie.TMDBEnrichment.TotalEpisodes,
-			wrappedContent,
-		)
+		result, err := fileutil.DownloadCover(coverOpts)
+		if err == nil && result != nil {
+			coverFilename = result.Filename
+			fm.Set("cover", result.RelativePath)
+		}
+	}
+
+	// Add TMDB frontmatter fields if available
+	if movie.TMDBEnrichment != nil {
+		if movie.TMDBEnrichment.TMDBID > 0 {
+			fm.Set("tmdb_id", movie.TMDBEnrichment.TMDBID)
+			fm.Set("tmdb_type", movie.TMDBEnrichment.TMDBType)
+		}
+		if movie.TMDBEnrichment.TotalEpisodes > 0 {
+			fm.Set("total_episodes", movie.TMDBEnrichment.TotalEpisodes)
+		}
+	}
+
+	// Build body content
+	var body strings.Builder
+
+	// Add cover image using Obsidian syntax
+	if coverFilename != "" {
+		body.WriteString(fmt.Sprintf("![[%s|%d]]\n\n", coverFilename, defaultCoverWidth))
+	}
+
+	// Build IMDb content sections
+	imdbDetails := &content.IMDbMovieDetails{
+		Title:         movie.Title,
+		OriginalTitle: movie.OriginalTitle,
+		Year:          movie.Year,
+		TitleType:     movie.TitleType,
+		MyRating:      movie.MyRating,
+		IMDbRating:    movie.IMDbRating,
+		DateRated:     movie.DateRated,
+		Runtime:       movie.RuntimeMins,
+		Directors:     movie.Directors,
+		Genres:        movie.Genres,
+		ContentRating: movie.ContentRated,
+		Awards:        movie.Awards,
+		Plot:          movie.Plot,
+		IMDbID:        movie.ImdbId,
+		URL:           movie.URL,
+	}
+
+	imdbContent := content.BuildIMDbContent(imdbDetails, []string{"info", "plot", "awards"})
+	if imdbContent != "" {
+		wrappedIMDb := content.WrapWithIMDbMarkers(imdbContent)
+		body.WriteString(wrappedIMDb)
+		body.WriteString("\n\n")
+	}
+
+	// Add TMDB content if available
+	if movie.TMDBEnrichment != nil && movie.TMDBEnrichment.ContentMarkdown != "" {
+		wrappedTMDB := content.WrapWithMarkers(movie.TMDBEnrichment.ContentMarkdown)
+		body.WriteString(wrappedTMDB)
+		body.WriteString("\n")
+	}
+
+	// Create the note
+	note := &obsidian.Note{
+		Frontmatter: fm,
+		Body:        strings.TrimSpace(body.String()),
+	}
+
+	// Build markdown
+	markdown, err := note.Build()
+	if err != nil {
+		return fmt.Errorf("failed to build markdown: %w", err)
 	}
 
 	// Write content to file with logging
-	return fileutil.WriteMarkdownFile(filePath, mb.Build(), config.OverwriteFiles)
+	return fileutil.WriteMarkdownFile(filePath, string(markdown), config.OverwriteFiles)
 }
 
 func mapTypeToType(titleType string) string {

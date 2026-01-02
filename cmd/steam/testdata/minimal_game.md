@@ -1,33 +1,32 @@
 ---
-title: "Indie Puzzle"
-type: game
-playtime: 30
-duration: 0h 30m
-release_date: "2023-08-01"
-cover: "https://example.com/indie_puzzle_header.jpg"
-developers:
-  - "Solo Developer"
 categories:
-  - "Single-player"
+    - Single-player
+developers:
+    - Solo Developer
+duration: 0h 30m
 genres:
-  - "Puzzle"
-  - "Indie"
-tags:
-  - steam/game
+    - Puzzle
+    - Indie
+playtime: 30
+release_date: "2023-08-01"
+tags: [steam/game]
+title: Indie Puzzle
+type: game
 ---
+<!-- STEAM_DATA_START -->
+## Game Info
 
-# Indie Puzzle
+| | |
+|---|---|
+| **Developer** | Solo Developer |
+| **Release Date** | 2023-08-01 |
+| **Genres** | Puzzle, Indie |
+| **Features** | Single-player |
+| **Steam** | [store.steampowered.com/app/55555](https://store.steampowered.com/app/55555) |
 
-![](https://example.com/indie_puzzle_header.jpg)
+## Description
 
->[!summary]- Description
-> A minimalist puzzle game.
+A minimalist puzzle game.
+<!-- STEAM_DATA_END -->
 
->[!info]- Game Details
->
-> - **Playtime**: 30 minutes
-> - **Developers**: Solo Developer
-> - **Release Date**: 2023-08-01
-> - **Categories**: Single-player
-> - **Genres**: Puzzle, Indie
-> 
+
