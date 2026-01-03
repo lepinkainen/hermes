@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/lepinkainen/hermes/internal/tui"
 	"github.com/stretchr/testify/require"
@@ -40,6 +41,8 @@ func TestFetchSteamStoreSearch_ParseResponse(t *testing.T) {
 	require.NoError(t, err)
 
 	client := &http.Client{}
+	defer client.CloseIdleConnections()
+
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
@@ -71,6 +74,8 @@ func TestSteamStoreSearchResponse_EmptyResults(t *testing.T) {
 	require.NoError(t, err)
 
 	client := &http.Client{}
+	defer client.CloseIdleConnections()
+
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
@@ -94,6 +99,8 @@ func TestSteamStoreSearch_HTTPErrorHandling(t *testing.T) {
 	require.NoError(t, err)
 
 	client := &http.Client{}
+	defer client.CloseIdleConnections()
+
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
@@ -113,6 +120,8 @@ func TestSteamStoreSearch_InvalidJSONHandling(t *testing.T) {
 	require.NoError(t, err)
 
 	client := &http.Client{}
+	defer client.CloseIdleConnections()
+
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
@@ -124,13 +133,22 @@ func TestSteamStoreSearch_InvalidJSONHandling(t *testing.T) {
 
 func TestSteamStoreSearch_ContextCancellation(t *testing.T) {
 	// Test that context cancellation is respected
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// This handler should never be called because context is already cancelled
+		time.Sleep(10 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://store.steampowered.com", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, nil)
 	require.NoError(t, err)
 
 	client := &http.Client{}
+	defer client.CloseIdleConnections()
+
 	_, err = client.Do(req)
 	require.Error(t, err, "should fail with cancelled context")
 	require.Contains(t, err.Error(), "context canceled")
@@ -157,6 +175,8 @@ func TestSteamStoreSearch_QueryEscaping(t *testing.T) {
 	require.NoError(t, err)
 
 	client := &http.Client{}
+	defer client.CloseIdleConnections()
+
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()

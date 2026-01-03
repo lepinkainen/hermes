@@ -202,9 +202,12 @@ func TestFindDownloadedZipRespectsStartTime(t *testing.T) {
 	require.Contains(t, err.Error(), "ZIP file not found")
 
 	// Create new ZIP file after start time
-	time.Sleep(10 * time.Millisecond) // Ensure file is newer
 	newZipPath := env.Path("letterboxd-new-2025-01-27.zip")
 	require.NoError(t, os.WriteFile(newZipPath, []byte("new"), 0644))
+
+	// Explicitly set modification time to ensure it's after startTime
+	futureTime := startTime.Add(1 * time.Second)
+	require.NoError(t, os.Chtimes(newZipPath, futureTime, futureTime))
 
 	// Should find new file
 	path, err := findDownloadedZip(env.RootDir(), startTime)

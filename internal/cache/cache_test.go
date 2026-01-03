@@ -62,13 +62,19 @@ func setupTestCache(t *testing.T) (*CacheDB, string) {
 func withGlobalCache(t *testing.T, cache *CacheDB) {
 	t.Helper()
 
+	globalCacheMutex.Lock()
 	oldCache := globalCache
 	globalCache = cache
+	// Reset the Once - we can't save/restore it due to noCopy field
 	globalCacheOnce = sync.Once{}
 	globalCacheOnce.Do(func() {})
+	globalCacheMutex.Unlock()
 
 	t.Cleanup(func() {
+		globalCacheMutex.Lock()
+		defer globalCacheMutex.Unlock()
 		globalCache = oldCache
+		// Reset Once again for cleanup
 		globalCacheOnce = sync.Once{}
 	})
 }

@@ -213,8 +213,15 @@ func TestImportSteamGames_ErrorHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Would require URL injection to test properly
-			t.Skip("ImportSteamGames needs URL injection for error testing")
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.statusCode)
+				_, _ = w.Write([]byte(tt.responseBody))
+			}))
+			defer server.Close()
+
+			_, err := importSteamGamesWithBaseURL("test-steam-id", "test-api-key", server.URL)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tt.expectedErrMsg)
 		})
 	}
 }

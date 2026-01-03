@@ -97,9 +97,11 @@ func GetGameDetails(appID int) (*GameDetails, error) {
 
 // ImportSteamGames fetches games from a user's Steam library
 func ImportSteamGames(steamID string, apiKey string) ([]Game, error) {
-	// Steam Web API endpoint
-	baseURL := "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/"
+	return importSteamGamesWithBaseURL(steamID, apiKey, "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/")
+}
 
+// importSteamGamesWithBaseURL is a helper that accepts a custom base URL for testing
+func importSteamGamesWithBaseURL(steamID string, apiKey string, baseURL string) ([]Game, error) {
 	// Create URL with query parameters
 	params := url.Values{}
 	params.Add("key", apiKey)

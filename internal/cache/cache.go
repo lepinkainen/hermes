@@ -39,8 +39,9 @@ type CacheDB struct {
 }
 
 var (
-	globalCache     *CacheDB
-	globalCacheOnce sync.Once
+	globalCache      *CacheDB
+	globalCacheOnce  sync.Once
+	globalCacheMutex sync.Mutex
 )
 
 // ResetGlobalCache closes the current global cache and resets the singleton
