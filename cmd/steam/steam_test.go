@@ -218,3 +218,181 @@ func TestImportSteamGames_ErrorHandling(t *testing.T) {
 		})
 	}
 }
+
+func TestParseRetryAfter_Seconds(t *testing.T) {
+	tests := []struct {
+		name     string
+		header   string
+		expected string // duration string for comparison
+	}{
+		{
+			name:     "valid seconds",
+			header:   "60",
+			expected: "1m0s",
+		},
+		{
+			name:     "zero seconds",
+			header:   "0",
+			expected: "0s",
+		},
+		{
+			name:     "large value",
+			header:   "3600",
+			expected: "1h0m0s",
+		},
+		{
+			name:     "small value",
+			header:   "5",
+			expected: "5s",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseRetryAfter(tt.header)
+			require.Equal(t, tt.expected, result.String())
+		})
+	}
+}
+
+func TestParseRetryAfter_HTTPDate(t *testing.T) {
+	// Test parsing HTTP-date format (future time)
+	// Use a fixed time for testing
+	tests := []struct {
+		name           string
+		header         string
+		expectPositive bool
+	}{
+		{
+			name:           "RFC1123 format - future",
+			header:         "Mon, 02 Jan 2030 15:04:05 GMT",
+			expectPositive: true,
+		},
+		{
+			name:           "RFC850 format - future",
+			header:         "Monday, 02-Jan-30 15:04:05 GMT",
+			expectPositive: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseRetryAfter(tt.header)
+			if tt.expectPositive {
+				require.Greater(t, result.Seconds(), float64(0), "should parse future date as positive duration")
+			}
+		})
+	}
+}
+
+func TestParseRetryAfter_InvalidInput(t *testing.T) {
+	tests := []struct {
+		name   string
+		header string
+	}{
+		{
+			name:   "empty string",
+			header: "",
+		},
+		{
+			name:   "invalid number",
+			header: "abc",
+		},
+		{
+			name:   "invalid date",
+			header: "not-a-date",
+		},
+		{
+			name:   "past HTTP date",
+			header: "Mon, 02 Jan 2000 15:04:05 GMT",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseRetryAfter(tt.header)
+			require.Equal(t, int64(0), result.Nanoseconds(), "should return 0 duration for invalid input")
+		})
+	}
+}
+
+func TestRateLimitHandling_429Response(t *testing.T) {
+	tests := []struct {
+		name                string
+		retryAfterHeader    string
+		expectRetryDuration bool
+		expectedContains    string
+	}{
+		{
+			name:                "429 with retry-after seconds",
+			retryAfterHeader:    "120",
+			expectRetryDuration: true,
+			expectedContains:    "2m0s",
+		},
+		{
+			name:                "429 without retry-after",
+			retryAfterHeader:    "",
+			expectRetryDuration: false,
+			expectedContains:    "Please try again later",
+		},
+		{
+			name:                "429 with invalid retry-after",
+			retryAfterHeader:    "invalid",
+			expectRetryDuration: false,
+			expectedContains:    "Please try again later",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test server that returns 429
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if tt.retryAfterHeader != "" {
+					w.Header().Set("Retry-After", tt.retryAfterHeader)
+				}
+				w.WriteHeader(http.StatusTooManyRequests)
+				_, _ = w.Write([]byte("Too Many Requests"))
+			}))
+			defer server.Close()
+
+			// Make request directly (not through GetGameDetails since URL is hardcoded)
+			resp, err := http.Get(server.URL)
+			require.NoError(t, err)
+			defer func() { _ = resp.Body.Close() }()
+
+			// Verify response
+			require.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
+
+			// Parse retry-after header
+			retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"))
+
+			if tt.expectRetryDuration {
+				require.Greater(t, retryAfter.Seconds(), float64(0), "should have positive retry duration")
+				require.Contains(t, retryAfter.String(), tt.expectedContains)
+			} else {
+				require.Equal(t, int64(0), retryAfter.Nanoseconds(), "should have zero retry duration")
+			}
+		})
+	}
+}
+
+func TestRateLimitError_Integration(t *testing.T) {
+	// Test that rate limit errors are properly detected and formatted
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "30")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte("Rate limit exceeded"))
+	}))
+	defer server.Close()
+
+	resp, err := http.Get(server.URL)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	// Verify we can detect 429 status
+	require.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
+
+	// Verify we can parse the retry-after header
+	retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"))
+	require.Equal(t, "30s", retryAfter.String())
+}
