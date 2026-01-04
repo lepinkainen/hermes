@@ -41,9 +41,9 @@ func (c *Client) GetFullMovieDetails(ctx context.Context, movieID int) (map[stri
 func (c *Client) GetMetadataByResult(ctx context.Context, result SearchResult) (*Metadata, error) {
 	switch result.MediaType {
 	case "movie":
-		return c.getMetadataByMovieID(ctx, result.ID)
+		return c.getMetadataByMovieID(ctx, result.ID, false)
 	case "tv":
-		return c.getMetadataByTVID(ctx, result.ID)
+		return c.getMetadataByTVID(ctx, result.ID, false)
 	default:
 		return nil, ErrInvalidMediaType
 	}
@@ -51,18 +51,29 @@ func (c *Client) GetMetadataByResult(ctx context.Context, result SearchResult) (
 
 // GetMetadataByID fetches metadata by TMDB ID and media type.
 func (c *Client) GetMetadataByID(ctx context.Context, mediaID int, mediaType string) (*Metadata, error) {
+	return c.getMetadataByID(ctx, mediaID, mediaType, false)
+}
+
+func (c *Client) getMetadataByID(ctx context.Context, mediaID int, mediaType string, force bool) (*Metadata, error) {
 	switch mediaType {
 	case "movie":
-		return c.getMetadataByMovieID(ctx, mediaID)
+		return c.getMetadataByMovieID(ctx, mediaID, force)
 	case "tv":
-		return c.getMetadataByTVID(ctx, mediaID)
+		return c.getMetadataByTVID(ctx, mediaID, force)
 	default:
 		return nil, ErrInvalidMediaType
 	}
 }
 
-func (c *Client) getMetadataByMovieID(ctx context.Context, movieID int) (*Metadata, error) {
-	details, err := c.GetMovieDetails(ctx, movieID)
+func (c *Client) getMetadataByMovieID(ctx context.Context, movieID int, force bool) (*Metadata, error) {
+	var details map[string]any
+	var err error
+
+	if force {
+		details, err = c.GetMovieDetails(ctx, movieID)
+	} else {
+		details, _, err = c.CachedGetMovieDetails(ctx, movieID)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -83,8 +94,15 @@ func (c *Client) getMetadataByMovieID(ctx context.Context, movieID int) (*Metada
 	return metadata, nil
 }
 
-func (c *Client) getMetadataByTVID(ctx context.Context, tvID int) (*Metadata, error) {
-	details, err := c.GetTVDetails(ctx, tvID, "")
+func (c *Client) getMetadataByTVID(ctx context.Context, tvID int, force bool) (*Metadata, error) {
+	var details map[string]any
+	var err error
+
+	if force {
+		details, err = c.GetTVDetails(ctx, tvID, "")
+	} else {
+		details, _, err = c.CachedGetTVDetails(ctx, tvID, "")
+	}
 	if err != nil {
 		return nil, err
 	}

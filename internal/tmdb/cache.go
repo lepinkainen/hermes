@@ -188,7 +188,7 @@ func (c *Client) CachedGetMetadataByID(ctx context.Context, mediaID int, mediaTy
 	cacheKey := fmt.Sprintf("metadata_%s_%d", mediaType, mediaID)
 
 	if force {
-		metadata, err := c.GetMetadataByID(ctx, mediaID, mediaType)
+		metadata, err := c.getMetadataByID(ctx, mediaID, mediaType, true)
 		if err != nil {
 			return nil, false, err
 		}
@@ -197,7 +197,7 @@ func (c *Client) CachedGetMetadataByID(ctx context.Context, mediaID int, mediaTy
 	}
 
 	result, fromCache, err := cache.GetOrFetch("tmdb_cache", cacheKey, func() (*CachedMetadata, error) {
-		metadata, fetchErr := c.GetMetadataByID(ctx, mediaID, mediaType)
+		metadata, fetchErr := c.getMetadataByID(ctx, mediaID, mediaType, false)
 		if fetchErr != nil {
 			return nil, fetchErr
 		}

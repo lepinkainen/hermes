@@ -64,6 +64,8 @@ func TestGetCoverURLByIDNoPoster(t *testing.T) {
 }
 
 func TestGetCoverAndMetadataByIDWithMissingPoster(t *testing.T) {
+	setupTMDBCache(t)
+
 	var calls int32
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&calls, 1)

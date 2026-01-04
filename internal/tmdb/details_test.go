@@ -335,6 +335,8 @@ func TestGetMetadataByResult_InvalidMediaType(t *testing.T) {
 }
 
 func TestGetMetadataByID_NoRuntime(t *testing.T) {
+	setupTMDBCache(t)
+
 	// Test that missing runtime is handled gracefully
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := map[string]any{
@@ -357,6 +359,8 @@ func TestGetMetadataByID_NoRuntime(t *testing.T) {
 }
 
 func TestGetMetadataByID_NoGenres(t *testing.T) {
+	setupTMDBCache(t)
+
 	// Test that missing genres is handled gracefully
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := map[string]any{
