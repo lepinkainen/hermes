@@ -85,7 +85,7 @@ tasks:
     desc: Run Go tests with coverage for CI
     cmds:
       - mkdir -p {{.COVERAGE_DIR}}
-      - go test -tags=ci -cover -v ./...
+      - go test -tags=ci -cover ./...
     sources:
       - ./**/*.go
     generates:
