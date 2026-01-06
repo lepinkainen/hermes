@@ -186,3 +186,27 @@ func SetupTestCache(t *testing.T, env *TestEnv) string {
 
 	return cacheDir
 }
+
+// SetupDatasetteDB configures datasette database for E2E tests.
+// It creates a temporary database file and configures viper with automatic cleanup.
+// Returns the database path.
+func SetupDatasetteDB(t *testing.T, env *TestEnv) string {
+	t.Helper()
+
+	dbPath := env.Path("test.db")
+
+	// Configure datasette using SetViperValue for automatic cleanup
+	SetViperValue(t, "datasette.enabled", true)
+	SetViperValue(t, "datasette.dbfile", dbPath)
+
+	return dbPath
+}
+
+// SetupE2EMarkdownOutput configures markdown output directory for E2E tests.
+// It sets the markdown output directory to the test environment and configures cleanup.
+func SetupE2EMarkdownOutput(t *testing.T, env *TestEnv) {
+	t.Helper()
+
+	// Set markdown output to test directory with automatic cleanup
+	SetViperValue(t, "markdownoutputdir", env.RootDir())
+}

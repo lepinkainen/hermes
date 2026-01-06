@@ -11,7 +11,6 @@ import (
 	"github.com/lepinkainen/hermes/internal/automation"
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/testutil"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 )
@@ -20,30 +19,14 @@ func TestGoodreadsImportE2E(t *testing.T) {
 	// Setup test environment
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
 	// Copy golden CSV to test environment
-	csvPath := filepath.Join(tempDir, "books.csv")
+	csvPath := env.Path("books.csv")
 	env.CopyFile("testdata/goodreads_sample.csv", "books.csv")
 
-	// Setup temp database
-	dbPath := filepath.Join(tempDir, "test.db")
-
-	// Save and restore viper settings
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	prevDatasetteDB := viper.GetString("datasette.dbfile")
-	viper.Set("datasette.enabled", true)
-	viper.Set("datasette.dbfile", dbPath)
-	defer func() {
-		viper.Set("datasette.enabled", prevDatasetteEnabled)
-		viper.Set("datasette.dbfile", prevDatasetteDB)
-	}()
-
-	// Run importer using ParseGoodreadsWithParams
-	// Note: OutputDir must be a relative path that will be joined with the base markdown dir
-	// We override markdownoutputdir to point to our temp directory to avoid creating files in the repo
-	viper.Set("markdownoutputdir", tempDir)
-	defer viper.Set("markdownoutputdir", "markdown")
+	// Setup datasette database and markdown output (with automatic cleanup)
+	dbPath := testutil.SetupDatasetteDB(t, env)
+	testutil.SetupE2EMarkdownOutput(t, env)
 
 	err := ParseGoodreadsWithParams(
 		ParseParams{
@@ -102,7 +85,7 @@ func TestGoodreadsImportE2E(t *testing.T) {
 	t.Logf("Books with ISBN data: %d out of %d", booksWithISBN, count)
 
 	// Verify markdown output structure
-	outputPath := filepath.Join(tempDir, "output")
+	outputPath := env.Path("output")
 	files, err := filepath.Glob(filepath.Join(outputPath, "*.md"))
 	require.NoError(t, err)
 	require.Greater(t, len(files), 0, "Should generate markdown files")
@@ -135,20 +118,14 @@ func TestGoodreadsImportE2E_DatasetteDisabled(t *testing.T) {
 	// Setup test environment
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
 	// Copy golden CSV to test environment
-	csvPath := filepath.Join(tempDir, "books.csv")
+	csvPath := env.Path("books.csv")
 	env.CopyFile("testdata/goodreads_sample.csv", "books.csv")
 
-	// Disable datasette
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	viper.Set("datasette.enabled", false)
-	defer viper.Set("datasette.enabled", prevDatasetteEnabled)
-
-	// Override markdown output directory to tempDir
-	viper.Set("markdownoutputdir", tempDir)
-	defer viper.Set("markdownoutputdir", "markdown")
+	// Disable datasette and setup markdown output (with automatic cleanup)
+	testutil.SetViperValue(t, "datasette.enabled", false)
+	testutil.SetupE2EMarkdownOutput(t, env)
 
 	// Run importer
 	err := ParseGoodreadsWithParams(
@@ -171,7 +148,7 @@ func TestGoodreadsImportE2E_DatasetteDisabled(t *testing.T) {
 		"Database file should not be created when datasette is disabled")
 
 	// Verify markdown files WERE created
-	outputPath := filepath.Join(tempDir, "output")
+	outputPath := env.Path("output")
 	require.DirExists(t, outputPath, "Markdown output directory should exist")
 
 	// Count markdown files
@@ -185,29 +162,17 @@ func TestGoodreadsImportE2E_DatasetteDisabled(t *testing.T) {
 func TestGoodreadsImportE2E_JSON(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
 	// Copy fixture
-	csvPath := filepath.Join(tempDir, "books.csv")
+	csvPath := env.Path("books.csv")
 	env.CopyFile("testdata/goodreads_sample.csv", "books.csv")
 
-	// Setup database (required for JSON output)
-	dbPath := filepath.Join(tempDir, "test.db")
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	prevDatasetteDB := viper.GetString("datasette.dbfile")
-	viper.Set("datasette.enabled", true)
-	viper.Set("datasette.dbfile", dbPath)
-	defer func() {
-		viper.Set("datasette.enabled", prevDatasetteEnabled)
-		viper.Set("datasette.dbfile", prevDatasetteDB)
-	}()
-
-	// Override markdown output directory
-	viper.Set("markdownoutputdir", tempDir)
-	defer viper.Set("markdownoutputdir", "markdown")
+	// Setup datasette database and markdown output (with automatic cleanup)
+	testutil.SetupDatasetteDB(t, env)
+	testutil.SetupE2EMarkdownOutput(t, env)
 
 	// Enable JSON output
-	jsonPath := filepath.Join(tempDir, "output.json")
+	jsonPath := env.Path("output.json")
 
 	err := ParseGoodreadsWithParams(
 		ParseParams{
@@ -250,35 +215,22 @@ func TestGoodreadsImportE2E_JSON(t *testing.T) {
 func TestGoodreadsImportE2E_CacheHit(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
-	// Setup cache DB
-	cacheDBPath := filepath.Join(tempDir, "cache.db")
-	viper.Set("cache.dbfile", cacheDBPath)
-	defer viper.Set("cache.dbfile", "./cache.db")
+	// Setup cache database in test environment
+	cacheDBPath := env.Path("cache.db")
+	testutil.SetViperValue(t, "cache.dbfile", cacheDBPath)
 
-	// Setup datasette DB
-	dbPath := filepath.Join(tempDir, "test.db")
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	prevDatasetteDB := viper.GetString("datasette.dbfile")
-	viper.Set("datasette.enabled", true)
-	viper.Set("datasette.dbfile", dbPath)
-	defer func() {
-		viper.Set("datasette.enabled", prevDatasetteEnabled)
-		viper.Set("datasette.dbfile", prevDatasetteDB)
-	}()
-
-	// Override markdown output directory
-	viper.Set("markdownoutputdir", tempDir)
-	defer viper.Set("markdownoutputdir", "markdown")
+	// Setup datasette database and markdown output (with automatic cleanup)
+	testutil.SetupDatasetteDB(t, env)
+	testutil.SetupE2EMarkdownOutput(t, env)
 
 	// Reset global cache to pick up test DB
 	resetErr := cache.ResetGlobalCache()
 	require.NoError(t, resetErr)
-	defer func() { _ = cache.ResetGlobalCache() }()
+	t.Cleanup(func() { _ = cache.ResetGlobalCache() })
 
 	// Copy fixture
-	csvPath := filepath.Join(tempDir, "books.csv")
+	csvPath := env.Path("books.csv")
 	env.CopyFile("testdata/goodreads_sample.csv", "books.csv")
 
 	// FIRST RUN: Populate cache

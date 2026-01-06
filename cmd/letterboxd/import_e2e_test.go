@@ -11,7 +11,6 @@ import (
 	"github.com/lepinkainen/hermes/internal/automation"
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/testutil"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 )
@@ -20,43 +19,32 @@ func TestLetterboxdImportE2E(t *testing.T) {
 	// Setup test environment
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
 	// Copy golden CSV to test environment
-	csvPath := filepath.Join(tempDir, "movies.csv")
+	csvPath := env.Path("movies.csv")
 	env.CopyFile("testdata/letterboxd_sample.csv", "movies.csv")
 
-	// Setup temp database
-	dbPath := filepath.Join(tempDir, "test.db")
+	// Setup datasette database (with automatic cleanup)
+	dbPath := testutil.SetupDatasetteDB(t, env)
 
-	// Save and restore viper settings
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	prevDatasetteDB := viper.GetString("datasette.dbfile")
-	viper.Set("datasette.enabled", true)
-	viper.Set("datasette.dbfile", dbPath)
-	defer func() {
-		viper.Set("datasette.enabled", prevDatasetteEnabled)
-		viper.Set("datasette.dbfile", prevDatasetteDB)
-	}()
-
-	// Save and restore package globals
+	// Save and restore package globals (TODO: refactor to use dependency injection)
 	prevCSVFile := csvFile
 	prevOutputDir := outputDir
 	prevTMDBEnabled := tmdbEnabled
 	prevOverwrite := overwrite
 	prevWriteJSON := writeJSON
 	csvFile = csvPath
-	outputDir = filepath.Join(tempDir, "output") // Absolute path to temp directory
-	tmdbEnabled = false                          // Disable enrichment for offline e2e test
+	outputDir = env.Path("output") // Absolute path to temp directory
+	tmdbEnabled = false            // Disable enrichment for offline e2e test
 	overwrite = true
 	writeJSON = false
-	defer func() {
+	t.Cleanup(func() {
 		csvFile = prevCSVFile
 		outputDir = prevOutputDir
 		tmdbEnabled = prevTMDBEnabled
 		overwrite = prevOverwrite
 		writeJSON = prevWriteJSON
-	}()
+	})
 
 	// Run the parser
 	err := ParseLetterboxd()
@@ -149,39 +137,33 @@ func TestLetterboxdImportE2E_DatasetteDisabled(t *testing.T) {
 	// Setup test environment
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
 	// Copy golden CSV to test environment
-	csvPath := filepath.Join(tempDir, "movies.csv")
+	csvPath := env.Path("movies.csv")
 	env.CopyFile("testdata/letterboxd_sample.csv", "movies.csv")
 
-	// Disable datasette
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	viper.Set("datasette.enabled", false)
-	defer viper.Set("datasette.enabled", prevDatasetteEnabled)
+	// Disable datasette and setup markdown output (with automatic cleanup)
+	testutil.SetViperValue(t, "datasette.enabled", false)
+	testutil.SetupE2EMarkdownOutput(t, env)
 
-	// Override markdown output directory to tempDir
-	viper.Set("markdownoutputdir", tempDir)
-	defer viper.Set("markdownoutputdir", "markdown")
-
-	// Save and restore package globals
+	// Save and restore package globals (TODO: refactor to use dependency injection)
 	prevCSVFile := csvFile
 	prevOutputDir := outputDir
 	prevTMDBEnabled := tmdbEnabled
 	prevOverwrite := overwrite
 	prevWriteJSON := writeJSON
 	csvFile = csvPath
-	outputDir = filepath.Join(tempDir, "output") // Absolute path to temp directory
+	outputDir = env.Path("output") // Absolute path to temp directory
 	tmdbEnabled = false
 	overwrite = true
 	writeJSON = false
-	defer func() {
+	t.Cleanup(func() {
 		csvFile = prevCSVFile
 		outputDir = prevOutputDir
 		tmdbEnabled = prevTMDBEnabled
 		overwrite = prevOverwrite
 		writeJSON = prevWriteJSON
-	}()
+	})
 
 	// Run importer
 	err := ParseLetterboxd()
@@ -193,7 +175,7 @@ func TestLetterboxdImportE2E_DatasetteDisabled(t *testing.T) {
 		"Database file should not be created when datasette is disabled")
 
 	// Verify markdown files WERE created
-	outputPath := filepath.Join(tempDir, "output")
+	outputPath := env.Path("output")
 	require.DirExists(t, outputPath, "Markdown output directory should exist")
 
 	// Count markdown files
@@ -207,24 +189,15 @@ func TestLetterboxdImportE2E_DatasetteDisabled(t *testing.T) {
 func TestLetterboxdImportE2E_JSON(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
 	// Copy fixture
-	csvPath := filepath.Join(tempDir, "movies.csv")
+	csvPath := env.Path("movies.csv")
 	env.CopyFile("testdata/letterboxd_sample.csv", "movies.csv")
 
-	// Setup database (required for JSON output)
-	dbPath := filepath.Join(tempDir, "test.db")
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	prevDatasetteDB := viper.GetString("datasette.dbfile")
-	viper.Set("datasette.enabled", true)
-	viper.Set("datasette.dbfile", dbPath)
-	defer func() {
-		viper.Set("datasette.enabled", prevDatasetteEnabled)
-		viper.Set("datasette.dbfile", prevDatasetteDB)
-	}()
+	// Setup datasette database (with automatic cleanup)
+	testutil.SetupDatasetteDB(t, env)
 
-	// Save and restore package globals
+	// Save and restore package globals (TODO: refactor to use dependency injection)
 	prevCSVFile := csvFile
 	prevOutputDir := outputDir
 	prevTMDBEnabled := tmdbEnabled
@@ -232,33 +205,29 @@ func TestLetterboxdImportE2E_JSON(t *testing.T) {
 	prevWriteJSON := writeJSON
 	prevJSONOutput := jsonOutput
 	csvFile = csvPath
-	outputDir = filepath.Join(tempDir, "output")
-	jsonOutputPath := filepath.Join(tempDir, "output", "output.json")
-	jsonOutput = jsonOutputPath
+	outputDir = env.Path("output")
+	jsonOutput = env.Path("output", "output.json")
 	tmdbEnabled = false
 	overwrite = true
 	writeJSON = true
-	defer func() {
+	t.Cleanup(func() {
 		csvFile = prevCSVFile
 		outputDir = prevOutputDir
 		tmdbEnabled = prevTMDBEnabled
 		overwrite = prevOverwrite
 		writeJSON = prevWriteJSON
 		jsonOutput = prevJSONOutput
-	}()
+	})
 
 	// Run importer
 	err := ParseLetterboxd()
 	require.NoError(t, err)
 
-	// File written to outputDir/output.json
-	jsonPath := filepath.Join(tempDir, "output", "output.json")
-
 	// Verify JSON file exists
-	require.FileExists(t, jsonPath)
+	require.FileExists(t, jsonOutput)
 
 	// Parse JSON
-	content, err := os.ReadFile(jsonPath)
+	content, err := os.ReadFile(jsonOutput)
 	require.NoError(t, err)
 
 	var items []map[string]interface{}
@@ -281,35 +250,22 @@ func TestLetterboxdImportE2E_JSON(t *testing.T) {
 func TestLetterboxdImportE2E_CacheHit(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
-	// Setup cache DB
-	cacheDBPath := filepath.Join(tempDir, "cache.db")
-	viper.Set("cache.dbfile", cacheDBPath)
-	defer viper.Set("cache.dbfile", "./cache.db")
+	// Setup cache database in test environment
+	cacheDBPath := env.Path("cache.db")
+	testutil.SetViperValue(t, "cache.dbfile", cacheDBPath)
 
-	// Setup datasette DB
-	dbPath := filepath.Join(tempDir, "test.db")
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	prevDatasetteDB := viper.GetString("datasette.dbfile")
-	viper.Set("datasette.enabled", true)
-	viper.Set("datasette.dbfile", dbPath)
-	defer func() {
-		viper.Set("datasette.enabled", prevDatasetteEnabled)
-		viper.Set("datasette.dbfile", prevDatasetteDB)
-	}()
-
-	// Override markdown output directory
-	viper.Set("markdownoutputdir", tempDir)
-	defer viper.Set("markdownoutputdir", "markdown")
+	// Setup datasette database and markdown output (with automatic cleanup)
+	testutil.SetupDatasetteDB(t, env)
+	testutil.SetupE2EMarkdownOutput(t, env)
 
 	// Reset global cache to pick up test DB
 	resetErr := cache.ResetGlobalCache()
 	require.NoError(t, resetErr)
-	defer func() { _ = cache.ResetGlobalCache() }()
+	t.Cleanup(func() { _ = cache.ResetGlobalCache() })
 
 	// Copy fixture
-	csvPath := filepath.Join(tempDir, "diary.csv")
+	csvPath := env.Path("diary.csv")
 	env.CopyFile("testdata/letterboxd_sample.csv", "diary.csv")
 
 	// FIRST RUN: Populate cache

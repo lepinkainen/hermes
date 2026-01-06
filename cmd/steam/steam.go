@@ -39,7 +39,12 @@ func parseRetryAfter(headerValue string) time.Duration {
 
 // GetGameDetails fetches additional details for a game from Steam Store API
 func GetGameDetails(appID int) (*GameDetails, error) {
-	url := fmt.Sprintf("https://store.steampowered.com/api/appdetails?appids=%d", appID)
+	return getGameDetailsWithBaseURL(appID, "https://store.steampowered.com/api/appdetails")
+}
+
+// getGameDetailsWithBaseURL is a helper that accepts a custom base URL for testing
+func getGameDetailsWithBaseURL(appID int, baseURL string) (*GameDetails, error) {
+	url := fmt.Sprintf("%s?appids=%d", baseURL, appID)
 
 	resp, err := http.Get(url)
 	if err != nil {

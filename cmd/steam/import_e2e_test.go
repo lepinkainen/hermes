@@ -10,7 +10,6 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/testutil"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 )
@@ -19,57 +18,41 @@ func TestSteamImportE2E(t *testing.T) {
 	// Setup test environment
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
-	// Setup temp database
-	dbPath := filepath.Join(tempDir, "test.db")
+	// Setup datasette database and markdown output (with automatic cleanup)
+	dbPath := testutil.SetupDatasetteDB(t, env)
+	testutil.SetupE2EMarkdownOutput(t, env)
 
 	// Setup temp cache database and pre-populate it with test data
 	// This allows the test to run without making actual Steam API calls
-	cacheDBPath := filepath.Join(tempDir, "cache.db")
-
-	// Save and restore viper settings BEFORE populating cache
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	prevDatasetteDB := viper.GetString("datasette.dbfile")
-	prevCacheDB := viper.GetString("cache.dbfile")
-	viper.Set("datasette.enabled", true)
-	viper.Set("datasette.dbfile", dbPath)
-	viper.Set("cache.dbfile", cacheDBPath)
-	defer func() {
-		viper.Set("datasette.enabled", prevDatasetteEnabled)
-		viper.Set("datasette.dbfile", prevDatasetteDB)
-		viper.Set("cache.dbfile", prevCacheDB)
-	}()
+	cacheDBPath := env.Path("cache.db")
+	testutil.SetViperValue(t, "cache.dbfile", cacheDBPath)
 
 	// Reset the global cache singleton so it picks up our test cache DB
 	// This is necessary because the cache is initialized once with the config value
 	resetErr := cache.ResetGlobalCache()
 	require.NoError(t, resetErr)
-	defer func() {
+	t.Cleanup(func() {
 		// Reset again at the end so subsequent tests get a fresh cache
 		_ = cache.ResetGlobalCache()
-	}()
+	})
 
 	// Populate the cache AFTER resetting so the cache system creates the tables
 	populateSteamCacheForTesting(t)
 
-	// Override markdown output directory to tempDir
-	viper.Set("markdownoutputdir", tempDir)
-	defer viper.Set("markdownoutputdir", "markdown")
-
-	// Save and restore package-level variables
+	// Save and restore package-level variables (TODO: refactor to use dependency injection)
 	prevSteamID := steamID
 	prevAPIKey := apiKey
 	prevOutputDir := outputDir
 	prevWriteJSON := writeJSON
 	prevJSONOutput := jsonOutput
-	defer func() {
+	t.Cleanup(func() {
 		steamID = prevSteamID
 		apiKey = prevAPIKey
 		outputDir = prevOutputDir
 		writeJSON = prevWriteJSON
 		jsonOutput = prevJSONOutput
-	}()
+	})
 
 	// Mock ImportSteamGames to return test data without hitting the API
 	// We load the fixtures and return them directly
@@ -89,9 +72,9 @@ func TestSteamImportE2E(t *testing.T) {
 
 		return steamResp.Response.Games, nil
 	}
-	defer func() {
+	t.Cleanup(func() {
 		ImportSteamGamesFunc = prevImportFunc
-	}()
+	})
 
 	// Run importer using ParseSteamWithParams
 	err := ParseSteamWithParams(
@@ -150,7 +133,7 @@ func TestSteamImportE2E(t *testing.T) {
 	t.Logf("Games with details fetched: %d out of %d", detailsCount, count)
 
 	// Verify markdown output structure
-	outputPath := filepath.Join(tempDir, "output")
+	outputPath := env.Path("output")
 	files, err := filepath.Glob(filepath.Join(outputPath, "*.md"))
 	require.NoError(t, err)
 	require.Greater(t, len(files), 0, "Should generate markdown files")
@@ -238,26 +221,19 @@ func TestSteamImportE2E_DatasetteDisabled(t *testing.T) {
 	// Setup test environment
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
 	// Setup cache database
-	cacheDBPath := filepath.Join(tempDir, "cache.db")
-	viper.Set("cache.dbfile", cacheDBPath)
-	defer viper.Set("cache.dbfile", "./cache.db")
+	cacheDBPath := env.Path("cache.db")
+	testutil.SetViperValue(t, "cache.dbfile", cacheDBPath)
 
 	// Reset global cache after setting viper config
 	resetErr := cache.ResetGlobalCache()
 	require.NoError(t, resetErr)
-	defer func() { _ = cache.ResetGlobalCache() }()
+	t.Cleanup(func() { _ = cache.ResetGlobalCache() })
 
-	// Disable datasette
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	viper.Set("datasette.enabled", false)
-	defer viper.Set("datasette.enabled", prevDatasetteEnabled)
-
-	// Override markdown output directory to tempDir
-	viper.Set("markdownoutputdir", tempDir)
-	defer viper.Set("markdownoutputdir", "markdown")
+	// Disable datasette and setup markdown output (with automatic cleanup)
+	testutil.SetViperValue(t, "datasette.enabled", false)
+	testutil.SetupE2EMarkdownOutput(t, env)
 
 	// Pre-populate cache with game details (similar to main E2E test)
 	populateSteamCacheForTesting(t)
@@ -279,9 +255,9 @@ func TestSteamImportE2E_DatasetteDisabled(t *testing.T) {
 
 		return steamResp.Response.Games, nil
 	}
-	defer func() {
+	t.Cleanup(func() {
 		ImportSteamGamesFunc = prevImportFunc
-	}()
+	})
 
 	// Run importer using ParseSteamWithParams
 	err := ParseSteamWithParams(
@@ -300,7 +276,7 @@ func TestSteamImportE2E_DatasetteDisabled(t *testing.T) {
 		"Database file should not be created when datasette is disabled")
 
 	// Verify markdown files WERE created
-	outputPath := filepath.Join(tempDir, "output")
+	outputPath := env.Path("output")
 	require.DirExists(t, outputPath, "Markdown output directory should exist")
 
 	// Count markdown files
@@ -314,35 +290,22 @@ func TestSteamImportE2E_DatasetteDisabled(t *testing.T) {
 func TestSteamImportE2E_JSON(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
-	// Setup database (required for JSON output)
-	dbPath := filepath.Join(tempDir, "test.db")
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	prevDatasetteDB := viper.GetString("datasette.dbfile")
-	viper.Set("datasette.enabled", true)
-	viper.Set("datasette.dbfile", dbPath)
-	defer func() {
-		viper.Set("datasette.enabled", prevDatasetteEnabled)
-		viper.Set("datasette.dbfile", prevDatasetteDB)
-	}()
+	// Setup datasette database and markdown output (with automatic cleanup)
+	testutil.SetupDatasetteDB(t, env)
+	testutil.SetupE2EMarkdownOutput(t, env)
 
 	// Setup temp cache database and pre-populate it
-	cacheDBPath := filepath.Join(tempDir, "cache.db")
-	viper.Set("cache.dbfile", cacheDBPath)
-	defer viper.Set("cache.dbfile", "./cache.db")
+	cacheDBPath := env.Path("cache.db")
+	testutil.SetViperValue(t, "cache.dbfile", cacheDBPath)
 
 	// Reset the global cache
 	resetErr := cache.ResetGlobalCache()
 	require.NoError(t, resetErr)
-	defer func() { _ = cache.ResetGlobalCache() }()
+	t.Cleanup(func() { _ = cache.ResetGlobalCache() })
 
 	// Populate cache
 	populateSteamCacheForTesting(t)
-
-	// Override markdown output directory
-	viper.Set("markdownoutputdir", tempDir)
-	defer viper.Set("markdownoutputdir", "markdown")
 
 	// Mock ImportSteamGames
 	prevImportFunc := ImportSteamGamesFunc
@@ -358,10 +321,10 @@ func TestSteamImportE2E_JSON(t *testing.T) {
 		}
 		return steamResp.Response.Games, nil
 	}
-	defer func() { ImportSteamGamesFunc = prevImportFunc }()
+	t.Cleanup(func() { ImportSteamGamesFunc = prevImportFunc })
 
 	// Enable JSON output
-	jsonPath := filepath.Join(tempDir, "output.json")
+	jsonPath := env.Path("output.json")
 
 	// Run importer
 	err := ParseSteamWithParams(
@@ -401,32 +364,19 @@ func TestSteamImportE2E_JSON(t *testing.T) {
 func TestSteamImportE2E_CacheHit(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
-	// Setup cache DB
-	cacheDBPath := filepath.Join(tempDir, "cache.db")
-	viper.Set("cache.dbfile", cacheDBPath)
-	defer viper.Set("cache.dbfile", "./cache.db")
+	// Setup cache database in test environment
+	cacheDBPath := env.Path("cache.db")
+	testutil.SetViperValue(t, "cache.dbfile", cacheDBPath)
 
-	// Setup datasette DB
-	dbPath := filepath.Join(tempDir, "test.db")
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	prevDatasetteDB := viper.GetString("datasette.dbfile")
-	viper.Set("datasette.enabled", true)
-	viper.Set("datasette.dbfile", dbPath)
-	defer func() {
-		viper.Set("datasette.enabled", prevDatasetteEnabled)
-		viper.Set("datasette.dbfile", prevDatasetteDB)
-	}()
-
-	// Override markdown output directory
-	viper.Set("markdownoutputdir", tempDir)
-	defer viper.Set("markdownoutputdir", "markdown")
+	// Setup datasette database and markdown output (with automatic cleanup)
+	testutil.SetupDatasetteDB(t, env)
+	testutil.SetupE2EMarkdownOutput(t, env)
 
 	// Reset global cache to pick up test DB
 	resetErr := cache.ResetGlobalCache()
 	require.NoError(t, resetErr)
-	defer func() { _ = cache.ResetGlobalCache() }()
+	t.Cleanup(func() { _ = cache.ResetGlobalCache() })
 
 	// Pre-populate cache with game details
 	populateSteamCacheForTesting(t)
@@ -447,9 +397,9 @@ func TestSteamImportE2E_CacheHit(t *testing.T) {
 
 		return steamResp.Response.Games, nil
 	}
-	defer func() {
+	t.Cleanup(func() {
 		ImportSteamGamesFunc = prevImportFunc
-	}()
+	})
 
 	// FIRST RUN: Should use pre-populated cache
 	err := ParseSteamWithParams(

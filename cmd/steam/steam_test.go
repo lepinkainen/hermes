@@ -25,13 +25,17 @@ func TestGetGameDetails_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Temporarily replace the Steam API URL with our test server
-	// We need to modify GetGameDetails to accept a base URL parameter for testing
-	// For now, this test documents the expected behavior
+	// Test using the base URL injection helper
+	details, err := getGameDetailsWithBaseURL(12345, server.URL)
+	require.NoError(t, err)
+	require.NotNil(t, details)
 
-	// Since we can't easily inject the URL, we'll skip this test for now
-	// and focus on testing the JSON parsing logic separately
-	t.Skip("GetGameDetails needs URL injection for testing")
+	// Verify the parsed details
+	assert.Equal(t, "Test Game", details.Name)
+	assert.Equal(t, 12345, details.AppID)
+	assert.Equal(t, "This is a detailed description of the test game with lots of information about gameplay, features, and story.", details.Description)
+	assert.Equal(t, []string{"Developer One", "Developer Two"}, details.Developers)
+	assert.Equal(t, []string{"Publisher One"}, details.Publishers)
 }
 
 func TestGetGameDetails_ParseResponse(t *testing.T) {
@@ -178,9 +182,15 @@ func TestImportSteamGames_WithTestServer(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// This test would require modifying ImportSteamGames to accept a base URL
-	// For now, document the expected behavior
-	t.Skip("ImportSteamGames needs URL injection for testing")
+	// Test using the base URL injection helper
+	games, err := importSteamGamesWithBaseURL("12345678901234567", "test-api-key", server.URL)
+	require.NoError(t, err)
+	require.Len(t, games, 3)
+
+	// Verify first game
+	assert.Equal(t, 12345, games[0].AppID)
+	assert.Equal(t, "Test Game One", games[0].Name)
+	assert.Equal(t, 120, games[0].PlaytimeForever)
 }
 
 func TestImportSteamGames_ErrorHandling(t *testing.T) {

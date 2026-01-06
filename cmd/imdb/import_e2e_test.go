@@ -19,40 +19,29 @@ func TestImdbImportE2E(t *testing.T) {
 	// Setup test environment
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
 	// Copy golden CSV to test environment
-	csvPath := filepath.Join(tempDir, "ratings.csv")
+	csvPath := env.Path("ratings.csv")
 	env.CopyFile("testdata/imdb_sample.csv", "ratings.csv")
 
-	// Setup temp database
-	dbPath := filepath.Join(tempDir, "test.db")
+	// Setup datasette database (with automatic cleanup)
+	dbPath := testutil.SetupDatasetteDB(t, env)
 
-	// Save and restore viper settings
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	prevDatasetteDB := viper.GetString("datasette.dbfile")
-	viper.Set("datasette.enabled", true)
-	viper.Set("datasette.dbfile", dbPath)
-	defer func() {
-		viper.Set("datasette.enabled", prevDatasetteEnabled)
-		viper.Set("datasette.dbfile", prevDatasetteDB)
-	}()
-
-	// Save and restore package globals
+	// Save and restore package globals (TODO: refactor to use dependency injection)
 	prevCSVFile := csvFile
 	prevOutputDir := outputDir
 	prevTMDBEnabled := tmdbEnabled
 	prevWriteJSON := writeJSON
 	csvFile = csvPath
-	outputDir = filepath.Join(tempDir, "output") // Absolute path to temp directory
-	tmdbEnabled = false                          // Disable TMDB enrichment for offline e2e test
+	outputDir = env.Path("output") // Absolute path to temp directory
+	tmdbEnabled = false            // Disable TMDB enrichment for offline e2e test
 	writeJSON = false
-	defer func() {
+	t.Cleanup(func() {
 		csvFile = prevCSVFile
 		outputDir = prevOutputDir
 		tmdbEnabled = prevTMDBEnabled
 		writeJSON = prevWriteJSON
-	}()
+	})
 
 	// Run the parser
 	err := ParseImdb()
@@ -141,36 +130,30 @@ func TestImdbImportE2E_DatasetteDisabled(t *testing.T) {
 	// Setup test environment
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
 	// Copy golden CSV to test environment
-	csvPath := filepath.Join(tempDir, "ratings.csv")
+	csvPath := env.Path("ratings.csv")
 	env.CopyFile("testdata/imdb_sample.csv", "ratings.csv")
 
-	// Disable datasette
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	viper.Set("datasette.enabled", false)
-	defer viper.Set("datasette.enabled", prevDatasetteEnabled)
+	// Disable datasette and setup markdown output (with automatic cleanup)
+	testutil.SetViperValue(t, "datasette.enabled", false)
+	testutil.SetupE2EMarkdownOutput(t, env)
 
-	// Override markdown output directory to tempDir
-	viper.Set("markdownoutputdir", tempDir)
-	defer viper.Set("markdownoutputdir", "markdown")
-
-	// Save and restore package globals
+	// Save and restore package globals (TODO: refactor to use dependency injection)
 	prevCSVFile := csvFile
 	prevOutputDir := outputDir
 	prevTMDBEnabled := tmdbEnabled
 	prevWriteJSON := writeJSON
 	csvFile = csvPath
-	outputDir = filepath.Join(tempDir, "output") // Absolute path to temp directory
+	outputDir = env.Path("output") // Absolute path to temp directory
 	tmdbEnabled = false
 	writeJSON = false
-	defer func() {
+	t.Cleanup(func() {
 		csvFile = prevCSVFile
 		outputDir = prevOutputDir
 		tmdbEnabled = prevTMDBEnabled
 		writeJSON = prevWriteJSON
-	}()
+	})
 
 	// Run importer
 	err := ParseImdb()
@@ -182,7 +165,7 @@ func TestImdbImportE2E_DatasetteDisabled(t *testing.T) {
 		"Database file should not be created when datasette is disabled")
 
 	// Verify markdown files WERE created
-	outputPath := filepath.Join(tempDir, "output")
+	outputPath := env.Path("output")
 	require.DirExists(t, outputPath, "Markdown output directory should exist")
 
 	// Count markdown files
@@ -196,41 +179,32 @@ func TestImdbImportE2E_DatasetteDisabled(t *testing.T) {
 func TestImdbImportE2E_JSON(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
 	// Copy fixture
-	csvPath := filepath.Join(tempDir, "ratings.csv")
+	csvPath := env.Path("ratings.csv")
 	env.CopyFile("testdata/imdb_sample.csv", "ratings.csv")
 
-	// Setup database (required for JSON output)
-	dbPath := filepath.Join(tempDir, "test.db")
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	prevDatasetteDB := viper.GetString("datasette.dbfile")
-	viper.Set("datasette.enabled", true)
-	viper.Set("datasette.dbfile", dbPath)
-	defer func() {
-		viper.Set("datasette.enabled", prevDatasetteEnabled)
-		viper.Set("datasette.dbfile", prevDatasetteDB)
-	}()
+	// Setup datasette database (with automatic cleanup)
+	testutil.SetupDatasetteDB(t, env)
 
-	// Save and restore package globals
+	// Save and restore package globals (TODO: refactor to use dependency injection)
 	prevCSVFile := csvFile
 	prevOutputDir := outputDir
 	prevTMDBEnabled := tmdbEnabled
 	prevWriteJSON := writeJSON
 	prevJSONOutput := jsonOutput
 	csvFile = csvPath
-	outputDir = filepath.Join(tempDir, "output")
+	outputDir = env.Path("output")
 	tmdbEnabled = false
 	writeJSON = true
-	jsonOutput = filepath.Join(tempDir, "output.json")
-	defer func() {
+	jsonOutput = env.Path("output.json")
+	t.Cleanup(func() {
 		csvFile = prevCSVFile
 		outputDir = prevOutputDir
 		tmdbEnabled = prevTMDBEnabled
 		writeJSON = prevWriteJSON
 		jsonOutput = prevJSONOutput
-	}()
+	})
 
 	// Run importer
 	err := ParseImdb()
@@ -264,35 +238,22 @@ func TestImdbImportE2E_JSON(t *testing.T) {
 func TestImdbImportE2E_CacheHit(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
-	tempDir := env.RootDir()
 
-	// Setup cache DB
-	cacheDBPath := filepath.Join(tempDir, "cache.db")
-	viper.Set("cache.dbfile", cacheDBPath)
-	defer viper.Set("cache.dbfile", "./cache.db")
+	// Setup cache database in test environment
+	cacheDBPath := env.Path("cache.db")
+	testutil.SetViperValue(t, "cache.dbfile", cacheDBPath)
 
-	// Setup datasette DB
-	dbPath := filepath.Join(tempDir, "test.db")
-	prevDatasetteEnabled := viper.GetBool("datasette.enabled")
-	prevDatasetteDB := viper.GetString("datasette.dbfile")
-	viper.Set("datasette.enabled", true)
-	viper.Set("datasette.dbfile", dbPath)
-	defer func() {
-		viper.Set("datasette.enabled", prevDatasetteEnabled)
-		viper.Set("datasette.dbfile", prevDatasetteDB)
-	}()
-
-	// Override markdown output directory
-	viper.Set("markdownoutputdir", tempDir)
-	defer viper.Set("markdownoutputdir", "markdown")
+	// Setup datasette database and markdown output (with automatic cleanup)
+	testutil.SetupDatasetteDB(t, env)
+	testutil.SetupE2EMarkdownOutput(t, env)
 
 	// Reset global cache to pick up test DB
 	resetErr := cache.ResetGlobalCache()
 	require.NoError(t, resetErr)
-	defer func() { _ = cache.ResetGlobalCache() }()
+	t.Cleanup(func() { _ = cache.ResetGlobalCache() })
 
 	// Copy fixture
-	csvPath := filepath.Join(tempDir, "ratings.csv")
+	csvPath := env.Path("ratings.csv")
 	env.CopyFile("testdata/imdb_sample.csv", "ratings.csv")
 
 	// FIRST RUN: Populate cache
