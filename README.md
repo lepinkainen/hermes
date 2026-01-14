@@ -43,12 +43,39 @@ Comprehensive documentation is available in the `docs/` directory:
   - Data enriched from OMDB
 - ✅ Letterboxd using [data export](https://letterboxd.com/user/exportdata/)
   - Data enriched from OMDB
+  - Automated export via `hermes import letterboxd --automated` (Chrome/Chromium required)
 - ✅ Goodreads
   - Data enriched from openlibrary
   - Automated export via `hermes import goodreads --automated` (Chrome/Chromium required)
 - ✅ Steam
   - Uses Steam API to fetch list of games you own (BYO Steam API key)
   - Game data enriched via Steam API
+
+## Commands
+
+### Enhance
+
+Enrich existing Obsidian markdown notes with TMDB metadata:
+
+```bash
+hermes enhance ./markdown/movies --recursive
+```
+
+See [docs/04_configuration.md](docs/04_configuration.md#enhance) for configuration options.
+
+### Diff
+
+Compare imported data between sources:
+
+```bash
+# Generate markdown diff report
+hermes diff imdb-letterboxd
+
+# Generate HTML report
+hermes diff imdb-letterboxd --html diff.html
+```
+
+See [docs/08_diff.md](docs/08_diff.md) for details.
 
 ## Other
 

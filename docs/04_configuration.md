@@ -63,7 +63,22 @@ goodreads:
   output:
     markdown: "./markdown/books"
     json: "./json/books"
+
+  # Automation settings for automated export (optional)
+  automation:
+    email: "your_goodreads_email"
+    password: "your_goodreads_password"
 ```
+
+#### Automated Export
+
+Goodreads supports automated CSV export using Chrome/Chromium browser automation:
+
+```bash
+hermes import goodreads --automated
+```
+
+This requires the `automation.email` and `automation.password` fields to be set in your config.
 
 ### IMDb
 
@@ -101,7 +116,22 @@ letterboxd:
   output:
     markdown: "./markdown/films"
     json: "./json/films"
+
+  # Automation settings for automated export (optional)
+  automation:
+    username: "your_letterboxd_username"
+    password: "your_letterboxd_password"
 ```
+
+#### Automated Export
+
+Letterboxd supports automated data export using Chrome/Chromium browser automation:
+
+```bash
+hermes import letterboxd --automated
+```
+
+This requires the `automation.username` and `automation.password` fields to be set in your config.
 
 ### Steam
 
