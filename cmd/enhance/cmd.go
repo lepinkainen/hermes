@@ -213,7 +213,7 @@ func EnhanceNotes(opts Options) error {
 		}
 
 		if tmdbData == nil {
-			slog.Debug("No TMDB data found", "title", note.Title)
+			slog.Warn("No TMDB data found for file", "title", note.Title, "path", file)
 			skipCount++
 			continue
 		}
@@ -372,7 +372,7 @@ func processGameNote(ctx context.Context, file string, note *Note, opts Options,
 	}
 
 	if steamData == nil {
-		slog.Debug("No Steam data found", "title", note.Title)
+		slog.Warn("No Steam data found for game", "title", note.Title, "path", file)
 		return false, true // skip
 	}
 
