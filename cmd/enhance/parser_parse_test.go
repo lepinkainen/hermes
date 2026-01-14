@@ -199,3 +199,43 @@ func TestExtractTitleFromPath_WithParentheses(t *testing.T) {
 	title := extractTitleFromPath("/notes/Red Sonja (2025).md")
 	require.Equal(t, "Red Sonja (2025)", title)
 }
+
+func TestParseNote_EmptyYAMLValue(t *testing.T) {
+	// Test parsing a file with an empty YAML value (like "episodes:")
+	// This reproduces the Abbot Elementary.md case
+	content := `---
+tags: [to-watch, tv]
+service: disneyplus
+status: watching
+episodes:
+finished: false
+cover: "#a8ceb7"
+created: 2026-01-08 01:30
+modified: 2026-01-08 01:31
+---
+`
+
+	note, err := parseNote(content)
+	if err != nil {
+		t.Fatalf("Failed to parse note with empty YAML value: %v", err)
+	}
+
+	// Verify basic parsing worked
+	require.NotNil(t, note)
+	require.NotNil(t, note.Frontmatter)
+
+	// Check that tags were parsed
+	tags := note.Frontmatter.GetStringArray("tags")
+	require.Contains(t, tags, "to-watch")
+	require.Contains(t, tags, "tv")
+
+	// Check that episodes field exists (should be nil or empty)
+	episodesVal, exists := note.Frontmatter.Get("episodes")
+	t.Logf("episodes field exists: %v, value: %v (type: %T)", exists, episodesVal, episodesVal)
+
+	// Check finished field
+	require.False(t, note.Frontmatter.GetBool("finished"))
+
+	// Check cover field
+	require.Equal(t, "#a8ceb7", note.Frontmatter.GetString("cover"))
+}
