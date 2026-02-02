@@ -81,6 +81,42 @@ func TestGoodreadsCommandParsing(t *testing.T) {
 	assert.False(t, cli.Import.Goodreads.Automated)
 }
 
+func TestIMDBCommandParsing(t *testing.T) {
+	resetCmdState(t)
+
+	cli, _ := parseCLI(t,
+		"import", "imdb",
+		"-f", "movies.csv",
+		"--tmdb-no-interactive",
+		"--tmdb-generate-content",
+		"--tmdb-content-sections", "cast",
+		"--tmdb-content-sections", "crew")
+
+	assert.Equal(t, "movies.csv", cli.Import.IMDB.Input)
+	assert.True(t, cli.Import.IMDB.TMDBNoInteractive)
+	assert.True(t, cli.Import.IMDB.TMDBGenerateContent)
+	assert.Equal(t, []string{"cast", "crew"}, cli.Import.IMDB.TMDBContentSections)
+}
+
+func TestLetterboxdCommandParsing(t *testing.T) {
+	resetCmdState(t)
+
+	cli, _ := parseCLI(t,
+		"import", "letterboxd",
+		"-f", "films.csv",
+		"--tmdb-no-interactive",
+		"--tmdb-generate-content",
+		"--tmdb-content-sections", "cast",
+		"--tmdb-content-sections", "crew",
+		"--headful")
+
+	assert.Equal(t, "films.csv", cli.Import.Letterboxd.Input)
+	assert.True(t, cli.Import.Letterboxd.TMDBNoInteractive)
+	assert.True(t, cli.Import.Letterboxd.TMDBGenerateContent)
+	assert.Equal(t, []string{"cast", "crew"}, cli.Import.Letterboxd.TMDBContentSections)
+	assert.True(t, cli.Import.Letterboxd.Headful)
+}
+
 func TestImportCommandsRequireInput(t *testing.T) {
 	resetCmdState(t)
 
@@ -115,6 +151,79 @@ func TestImportCommandsRequireInput(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.want)
 		})
 	}
+}
+
+func TestSteamCommandRequiresCredentials(t *testing.T) {
+	resetCmdState(t)
+
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "steam missing steam id",
+			args: []string{"import", "steam", "--api-key", "test-key"},
+			want: "steam ID is required",
+		},
+		{
+			name: "steam missing api key",
+			args: []string{"import", "steam", "--steam-id", "12345"},
+			want: "steam API key is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cli, ctx := parseCLI(t, tt.args...)
+			updateGlobalConfig(cli)
+			err := ctx.Run()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
+}
+
+func TestAutomationCommandsRequireCredentials(t *testing.T) {
+	resetCmdState(t)
+
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "goodreads automation missing credentials",
+			args: []string{"import", "goodreads", "--automated"},
+			want: "goodreads automation requires email and password",
+		},
+		{
+			name: "letterboxd automation missing credentials",
+			args: []string{"import", "letterboxd", "--automated"},
+			want: "letterboxd automation requires both username and password",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cli, ctx := parseCLI(t, tt.args...)
+			updateGlobalConfig(cli)
+			err := ctx.Run()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
+}
+
+func TestCacheInvalidateCommandValidatesSource(t *testing.T) {
+	resetCmdState(t)
+
+	cli, ctx := parseCLI(t, "cache", "invalidate", "unknown")
+	updateGlobalConfig(cli)
+
+	err := ctx.Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid cache source")
 }
 
 func TestSteamCommandParsing(t *testing.T) {
