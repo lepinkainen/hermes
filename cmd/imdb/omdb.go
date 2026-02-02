@@ -1,6 +1,7 @@
 package imdb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,29 +9,60 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/lepinkainen/hermes/internal/errors"
+	"github.com/lepinkainen/hermes/internal/ratelimit"
 	"github.com/spf13/viper"
 )
 
 var (
-	omdbBaseURL = "http://www.omdbapi.com"
-	omdbHTTPGet = func(url string) (*http.Response, error) {
+	omdbBaseURL     = "http://www.omdbapi.com"
+	omdbRateLimiter *ratelimit.Limiter
+	omdbLimiterOnce sync.Once
+	omdbHTTPGet     = func(url string) (*http.Response, error) {
 		return http.Get(url)
+	}
+	omdbHTTPDo = func(req *http.Request) (*http.Response, error) {
+		return http.DefaultClient.Do(req)
 	}
 )
 
+// getOMDBRateLimiter returns a singleton rate limiter for OMDB.
+// OMDB free tier allows 1000 requests/day; we use 1 req/sec to be conservative.
+func getOMDBRateLimiter() *ratelimit.Limiter {
+	omdbLimiterOnce.Do(func() {
+		omdbRateLimiter = ratelimit.New("OMDB", 1)
+	})
+	return omdbRateLimiter
+}
+
 func fetchMovieData(imdbID string) (*MovieSeen, error) {
+	return fetchMovieDataWithContext(context.Background(), imdbID)
+}
+
+func fetchMovieDataWithContext(ctx context.Context, imdbID string) (*MovieSeen, error) {
 	apiKey, err := getOMDBAPIKey()
 	if err != nil {
 		return nil, err
+	}
+
+	// Wait for rate limiter
+	limiter := getOMDBRateLimiter()
+	if err := limiter.Wait(ctx); err != nil {
+		return nil, fmt.Errorf("rate limit wait failed: %w", err)
 	}
 
 	slog.Info("Fetching movie data", "imdb_id", imdbID)
 
 	url := fmt.Sprintf("%s/?i=%s&apikey=%s", omdbBaseURL, imdbID, apiKey)
 
-	resp, err := omdbHTTPGet(url)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := omdbHTTPDo(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}

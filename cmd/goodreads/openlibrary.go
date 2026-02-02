@@ -1,18 +1,23 @@
 package goodreads
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/lepinkainen/hermes/internal/ratelimit"
 )
 
-// Global HTTP client for reuse
+// Global HTTP client and rate limiter for reuse
 var (
-	httpClient    *http.Client
-	clientOnce    sync.Once
-	httpClientNew = func() *http.Client {
+	httpClient      *http.Client
+	clientOnce      sync.Once
+	olRateLimiter   *ratelimit.Limiter
+	rateLimiterOnce sync.Once
+	httpClientNew   = func() *http.Client {
 		return &http.Client{
 			Timeout: 10 * time.Second,
 		}
@@ -29,13 +34,38 @@ func getHTTPClient() *http.Client {
 	return httpClient
 }
 
+// getOLRateLimiter returns a singleton rate limiter for OpenLibrary (1 req/sec)
+func getOLRateLimiter() *ratelimit.Limiter {
+	rateLimiterOnce.Do(func() {
+		olRateLimiter = ratelimit.New("OpenLibrary", 1)
+	})
+	return olRateLimiter
+}
+
 // fetchBookData retrieves book data from OpenLibrary API using ISBN
 func fetchBookData(isbn string) (*Book, *OpenLibraryBook, error) {
+	return fetchBookDataWithContext(context.Background(), isbn)
+}
+
+// fetchBookDataWithContext retrieves book data from OpenLibrary API using ISBN with context support
+func fetchBookDataWithContext(ctx context.Context, isbn string) (*Book, *OpenLibraryBook, error) {
 	client := getHTTPClient()
+	limiter := getOLRateLimiter()
+
+	// Wait for rate limiter
+	if err := limiter.Wait(ctx); err != nil {
+		return nil, nil, fmt.Errorf("rate limit wait failed: %w", err)
+	}
 
 	// Use jscmd=data for more comprehensive data
 	url := fmt.Sprintf("%s/api/books?bibkeys=ISBN:%s&format=json&jscmd=data", openLibraryBaseURL, isbn)
-	resp, err := client.Get(url)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, nil, fmt.Errorf("OpenLibrary API request failed: %w", err)
 	}
@@ -65,7 +95,7 @@ func fetchBookData(isbn string) (*Book, *OpenLibraryBook, error) {
 	}
 
 	// Try to get additional edition data
-	editionData, err := fetchEditionData(isbn)
+	editionData, err := fetchEditionDataWithContext(ctx, isbn)
 	if err == nil && editionData != nil {
 		// Enrich with edition data
 		if editionData.Number_of_pages > 0 {
@@ -82,11 +112,28 @@ func fetchBookData(isbn string) (*Book, *OpenLibraryBook, error) {
 
 // fetchEditionData retrieves additional edition data from OpenLibrary
 func fetchEditionData(isbn string) (*OpenLibraryEdition, error) {
+	return fetchEditionDataWithContext(context.Background(), isbn)
+}
+
+// fetchEditionDataWithContext retrieves additional edition data from OpenLibrary with context support
+func fetchEditionDataWithContext(ctx context.Context, isbn string) (*OpenLibraryEdition, error) {
 	client := getHTTPClient()
+	limiter := getOLRateLimiter()
+
+	// Wait for rate limiter
+	if err := limiter.Wait(ctx); err != nil {
+		return nil, fmt.Errorf("rate limit wait failed: %w", err)
+	}
 
 	// Use the books endpoint for edition-specific data
 	url := fmt.Sprintf("%s/isbn/%s.json", openLibraryBaseURL, isbn)
-	resp, err := client.Get(url)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("edition data request failed: %w", err)
 	}

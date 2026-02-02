@@ -37,6 +37,13 @@ func (c *Client) getJSONMap(ctx context.Context, endpoint string) (map[string]an
 }
 
 func (c *Client) doJSONRequest(ctx context.Context, endpoint string, target any) error {
+	// Wait for rate limiter before making request
+	if c.rateLimiter != nil {
+		if err := c.rateLimiter.Wait(ctx); err != nil {
+			return fmt.Errorf("rate limit wait failed: %w", err)
+		}
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return err

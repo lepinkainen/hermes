@@ -1,6 +1,7 @@
 package goodreads
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -9,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lepinkainen/hermes/internal/ratelimit"
 )
 
 // Package-level variables for Google Books API client
@@ -16,6 +19,8 @@ import (
 var (
 	googleBooksHTTPClient    *http.Client
 	googleBooksClientOnce    sync.Once
+	googleBooksRateLimiter   *ratelimit.Limiter
+	googleBooksLimiterOnce   sync.Once
 	googleBooksHTTPClientNew = func() *http.Client {
 		return &http.Client{Timeout: 10 * time.Second}
 	}
@@ -30,6 +35,14 @@ func getGoogleBooksHTTPClient() *http.Client {
 	return googleBooksHTTPClient
 }
 
+// getGoogleBooksRateLimiter returns a singleton rate limiter for Google Books (1 req/sec)
+func getGoogleBooksRateLimiter() *ratelimit.Limiter {
+	googleBooksLimiterOnce.Do(func() {
+		googleBooksRateLimiter = ratelimit.New("GoogleBooks", 1)
+	})
+	return googleBooksRateLimiter
+}
+
 // normalizeISBN strips hyphens and spaces from ISBN
 func normalizeISBN(isbn string) string {
 	normalized := strings.ReplaceAll(isbn, "-", "")
@@ -39,8 +52,19 @@ func normalizeISBN(isbn string) string {
 
 // fetchBookDataFromGoogleBooks fetches book data from Google Books API by ISBN
 func fetchBookDataFromGoogleBooks(isbn string) (*GoogleBooksBook, error) {
+	return fetchBookDataFromGoogleBooksWithContext(context.Background(), isbn)
+}
+
+// fetchBookDataFromGoogleBooksWithContext fetches book data from Google Books API by ISBN with context support
+func fetchBookDataFromGoogleBooksWithContext(ctx context.Context, isbn string) (*GoogleBooksBook, error) {
 	if isbn == "" {
 		return nil, fmt.Errorf("ISBN is required")
+	}
+
+	// Wait for rate limiter
+	limiter := getGoogleBooksRateLimiter()
+	if err := limiter.Wait(ctx); err != nil {
+		return nil, fmt.Errorf("rate limit wait failed: %w", err)
 	}
 
 	// Normalize ISBN
@@ -58,7 +82,13 @@ func fetchBookDataFromGoogleBooks(isbn string) (*GoogleBooksBook, error) {
 	slog.Debug("Fetching book data from Google Books", "isbn", isbn, "normalized_isbn", normalizedISBN)
 
 	client := getGoogleBooksHTTPClient()
-	resp, err := client.Get(url)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("google Books API request failed for ISBN %s: %w", isbn, err)
 	}
