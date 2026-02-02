@@ -16,11 +16,12 @@ func (c *Client) GetCoverURLByID(ctx context.Context, mediaID int, mediaType str
 	var details map[string]any
 	var err error
 
+	// Use full details endpoints to share cache with GetMetadataByID
 	switch mediaType {
 	case "movie":
-		details, _, err = c.CachedGetMovieDetails(ctx, mediaID)
+		details, _, err = c.CachedGetFullMovieDetails(ctx, mediaID, false)
 	case "tv":
-		details, _, err = c.CachedGetTVDetails(ctx, mediaID, "")
+		details, _, err = c.CachedGetFullTVDetails(ctx, mediaID, false)
 	default:
 		return "", ErrInvalidMediaType
 	}

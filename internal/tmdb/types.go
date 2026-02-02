@@ -62,6 +62,7 @@ func (r SearchResult) Year() string {
 type Metadata struct {
 	TMDBID        int
 	TMDBType      string
+	IMDBID        string // IMDb ID from external_ids (e.g., "tt1234567")
 	Runtime       *int
 	TotalEpisodes *int
 	GenreTags     []string

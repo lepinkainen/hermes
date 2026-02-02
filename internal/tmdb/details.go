@@ -69,11 +69,7 @@ func (c *Client) getMetadataByMovieID(ctx context.Context, movieID int, force bo
 	var details map[string]any
 	var err error
 
-	if force {
-		details, err = c.GetMovieDetails(ctx, movieID)
-	} else {
-		details, _, err = c.CachedGetMovieDetails(ctx, movieID)
-	}
+	details, _, err = c.CachedGetFullMovieDetails(ctx, movieID, force)
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +87,13 @@ func (c *Client) getMetadataByMovieID(ctx context.Context, movieID int, force bo
 		metadata.GenreTags = tags
 	}
 
+	// Extract IMDB ID from external_ids
+	if externalIDs, ok := details["external_ids"].(map[string]any); ok {
+		if imdbID, ok := externalIDs["imdb_id"].(string); ok && imdbID != "" {
+			metadata.IMDBID = imdbID
+		}
+	}
+
 	return metadata, nil
 }
 
@@ -98,11 +101,7 @@ func (c *Client) getMetadataByTVID(ctx context.Context, tvID int, force bool) (*
 	var details map[string]any
 	var err error
 
-	if force {
-		details, err = c.GetTVDetails(ctx, tvID, "")
-	} else {
-		details, _, err = c.CachedGetTVDetails(ctx, tvID, "")
-	}
+	details, _, err = c.CachedGetFullTVDetails(ctx, tvID, force)
 	if err != nil {
 		return nil, err
 	}
@@ -124,6 +123,13 @@ func (c *Client) getMetadataByTVID(ctx context.Context, tvID int, force bool) (*
 
 	if tags, err := c.buildGenreTags(ctx, "tv", details); err == nil {
 		metadata.GenreTags = tags
+	}
+
+	// Extract IMDB ID from external_ids
+	if externalIDs, ok := details["external_ids"].(map[string]any); ok {
+		if imdbID, ok := externalIDs["imdb_id"].(string); ok && imdbID != "" {
+			metadata.IMDBID = imdbID
+		}
 	}
 
 	return metadata, nil

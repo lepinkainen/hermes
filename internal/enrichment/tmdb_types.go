@@ -137,6 +137,8 @@ type TMDBEnrichment struct {
 	TMDBID int `json:"tmdbId"`
 	// TMDBType is either "movie" or "tv"
 	TMDBType string `json:"tmdbType"`
+	// IMDBID is the IMDb identifier from TMDB external_ids (e.g., "tt1234567")
+	IMDBID string `json:"imdbId,omitempty"`
 	// CoverPath is the relative path to the downloaded cover image
 	CoverPath string `json:"coverPath,omitempty"`
 	// CoverFilename is just the filename of the cover

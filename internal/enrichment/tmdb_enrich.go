@@ -65,6 +65,11 @@ func applyPrimaryMetadata(ctx context.Context, client tmdbClient, enrichment *TM
 	}
 	enrichment.GenreTags = metadata.GenreTags
 
+	// Copy IMDB ID from TMDB metadata if available
+	if metadata.IMDBID != "" {
+		enrichment.IMDBID = metadata.IMDBID
+	}
+
 	// For TV shows, determine if the show has finished based on status
 	if enrichment.TMDBType == "tv" && metadata.Status != "" {
 		finished := metadata.Status == "Ended" || metadata.Status == "Canceled" || metadata.Status == "Cancelled"
