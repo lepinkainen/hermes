@@ -38,3 +38,10 @@ type Rating struct {
 	Source string `json:"Source"`
 	Value  string `json:"Value"`
 }
+
+// CachedOMDBResponse wraps an OMDB response with caching metadata.
+// This allows caching "not found" or "invalid ID" responses with a shorter TTL.
+type CachedOMDBResponse struct {
+	Response *OMDBResponse `json:"response,omitempty"`
+	NotFound bool          `json:"not_found"`
+}
