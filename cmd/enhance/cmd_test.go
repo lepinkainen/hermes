@@ -57,7 +57,7 @@ func TestFindMarkdownFiles_WithParentheses(t *testing.T) {
 }
 
 func TestEnhanceNotes_ProcessesFilesWithParentheses(t *testing.T) {
-	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"))
+	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"), testutil.WithOverwriteFiles(false))
 	env := testutil.NewTestEnv(t)
 
 	env.WriteFileString("Plain.md", completeNote("Plain", 1001))
@@ -84,9 +84,53 @@ func TestEnhanceNotes_ProcessesFilesWithParentheses(t *testing.T) {
 	require.NoError(t, err)
 
 	logs := buf.String()
-	require.Contains(t, logs, "Skipping file (already has all TMDB data)")
+	require.Contains(t, logs, "Skipping file (TMDB OK)")
 	require.Contains(t, logs, "Plain.md")
 	require.Contains(t, logs, "Red Sonja (2025).md")
+}
+
+// TestEnhanceNotes_RefreshCacheBypassesSkip verifies that --refresh-cache bypasses
+// the skip check for complete files, allowing metadata refresh without re-searching TMDB.
+func TestEnhanceNotes_RefreshCacheBypassesSkip(t *testing.T) {
+	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"), testutil.WithOverwriteFiles(false))
+	env := testutil.NewTestEnv(t)
+
+	// Create a complete note that would normally be skipped
+	env.WriteFileString("Complete.md", completeNote("Complete", 12345))
+	env.WriteFileString("attachments/Complete - cover.jpg", "fake cover data")
+
+	var buf bytes.Buffer
+	origLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})))
+	t.Cleanup(func() {
+		slog.SetDefault(origLogger)
+	})
+
+	// Without RefreshCache, file should be skipped
+	err := EnhanceNotes(Options{
+		InputDir: env.RootDir(),
+	})
+	require.NoError(t, err)
+
+	logs := buf.String()
+	require.Contains(t, logs, "Skipping file (TMDB OK)", "Complete file should be skipped without RefreshCache")
+
+	// Reset buffer
+	buf.Reset()
+
+	// With RefreshCache + DryRun, file should NOT be skipped
+	err = EnhanceNotes(Options{
+		InputDir:     env.RootDir(),
+		RefreshCache: true,
+		DryRun:       true, // Use dry-run to avoid actual TMDB calls
+	})
+	require.NoError(t, err)
+
+	logs = buf.String()
+	require.NotContains(t, logs, "Skipping file", "RefreshCache should bypass skip check")
+	require.Contains(t, logs, "Would enhance", "File should be processed with RefreshCache")
 }
 
 func TestEnhanceNotes_DryRunIncludesParenthesesFiles(t *testing.T) {

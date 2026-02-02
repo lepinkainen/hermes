@@ -131,6 +131,21 @@ func (n *Note) HasSteamData() bool {
 	return n.SteamAppID != 0 && content.HasSteamContentMarkers(n.Body)
 }
 
+// HasOMDBData checks if the note has OMDB ratings in frontmatter.
+func (n *Note) HasOMDBData() bool {
+	// Check if any OMDB rating field exists
+	if _, ok := n.Frontmatter.Get("imdb_rating"); ok {
+		return true
+	}
+	if n.Frontmatter.GetString("rt_score") != "" {
+		return true
+	}
+	if n.Frontmatter.GetInt("metacritic_score") > 0 {
+		return true
+	}
+	return false
+}
+
 // NeedsSteamContent checks if the note needs Steam content sections.
 // Returns true if Steam content markers are missing from the body.
 func (n *Note) NeedsSteamContent() bool {
@@ -146,6 +161,11 @@ func (n *Note) AddTMDBData(tmdbData *enrichment.TMDBEnrichment) {
 	n.Frontmatter.Set("tmdb_id", tmdbData.TMDBID)
 	n.Frontmatter.Set("tmdb_type", tmdbData.TMDBType)
 	n.TMDBID = tmdbData.TMDBID
+
+	if tmdbData.IMDBID != "" {
+		n.Frontmatter.Set("imdb_id", tmdbData.IMDBID)
+		n.IMDBID = tmdbData.IMDBID
+	}
 
 	if tmdbData.RuntimeMins > 0 {
 		n.Frontmatter.Set("runtime", tmdbData.RuntimeMins)
