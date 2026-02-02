@@ -160,10 +160,36 @@ func EnhanceNotes(opts Options) error {
 		needsContent := note.NeedsContent()
 		needsMetadata := note.TMDBID == 0 // Missing tmdb_id in frontmatter
 
-		// Skip if already has everything and not forcing/regenerating
+		// Only consider OMDB needed if: OMDB enabled + has IMDB ID + doesn't have OMDB data yet
+		// AND cache doesn't already show no ratings available (to avoid reprocessing loop)
+		needsOMDB := false
+		if opts.OMDBEnrich && note.IMDBID != "" && !note.HasOMDBData() {
+			cacheStatus := omdb.CheckCacheStatus(note.IMDBID)
+			switch cacheStatus {
+			case omdb.CacheStatusNotCached:
+				// Not cached - need to fetch
+				needsOMDB = true
+			case omdb.CacheStatusHasRatings:
+				// Cached with ratings - need to update note
+				needsOMDB = true
+			case omdb.CacheStatusNotFound:
+				// Movie not in OMDB (invalid/incorrect ID) - skip (re-check after 7 day TTL)
+				slog.Debug("Skipping OMDB (not in OMDB)", "imdb_id", note.IMDBID)
+			case omdb.CacheStatusNoRatings:
+				// Movie exists but no ratings - skip (re-check after 24h TTL)
+				slog.Debug("Skipping OMDB (no ratings yet)", "imdb_id", note.IMDBID)
+			}
+		}
+
+		// Skip if already has everything and not forcing/regenerating/overwriting/refreshing
 		// Note: metadata is always fetched to ensure all fields are current (uses cache for efficiency)
-		if !opts.Force && !opts.RegenerateData && !needsCover && !needsContent && !needsMetadata {
-			slog.Info("Skipping file (already has all TMDB data)", "path", file, "tmdb_id", note.TMDBID)
+		if !opts.Force && !opts.RefreshCache && !opts.RegenerateData && !config.OverwriteFiles && !needsCover && !needsContent && !needsMetadata && !needsOMDB {
+			// Build concise status message
+			status := "TMDB OK"
+			if note.HasOMDBData() {
+				status += ", OMDB OK"
+			}
+			slog.Info("Skipping file ("+status+")", "path", file, "tmdb_id", note.TMDBID)
 			skipCount++
 			continue
 		}
@@ -224,14 +250,19 @@ func EnhanceNotes(opts Options) error {
 		}
 
 		// Enrich with OMDB ratings if enabled and IMDb ID available
+		// Use IMDB ID from TMDB enrichment if available, otherwise fall back to note's existing ID
 		var omdbRatings *omdb.RatingsEnrichment
-		if opts.OMDBEnrich && note.IMDBID != "" {
-			omdbRatings, err = omdb.EnrichFromOMDB(ctx, note.IMDBID)
+		imdbID := tmdbData.IMDBID
+		if imdbID == "" {
+			imdbID = note.IMDBID
+		}
+		if opts.OMDBEnrich && imdbID != "" {
+			omdbRatings, err = omdb.EnrichFromOMDB(ctx, imdbID)
 			if err != nil {
-				slog.Warn("OMDB enrichment failed", "imdb_id", note.IMDBID, "error", err)
+				slog.Warn("OMDB enrichment failed", "imdb_id", imdbID, "error", err)
 				// Don't fail the whole process, just continue without OMDB data
 			}
-		} else if opts.OMDBEnrich && note.IMDBID == "" {
+		} else if opts.OMDBEnrich && imdbID == "" {
 			slog.Debug("Skipping OMDB enrichment (no IMDb ID)", "title", note.Title)
 		}
 
@@ -363,9 +394,9 @@ func processGameNote(ctx context.Context, file string, note *Note, opts Options,
 	needsCover := note.NeedsCover(noteDir)
 	needsContent := note.NeedsSteamContent()
 
-	// Skip if already has everything and not forcing/regenerating
-	if !opts.Force && !opts.RegenerateData && !needsCover && !needsContent {
-		slog.Info("Skipping game file (already has all Steam data)", "path", file, "steam_appid", note.SteamAppID)
+	// Skip if already has everything and not forcing/regenerating/overwriting/refreshing
+	if !opts.Force && !opts.RefreshCache && !opts.RegenerateData && !config.OverwriteFiles && !needsCover && !needsContent {
+		slog.Info("Skipping file (Steam OK)", "path", file, "steam_appid", note.SteamAppID)
 		return false, true // skip
 	}
 
