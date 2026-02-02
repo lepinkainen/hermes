@@ -68,6 +68,11 @@ goodreads:
   automation:
     email: "your_goodreads_email"
     password: "your_goodreads_password"
+
+# ISBNdb API key for enhanced book enrichment (optional)
+# If configured, ISBNdb data is used with highest priority for book metadata
+isbndb:
+  api_key: "your_isbndb_api_key"
 ```
 
 #### Automated Export
@@ -270,6 +275,10 @@ cache:
 
 goodreads:
   csvfile: "./data/goodreads_library_export.csv"
+
+# Optional: ISBNdb API key for enhanced book enrichment
+isbndb:
+  api_key: "your_isbndb_api_key"
 
 imdb:
   csvfile: "./data/ratings.csv"

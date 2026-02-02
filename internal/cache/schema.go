@@ -116,6 +116,17 @@ CREATE TABLE IF NOT EXISTS letterboxd_mapping_cache (
 CREATE INDEX IF NOT EXISTS idx_letterboxd_mapping_cached_at ON letterboxd_mapping_cache(cached_at);
 `
 
+// ISBNdbCacheSchema defines the schema for ISBNdb book cache
+const ISBNdbCacheSchema = `
+CREATE TABLE IF NOT EXISTS isbndb_cache (
+	cache_key TEXT PRIMARY KEY NOT NULL,
+	data TEXT NOT NULL,
+	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_isbndb_cached_at ON isbndb_cache(cached_at);
+`
+
 // AllCacheSchemas contains all cache table schemas for easy initialization
 var AllCacheSchemas = []string{
 	OMDBCacheSchema,
@@ -128,6 +139,7 @@ var AllCacheSchemas = []string{
 	TMDBCacheSchema,
 	GoogleBooksCacheSchema,
 	LetterboxdMappingCacheSchema,
+	ISBNdbCacheSchema,
 }
 
 // ValidCacheTableNames is the whitelist of allowed cache table names
@@ -143,4 +155,5 @@ var ValidCacheTableNames = map[string]bool{
 	"tmdb_cache":               true,
 	"googlebooks_cache":        true,
 	"letterboxd_mapping_cache": true,
+	"isbndb_cache":             true,
 }

@@ -1,6 +1,7 @@
 package goodreads
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -47,13 +48,9 @@ func loadBooksFromCSV(filePath string, totalBooks int, outputDir string) ([]Book
 		}
 
 		if book.ISBN != "" || book.ISBN13 != "" {
-			// Always call both APIs (data is cached after first run)
-			if err := enrichBookFromOpenLibrary(book); err != nil {
-				slog.Warn("Could not enrich book data from OpenLibrary", "title", book.Title, "error", err)
-			}
-
-			if err := enrichBookFromGoogleBooks(book); err != nil {
-				slog.Warn("Could not enrich book data from Google Books", "title", book.Title, "error", err)
+			// Use the enricher system to fetch and merge data from all sources
+			if err := enrichBookWithEnrichers(context.Background(), book); err != nil {
+				slog.Warn("Could not enrich book data", "title", book.Title, "error", err)
 			}
 		}
 

@@ -6,7 +6,10 @@ import (
 	"time"
 )
 
-// Helper functions for OpenLibrary API interactions
+// enrichBookFromOpenLibrary is kept for backward compatibility and tests.
+// New code should use enrichBookWithEnrichers instead.
+//
+//nolint:unused
 func enrichBookFromOpenLibrary(book *Book) error {
 	// Try ISBN13 first, then ISBN
 	searchISBN := book.ISBN13
