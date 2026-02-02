@@ -372,7 +372,7 @@ func TestRateLimitHandling_429Response(t *testing.T) {
 			}))
 			defer server.Close()
 
-			// Make request directly (not through GetGameDetails since URL is hardcoded)
+			// Make request directly (not through getGameDetails since URL is hardcoded)
 			resp, err := http.Get(server.URL)
 			require.NoError(t, err)
 			defer func() { _ = resp.Body.Close() }()

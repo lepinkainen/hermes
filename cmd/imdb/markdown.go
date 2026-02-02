@@ -19,12 +19,9 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	// Get the file path using the common utility
 	filePath := fileutil.GetMarkdownFilePath(movie.Title, directory)
 
-	// Create frontmatter using obsidian.Note
-	fm := obsidian.NewFrontmatter()
-
 	// Handle titles - remove problematic characters and handle original titles
 	movie.Title = fileutil.SanitizeFilename(movie.Title)
-	fm.Set("title", movie.Title)
+	fm := obsidian.NewFrontmatterWithTitle(movie.Title)
 
 	if movie.OriginalTitle != "" && movie.OriginalTitle != movie.Title {
 		movie.OriginalTitle = fileutil.SanitizeFilename(movie.OriginalTitle)
@@ -99,7 +96,7 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 		}
 	}
 
-	fm.Set("tags", tc.GetSorted())
+	obsidian.ApplyTagSet(fm, tc)
 
 	// Add content rating if available
 	if movie.ContentRated != "" {
@@ -184,13 +181,8 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	}
 
 	// Create the note
-	note := &obsidian.Note{
-		Frontmatter: fm,
-		Body:        strings.TrimSpace(body.String()),
-	}
-
 	// Build markdown
-	markdown, err := note.Build()
+	markdown, err := obsidian.BuildNoteMarkdown(fm, body.String())
 	if err != nil {
 		return fmt.Errorf("failed to build markdown: %w", err)
 	}

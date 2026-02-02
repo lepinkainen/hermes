@@ -46,30 +46,12 @@ const IMDbMoviesSchema = `CREATE TABLE IF NOT EXISTS imdb_movies (
 
 // Convert MovieSeen to map[string]any for database insertion
 func movieToMap(movie MovieSeen) map[string]any {
-	return map[string]any{
-		"position":       movie.Position,
-		"imdb_id":        movie.ImdbId,
-		"my_rating":      movie.MyRating,
-		"date_rated":     movie.DateRated,
-		"created":        movie.Created,
-		"modified":       movie.Modified,
-		"description":    movie.Description,
-		"title":          movie.Title,
-		"original_title": movie.OriginalTitle,
-		"url":            movie.URL,
-		"title_type":     movie.TitleType,
-		"imdb_rating":    movie.IMDbRating,
-		"runtime_mins":   movie.RuntimeMins,
-		"year":           movie.Year,
-		"genres":         strings.Join(movie.Genres, ","),
-		"num_votes":      movie.NumVotes,
-		"release_date":   movie.ReleaseDate,
-		"directors":      strings.Join(movie.Directors, ","),
-		"plot":           movie.Plot,
-		"content_rated":  movie.ContentRated,
-		"awards":         movie.Awards,
-		"poster_url":     movie.PosterURL,
-	}
+	return cmdutil.StructToMap(movie, cmdutil.StructToMapOptions{
+		JoinStringSlices: true,
+		OmitFields: map[string]bool{
+			"TMDBEnrichment": true,
+		},
+	})
 }
 
 func ParseImdb() error {

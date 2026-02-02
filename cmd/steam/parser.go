@@ -57,29 +57,36 @@ func gameDetailsToMap(details GameDetails) map[string]any {
 		achievementsJSON = string(data)
 	}
 
-	return map[string]any{
-		"appid":                 details.AppID,
-		"name":                  details.Name,
-		"playtime_forever":      details.PlaytimeForever,
-		"playtime_2weeks":       details.PlaytimeRecent,
-		"last_played":           details.LastPlayed.String(),
-		"details_fetched":       details.DetailsFetched,
-		"detailed_description":  details.Description,
-		"short_description":     details.ShortDesc,
-		"header_image":          details.HeaderImage,
-		"screenshots":           "", // Could serialize as JSON if needed
-		"developers":            strings.Join(details.Developers, ","),
-		"publishers":            strings.Join(details.Publishers, ","),
-		"release_date":          details.ReleaseDate.Date,
-		"coming_soon":           details.ReleaseDate.ComingSoon,
-		"categories":            "", // Could serialize as JSON if needed
-		"genres":                "", // Could serialize as JSON if needed
-		"metacritic_score":      details.Metacritic.Score,
-		"metacritic_url":        details.Metacritic.URL,
-		"achievements_total":    achievementsTotal,
-		"achievements_unlocked": achievementsUnlocked,
-		"achievements_data":     achievementsJSON,
-	}
+	record := cmdutil.StructToMap(details, cmdutil.StructToMapOptions{
+		JoinStringSlices: true,
+		OmitFields: map[string]bool{
+			"Achievements": true,
+			"Categories":   true,
+			"Genres":       true,
+			"Metacritic":   true,
+			"ReleaseDate":  true,
+			"Screenshots":  true,
+		},
+		KeyOverrides: map[string]string{
+			"AppID":          "appid",
+			"PlaytimeRecent": "playtime_2weeks",
+			"Description":    "detailed_description",
+			"ShortDesc":      "short_description",
+		},
+	})
+
+	record["release_date"] = details.ReleaseDate.Date
+	record["coming_soon"] = details.ReleaseDate.ComingSoon
+	record["metacritic_score"] = details.Metacritic.Score
+	record["metacritic_url"] = details.Metacritic.URL
+	record["achievements_total"] = achievementsTotal
+	record["achievements_unlocked"] = achievementsUnlocked
+	record["achievements_data"] = achievementsJSON
+	record["screenshots"] = ""
+	record["categories"] = ""
+	record["genres"] = ""
+
+	return record
 }
 
 // logGameProgress logs progress at percentage milestones (10%, 25%, 50%, 75%, 90%, 100%)
@@ -229,7 +236,7 @@ func fetchGameData(appID string) (*Game, *GameDetails, error) {
 	}
 
 	appIDInt, _ := strconv.Atoi(appID)
-	details, err := GetGameDetails(appIDInt)
+	details, err := getGameDetails(appIDInt)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get game details: %w", err)
 	}

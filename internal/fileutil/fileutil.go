@@ -35,8 +35,8 @@ func SanitizeFilename(name string) string {
 	return name
 }
 
-// EnsureDir creates a directory and all necessary parent directories.
-func EnsureDir(path string) error {
+// ensureDir creates a directory and all necessary parent directories.
+func ensureDir(path string) error {
 	return os.MkdirAll(path, 0o755)
 }
 

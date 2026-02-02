@@ -59,7 +59,7 @@ Surface new terminal conditions through these types instead of inventing bespoke
 
 ## File Utilities (`internal/fileutil`)
 
-- Path helpers: `SanitizeFilename`, `GetMarkdownFilePath`, `EnsureDir`, `RelativeTo`, `FileExists`.
+- Path helpers: `SanitizeFilename`, `GetMarkdownFilePath`, `RelativeTo`, `FileExists`.
 - Writers: `WriteFileWithOverwrite`, `WriteMarkdownFile`, `WriteJSONFile` honour `config.OverwriteFiles`.
 - Cover pipeline: `BuildCoverFilename`, `DownloadCover`, and `AddCoverToMarkdown` wrap download/reuse logic (including TMDB-preferred covers). Respect `CoverDownloadOptions.UpdateCovers` rather than deleting files manually.
 - Markdown composition: `MarkdownBuilder` + `TagCollector` add titles, arrays, dates, callouts, cover embeds, TMDB enrichment blocks (`AddTMDBEnrichmentFields`), and Obsidian-specific syntax.

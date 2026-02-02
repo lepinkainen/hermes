@@ -20,10 +20,9 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	filename := fileutil.GetMarkdownFilePath(game.Name, directory)
 
 	// Create frontmatter using obsidian.Note
-	fm := obsidian.NewFrontmatter()
+	fm := obsidian.NewFrontmatterWithTitle(fileutil.SanitizeFilename(game.Name))
 
 	// Add basic metadata
-	fm.Set("title", fileutil.SanitizeFilename(game.Name))
 	fm.Set("type", "game")
 	fm.Set("playtime", game.PlaytimeForever)
 
@@ -103,7 +102,7 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	// Collect tags
 	tc := obsidian.NewTagSet()
 	tc.Add("steam/game")
-	fm.Set("tags", tc.GetSorted())
+	obsidian.ApplyTagSet(fm, tc)
 
 	// Add metacritic info if available
 	if details.Metacritic.Score > 0 {
@@ -177,13 +176,8 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	}
 
 	// Create the note
-	note := &obsidian.Note{
-		Frontmatter: fm,
-		Body:        strings.TrimSpace(body.String()),
-	}
-
 	// Build markdown
-	markdown, err := note.Build()
+	markdown, err := obsidian.BuildNoteMarkdown(fm, body.String())
 	if err != nil {
 		return fmt.Errorf("failed to build markdown: %w", err)
 	}

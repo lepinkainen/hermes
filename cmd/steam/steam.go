@@ -37,8 +37,8 @@ func parseRetryAfter(headerValue string) time.Duration {
 	return 0
 }
 
-// GetGameDetails fetches additional details for a game from Steam Store API
-func GetGameDetails(appID int) (*GameDetails, error) {
+// getGameDetails fetches additional details for a game from Steam Store API.
+func getGameDetails(appID int) (*GameDetails, error) {
 	return getGameDetailsWithBaseURL(appID, "https://store.steampowered.com/api/appdetails")
 }
 
@@ -100,8 +100,8 @@ func getGameDetailsWithBaseURL(appID int, baseURL string) (*GameDetails, error) 
 	return &appData.Data, nil
 }
 
-// ImportSteamGames fetches games from a user's Steam library
-func ImportSteamGames(steamID string, apiKey string) ([]Game, error) {
+// importSteamGames fetches games from a user's Steam library.
+func importSteamGames(steamID string, apiKey string) ([]Game, error) {
 	return importSteamGamesWithBaseURL(steamID, apiKey, "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/")
 }
 
@@ -159,11 +159,11 @@ func importSteamGamesWithBaseURL(steamID string, apiKey string, baseURL string) 
 	return steamResp.Response.Games, nil
 }
 
-// ImportSteamGamesFuncType is the signature of the ImportSteamGames function
+// ImportSteamGamesFuncType is the signature of the importSteamGames function.
 type ImportSteamGamesFuncType func(steamID string, apiKey string) ([]Game, error)
 
-// ImportSteamGamesFunc is a variable that can be overridden for testing purposes
-var ImportSteamGamesFunc ImportSteamGamesFuncType = ImportSteamGames
+// ImportSteamGamesFunc is a variable that can be overridden for testing purposes.
+var ImportSteamGamesFunc ImportSteamGamesFuncType = importSteamGames
 
 // GetPlayerAchievements fetches achievements for a specific game and user
 func GetPlayerAchievements(steamID string, apiKey string, appID int) ([]Achievement, error) {

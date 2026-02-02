@@ -20,7 +20,7 @@ func GetCachedGameDetails(appID int) (*GameDetails, bool, error) {
 	cacheKey := strconv.Itoa(appID)
 
 	details, fromCache, err := cache.GetOrFetch("steam_cache", cacheKey, func() (*GameDetails, error) {
-		detailsData, fetchErr := GetGameDetails(appID)
+		detailsData, fetchErr := getGameDetails(appID)
 		if fetchErr != nil {
 			return nil, fetchErr
 		}

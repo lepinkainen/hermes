@@ -21,10 +21,9 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 	filePath := fileutil.GetMarkdownFilePath(title, directory)
 
 	// Create frontmatter using obsidian.Note
-	fm := obsidian.NewFrontmatter()
+	fm := obsidian.NewFrontmatterWithTitle(fileutil.SanitizeFilename(movie.Name))
 
 	// Add basic metadata
-	fm.Set("title", fileutil.SanitizeFilename(movie.Name))
 	fm.Set("type", "movie")
 	if movie.Year > 0 {
 		fm.Set("year", movie.Year)
@@ -78,7 +77,7 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 		}
 	}
 
-	fm.Set("tags", tc.GetSorted())
+	obsidian.ApplyTagSet(fm, tc)
 
 	// Add Letterboxd IDs
 	fm.Set("letterboxd_uri", movie.LetterboxdURI)
@@ -159,13 +158,8 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 	}
 
 	// Create the note
-	note := &obsidian.Note{
-		Frontmatter: fm,
-		Body:        strings.TrimSpace(body.String()),
-	}
-
 	// Build markdown
-	markdown, err := note.Build()
+	markdown, err := obsidian.BuildNoteMarkdown(fm, body.String())
 	if err != nil {
 		return fmt.Errorf("failed to build markdown: %w", err)
 	}

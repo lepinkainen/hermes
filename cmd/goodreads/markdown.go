@@ -14,14 +14,15 @@ import (
 
 const defaultCoverWidth = 250
 
-func writeBookToMarkdown(book Book, directory string) error {
-	filePath := fileutil.GetMarkdownFilePath(book.Title, directory)
+type coverContent struct {
+	frontmatterValue string
+	embed            string
+}
 
-	// Create frontmatter using obsidian.Frontmatter
-	fm := obsidian.NewFrontmatter()
+func buildBookFrontmatter(book Book) *obsidian.Frontmatter {
+	fm := obsidian.NewFrontmatterWithTitle(fileutil.SanitizeFilename(book.Title))
 
 	// Basic metadata
-	fm.Set("title", fileutil.SanitizeFilename(book.Title))
 	fm.Set("type", "book")
 	fm.Set("goodreads_id", fmt.Sprintf("%d", book.ID))
 
@@ -110,13 +111,12 @@ func writeBookToMarkdown(book Book, directory string) error {
 	// Add shelf tag
 	tc.AddIf(book.ExclusiveShelf != "", fmt.Sprintf("shelf/%s", book.ExclusiveShelf))
 
-	fm.Set("tags", tc.GetSorted())
+	obsidian.ApplyTagSet(fm, tc)
 
-	// Build body content
-	var body strings.Builder
-	coverFilename := ""
+	return fm
+}
 
-	// Handle cover - download locally and use Obsidian syntax
+func buildCoverContent(book Book, directory string) coverContent {
 	var coverURL string
 	if book.CoverURL != "" {
 		coverURL = book.CoverURL
@@ -124,28 +124,36 @@ func writeBookToMarkdown(book Book, directory string) error {
 		coverURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", book.CoverID)
 	}
 
-	if coverURL != "" {
-		coverFilenameBase := fileutil.BuildCoverFilename(book.Title)
-		result, err := fileutil.DownloadCover(fileutil.CoverDownloadOptions{
-			URL:          coverURL,
-			OutputDir:    directory,
-			Filename:     coverFilenameBase,
-			UpdateCovers: config.UpdateCovers,
-		})
-		if err != nil {
-			slog.Warn("Failed to download cover", "title", book.Title, "error", err)
-			// Fall back to URL if download fails
-			fm.Set("cover", coverURL)
-			body.WriteString(fmt.Sprintf("![](%s)\n\n", coverURL))
-		} else if result != nil {
-			// Use local path in frontmatter
-			fm.Set("cover", result.RelativePath)
-			coverFilename = result.Filename
-			body.WriteString(fmt.Sprintf("![[%s|%d]]\n\n", coverFilename, defaultCoverWidth))
+	if coverURL == "" {
+		return coverContent{}
+	}
+
+	coverFilenameBase := fileutil.BuildCoverFilename(book.Title)
+	result, err := fileutil.DownloadCover(fileutil.CoverDownloadOptions{
+		URL:          coverURL,
+		OutputDir:    directory,
+		Filename:     coverFilenameBase,
+		UpdateCovers: config.UpdateCovers,
+	})
+	if err != nil {
+		slog.Warn("Failed to download cover", "title", book.Title, "error", err)
+		return coverContent{
+			frontmatterValue: coverURL,
+			embed:            fmt.Sprintf("![](%s)\n\n", coverURL),
 		}
 	}
 
-	// Build Goodreads content sections wrapped in markers
+	if result == nil {
+		return coverContent{}
+	}
+
+	return coverContent{
+		frontmatterValue: result.RelativePath,
+		embed:            fmt.Sprintf("![[%s|%d]]\n\n", result.Filename, defaultCoverWidth),
+	}
+}
+
+func buildGoodreadsSection(book Book) string {
 	goodreadsDetails := &content.GoodreadsBookDetails{
 		Title:                   book.Title,
 		Subtitle:                book.Subtitle,
@@ -166,54 +174,77 @@ func writeBookToMarkdown(book Book, directory string) error {
 	}
 
 	goodreadsContent := content.BuildGoodreadsContent(goodreadsDetails, []string{"info", "description", "subjects"})
-	if goodreadsContent != "" {
-		wrappedGoodreads := content.WrapWithGoodreadsMarkers(goodreadsContent)
-		body.WriteString(wrappedGoodreads)
-		body.WriteString("\n\n")
+	if goodreadsContent == "" {
+		return ""
 	}
 
-	// Add review if exists (outside markers - user content)
-	if book.MyReview != "" {
-		// Replace HTML line breaks with newlines and clean up multiple newlines
-		review := strings.ReplaceAll(book.MyReview, "<br/>", "\n")
-		review = strings.ReplaceAll(review, "<br>", "\n")
-		// Clean up multiple newlines
-		multipleNewlines := regexp.MustCompile(`\n{3,}`)
-		review = multipleNewlines.ReplaceAllString(review, "\n\n")
+	wrappedGoodreads := content.WrapWithGoodreadsMarkers(goodreadsContent)
+	return wrappedGoodreads + "\n\n"
+}
 
-		body.WriteString("## Review\n\n")
-		body.WriteString(review)
-		body.WriteString("\n\n")
+func formatReview(review string) string {
+	review = strings.ReplaceAll(review, "<br/>", "\n")
+	review = strings.ReplaceAll(review, "<br>", "\n")
+
+	multipleNewlines := regexp.MustCompile(`\n{3,}`)
+	return multipleNewlines.ReplaceAllString(review, "\n\n")
+}
+
+func buildReviewSection(review string) string {
+	if review == "" {
+		return ""
 	}
 
-	// Add private notes in a callout if they exist (outside markers - user content)
-	if book.PrivateNotes != "" {
-		body.WriteString(">[!note]- Private Notes\n")
-		// Split by lines and add "> " prefix to each
-		noteLines := strings.Split(book.PrivateNotes, "\n")
-		for _, line := range noteLines {
-			body.WriteString("> ")
-			body.WriteString(line)
-			body.WriteString("\n")
-		}
+	cleaned := formatReview(review)
+	return "## Review\n\n" + cleaned + "\n\n"
+}
+
+func buildPrivateNotesSection(notes string) string {
+	if notes == "" {
+		return ""
 	}
 
-	// Create the note
-	note := &obsidian.Note{
-		Frontmatter: fm,
-		Body:        strings.TrimSpace(body.String()),
+	var body strings.Builder
+	body.WriteString(">[!note]- Private Notes\n")
+
+	for _, line := range strings.Split(notes, "\n") {
+		body.WriteString("> ")
+		body.WriteString(line)
+		body.WriteString("\n")
 	}
 
-	// Build markdown
-	markdown, err := note.Build()
+	return body.String()
+}
+
+func buildBookBody(book Book, directory string, fm *obsidian.Frontmatter) string {
+	var body strings.Builder
+
+	cover := buildCoverContent(book, directory)
+	if cover.frontmatterValue != "" {
+		fm.Set("cover", cover.frontmatterValue)
+		body.WriteString(cover.embed)
+	}
+
+	body.WriteString(buildGoodreadsSection(book))
+	body.WriteString(buildReviewSection(book.MyReview))
+	body.WriteString(buildPrivateNotesSection(book.PrivateNotes))
+
+	return strings.TrimSpace(body.String())
+}
+
+func writeBookToMarkdown(book Book, directory string) error {
+	filePath := fileutil.GetMarkdownFilePath(book.Title, directory)
+
+	fm := buildBookFrontmatter(book)
+	body := buildBookBody(book, directory, fm)
+
+	markdown, err := obsidian.BuildNoteMarkdown(fm, body)
 	if err != nil {
 		return fmt.Errorf("failed to build markdown: %w", err)
 	}
 
-	// Add trailing newlines to match expected format
 	content := append(markdown, []byte("\n\n\n")...)
 
-	// Write content to file with overwrite logic
 	written, err := fileutil.WriteFileWithOverwrite(filePath, content, 0644, config.OverwriteFiles)
 	if err != nil {
 		return err

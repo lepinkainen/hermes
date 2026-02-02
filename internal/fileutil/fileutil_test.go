@@ -363,7 +363,7 @@ func TestEnsureDir(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := EnsureDir(tc.path)
+			err := ensureDir(tc.path)
 			require.NoError(t, err)
 
 			// Verify directory exists
@@ -380,7 +380,7 @@ func TestEnsureDir_WithPermissions(t *testing.T) {
 
 	dirPath := filepath.Join(tempDir, "permtest")
 
-	err := EnsureDir(dirPath)
+	err := ensureDir(dirPath)
 	require.NoError(t, err)
 
 	// Verify directory has correct permissions (0755)

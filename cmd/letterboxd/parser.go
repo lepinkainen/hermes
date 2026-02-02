@@ -39,22 +39,12 @@ const LetterboxdMoviesSchema = `CREATE TABLE IF NOT EXISTS letterboxd_movies (
 
 // Convert Movie to map[string]any for database insertion
 func movieToMap(movie Movie) map[string]any {
-	return map[string]any{
-		"date":             movie.Date,
-		"name":             movie.Name,
-		"year":             movie.Year,
-		"letterboxd_id":    movie.LetterboxdID,
-		"letterboxd_uri":   movie.LetterboxdURI,
-		"imdb_id":          movie.ImdbID,
-		"director":         movie.Director,
-		"cast":             strings.Join(movie.Cast, ","),
-		"genres":           strings.Join(movie.Genres, ","),
-		"runtime":          movie.Runtime,
-		"rating":           movie.Rating,
-		"community_rating": movie.CommunityRating,
-		"poster_url":       movie.PosterURL,
-		"description":      movie.Description,
-	}
+	return cmdutil.StructToMap(movie, cmdutil.StructToMapOptions{
+		JoinStringSlices: true,
+		OmitFields: map[string]bool{
+			"TMDBEnrichment": true,
+		},
+	})
 }
 
 // ParseLetterboxd parses a Letterboxd CSV export file
