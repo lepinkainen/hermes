@@ -8,6 +8,7 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/content"
 	"github.com/lepinkainen/hermes/internal/enrichment"
+	"github.com/lepinkainen/hermes/internal/enrichment/omdb"
 	fm "github.com/lepinkainen/hermes/internal/frontmatter"
 	"github.com/lepinkainen/hermes/internal/importer/mediaids"
 	"github.com/lepinkainen/hermes/internal/obsidian"
@@ -214,19 +215,60 @@ func (n *Note) AddSteamData(steamData *enrichment.SteamEnrichment) {
 	}
 }
 
+// AddOMDBData adds OMDB ratings enrichment data to the note's frontmatter.
+func (n *Note) AddOMDBData(omdbData *omdb.RatingsEnrichment) {
+	if omdbData == nil {
+		return
+	}
+
+	if omdbData.IMDbRating > 0 {
+		n.Frontmatter.Set("imdb_rating", omdbData.IMDbRating)
+	}
+
+	if omdbData.RottenTomatoes != "" {
+		n.Frontmatter.Set("rt_score", omdbData.RottenTomatoes)
+	}
+
+	if omdbData.RTTomatometer > 0 {
+		n.Frontmatter.Set("rt_tomatometer", omdbData.RTTomatometer)
+	}
+
+	if omdbData.Metacritic > 0 {
+		n.Frontmatter.Set("metacritic_score", omdbData.Metacritic)
+	}
+}
+
 // BuildMarkdown builds the complete markdown content with updated frontmatter and content.
-func (n *Note) BuildMarkdown(originalContent string, tmdbData *enrichment.TMDBEnrichment, overwrite bool) string {
+func (n *Note) BuildMarkdown(originalContent string, tmdbData *enrichment.TMDBEnrichment, omdbRatings *omdb.RatingsEnrichment, overwrite bool) string {
 	// Handle TMDB content with marker-based replacement
 	body := n.Body
+
+	// Prepare content to insert: start with OMDB ratings table if available
+	var contentToInsert strings.Builder
+	if omdbRatings != nil {
+		ratingsTable := omdb.BuildRatingsTable(omdbRatings)
+		if ratingsTable != "" {
+			contentToInsert.WriteString(ratingsTable)
+			contentToInsert.WriteString("\n")
+		}
+	}
+
+	// Add TMDB content after ratings
 	if tmdbData != nil && tmdbData.ContentMarkdown != "" {
+		contentToInsert.WriteString(tmdbData.ContentMarkdown)
+	}
+
+	// Only modify body if we have content to insert
+	if contentToInsert.Len() > 0 {
+		finalContent := contentToInsert.String()
 		if content.HasTMDBContentMarkers(body) {
 			// Replace existing TMDB content between markers
 			if overwrite {
-				body = content.ReplaceTMDBContent(body, tmdbData.ContentMarkdown)
+				body = content.ReplaceTMDBContent(body, finalContent)
 			}
 		} else {
 			// No markers exist - append wrapped content
-			wrappedContent := content.WrapWithMarkers(tmdbData.ContentMarkdown)
+			wrappedContent := content.WrapWithMarkers(finalContent)
 			body = strings.TrimRight(body, "\n")
 			if body != "" {
 				body += "\n\n"

@@ -31,7 +31,7 @@ Original content here.`
 		ContentMarkdown: "## TMDB Content\nSome TMDB data here.",
 	}
 
-	result := note.BuildMarkdown(originalContent, tmdbData, false)
+	result := note.BuildMarkdown(originalContent, tmdbData, nil, false)
 
 	// Check that frontmatter is present
 	if result[:3] != "---" {
@@ -96,7 +96,7 @@ Personal wrap up after TMDB block.
 		}
 
 		note.AddTMDBData(tmdbData)
-		result := note.BuildMarkdown(originalContent, tmdbData, true)
+		result := note.BuildMarkdown(originalContent, tmdbData, nil, true)
 
 		updated, err := parseNote(result)
 		require.NoError(t, err)
@@ -150,7 +150,7 @@ Just me writing notes.
 		}
 
 		note.AddTMDBData(tmdbData)
-		result := note.BuildMarkdown(originalContent, tmdbData, false)
+		result := note.BuildMarkdown(originalContent, tmdbData, nil, false)
 
 		updated, err := parseNote(result)
 		require.NoError(t, err)

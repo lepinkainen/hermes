@@ -12,6 +12,7 @@ import (
 	"github.com/lepinkainen/hermes/cmd/letterboxd"
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/enrichment"
+	"github.com/lepinkainen/hermes/internal/enrichment/omdb"
 	"github.com/lepinkainen/hermes/internal/fileutil"
 	fm "github.com/lepinkainen/hermes/internal/frontmatter"
 	"github.com/spf13/viper"
@@ -27,6 +28,7 @@ type EnhanceCmd struct {
 	RefreshCache        bool     `help:"Refresh TMDB cache without re-searching for matches" default:"false"`
 	TMDBNoInteractive   bool     `help:"Disable interactive TUI for TMDB selection (auto-select first result)" default:"false"`
 	TMDBContentSections []string `help:"Specific TMDB content sections to generate (empty = all)"`
+	OMDBNoEnrich        bool     `help:"Disable OMDB ratings enrichment" default:"false"`
 }
 
 func (e *EnhanceCmd) Run() error {
@@ -43,6 +45,7 @@ func (e *EnhanceCmd) Run() error {
 			TMDBContentSections: e.TMDBContentSections,
 			UseTMDBCoverCache:   viper.GetBool("tmdb.cover_cache.enabled"),
 			TMDBCoverCachePath:  viper.GetString("tmdb.cover_cache.path"),
+			OMDBEnrich:          !e.OMDBNoEnrich, // Invert: default is enabled
 		}
 
 		if err := EnhanceNotesFunc(opts); err != nil {
@@ -79,6 +82,8 @@ type Options struct {
 	UseTMDBCoverCache bool
 	// TMDBCoverCachePath is the directory for cached cover images
 	TMDBCoverCachePath string
+	// OMDBEnrich enables OMDB ratings enrichment (default: true)
+	OMDBEnrich bool
 }
 
 // EnhanceNotes processes markdown files and enriches them with TMDB data.
@@ -218,8 +223,20 @@ func EnhanceNotes(opts Options) error {
 			continue
 		}
 
-		// Update the note with TMDB data
-		if err := updateNoteWithTMDBData(file, note, tmdbData, opts.RegenerateData); err != nil {
+		// Enrich with OMDB ratings if enabled and IMDb ID available
+		var omdbRatings *omdb.RatingsEnrichment
+		if opts.OMDBEnrich && note.IMDBID != "" {
+			omdbRatings, err = omdb.EnrichFromOMDB(ctx, note.IMDBID)
+			if err != nil {
+				slog.Warn("OMDB enrichment failed", "imdb_id", note.IMDBID, "error", err)
+				// Don't fail the whole process, just continue without OMDB data
+			}
+		} else if opts.OMDBEnrich && note.IMDBID == "" {
+			slog.Debug("Skipping OMDB enrichment (no IMDb ID)", "title", note.Title)
+		}
+
+		// Update the note with TMDB data and OMDB ratings
+		if err := updateNoteWithTMDBData(file, note, tmdbData, omdbRatings, opts.RegenerateData); err != nil {
 			slog.Warn("Failed to update note", "path", file, "error", err)
 			errorCount++
 			continue
@@ -270,8 +287,8 @@ func findMarkdownFiles(dir string, recursive bool) ([]string, error) {
 	return files, nil
 }
 
-// updateNoteWithTMDBData updates the note file with TMDB enrichment data.
-func updateNoteWithTMDBData(filePath string, note *Note, tmdbData *enrichment.TMDBEnrichment, overwrite bool) error {
+// updateNoteWithTMDBData updates the note file with TMDB enrichment data and OMDB ratings.
+func updateNoteWithTMDBData(filePath string, note *Note, tmdbData *enrichment.TMDBEnrichment, omdbRatings *omdb.RatingsEnrichment, overwrite bool) error {
 	// Read the original file
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -281,8 +298,11 @@ func updateNoteWithTMDBData(filePath string, note *Note, tmdbData *enrichment.TM
 	// Update frontmatter with TMDB data
 	note.AddTMDBData(tmdbData)
 
+	// Update frontmatter with OMDB ratings
+	note.AddOMDBData(omdbRatings)
+
 	// Build the new file content
-	newContent := note.BuildMarkdown(string(content), tmdbData, overwrite)
+	newContent := note.BuildMarkdown(string(content), tmdbData, omdbRatings, overwrite)
 
 	// Write back to file
 	_, err = fileutil.WriteFileWithOverwrite(filePath, []byte(newContent), 0644, true)

@@ -14,6 +14,7 @@ require (
 	github.com/lepinkainen/humanlog v0.2.0
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
+	golang.org/x/time v0.14.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.38.0
 )

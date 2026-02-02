@@ -233,7 +233,7 @@ Body`
 		ContentMarkdown: "## Overview\n\nDetailed plot.",
 	}
 
-	err = updateNoteWithTMDBData(path, note, tmdbData, true)
+	err = updateNoteWithTMDBData(path, note, tmdbData, nil, true)
 	require.NoError(t, err)
 
 	body := env.ReadFileString("Heat.md")
@@ -275,7 +275,7 @@ An anime series.`
 	}
 
 	// This must succeed - notes without type should still be processable
-	err = updateNoteWithTMDBData(path, note, tmdbData, true)
+	err = updateNoteWithTMDBData(path, note, tmdbData, nil, true)
 	require.NoError(t, err)
 
 	body := env.ReadFileString("Cowboy Bebop.md")
