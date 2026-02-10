@@ -200,6 +200,28 @@ func TestExtractTitleFromPath_WithParentheses(t *testing.T) {
 	require.Equal(t, "Red Sonja (2025)", title)
 }
 
+func TestParseTitleYearFromTitle(t *testing.T) {
+	name, year, ok := parseTitleYearFromTitle("Legend (2015)")
+	require.True(t, ok)
+	require.Equal(t, "Legend", name)
+	require.Equal(t, 2015, year)
+
+	name, year, ok = parseTitleYearFromTitle("Legend")
+	require.False(t, ok)
+	require.Equal(t, "", name)
+	require.Equal(t, 0, year)
+
+	name, year, ok = parseTitleYearFromTitle("Dracula 3000")
+	require.False(t, ok)
+	require.Equal(t, "", name)
+	require.Equal(t, 0, year)
+
+	name, year, ok = parseTitleYearFromTitle("Legend (2015) Director's Cut")
+	require.False(t, ok)
+	require.Equal(t, "", name)
+	require.Equal(t, 0, year)
+}
+
 func TestParseNote_EmptyYAMLValue(t *testing.T) {
 	// Test parsing a file with an empty YAML value (like "episodes:")
 	// This reproduces the Abbot Elementary.md case

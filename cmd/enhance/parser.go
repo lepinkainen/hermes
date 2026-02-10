@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/content"
@@ -366,6 +367,37 @@ func extractTitleFromPath(filePath string) string {
 	// Remove the .md extension
 	title := strings.TrimSuffix(filename, filepath.Ext(filename))
 	return title
+}
+
+// parseTitleYearFromTitle extracts a year from titles like "Legend (2015)".
+// Returns the cleaned title, parsed year, and true if a year was found.
+func parseTitleYearFromTitle(title string) (string, int, bool) {
+	trimmed := strings.TrimSpace(title)
+	if !strings.HasSuffix(trimmed, ")") {
+		return "", 0, false
+	}
+
+	start := strings.LastIndex(trimmed, " (")
+	if start == -1 {
+		return "", 0, false
+	}
+
+	yearStr := trimmed[start+2 : len(trimmed)-1]
+	if len(yearStr) != 4 {
+		return "", 0, false
+	}
+
+	year, err := strconv.Atoi(yearStr)
+	if err != nil {
+		return "", 0, false
+	}
+
+	cleanTitle := strings.TrimSpace(trimmed[:start])
+	if cleanTitle == "" {
+		return "", 0, false
+	}
+
+	return cleanTitle, year, true
 }
 
 // GetMediaIDs extracts all external media IDs from the frontmatter.

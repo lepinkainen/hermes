@@ -236,7 +236,16 @@ func EnhanceNotes(opts Options) error {
 		enrichOpts.LetterboxdURI = letterboxdURI
 
 		// Enrich with TMDB data (pass existing TMDB ID if present)
-		tmdbData, err := enrichment.EnrichFromTMDB(ctx, note.Title, note.Year, note.IMDBID, note.TMDBID, enrichOpts)
+		searchTitle := note.Title
+		searchYear := note.Year
+		if searchYear == 0 {
+			if parsedTitle, parsedYear, ok := parseTitleYearFromTitle(note.Title); ok {
+				searchTitle = parsedTitle
+				searchYear = parsedYear
+				slog.Debug("Parsed year from title", "title", note.Title, "parsed_title", searchTitle, "year", searchYear)
+			}
+		}
+		tmdbData, err := enrichment.EnrichFromTMDB(ctx, searchTitle, searchYear, note.IMDBID, note.TMDBID, enrichOpts)
 		if err != nil {
 			slog.Warn("Failed to enrich from TMDB", "title", note.Title, "error", err)
 			errorCount++
