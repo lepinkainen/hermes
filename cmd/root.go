@@ -11,7 +11,6 @@ import (
 	"github.com/lepinkainen/hermes/cmd/imdb"
 	"github.com/lepinkainen/hermes/cmd/letterboxd"
 	"github.com/lepinkainen/hermes/cmd/steam"
-	"github.com/lepinkainen/hermes/internal/automation"
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/humanlog"
@@ -64,8 +63,7 @@ func Execute() {
 
 	// Create CLI instance
 	var cli CLI
-	cli.Import.Goodreads.Init(goodreads.DefaultParseGoodreadsFunc, goodreads.DefaultDownloadGoodreadsCSVFunc, &automation.DefaultCDPRunner{})
-	cli.Import.Letterboxd.Runner = &automation.DefaultCDPRunner{}
+	cli.Import.Goodreads.Init(goodreads.DefaultParseGoodreadsFunc, goodreads.DefaultDownloadGoodreadsCSVFunc)
 
 	// Parse command line with Kong
 	ctx := kong.Parse(&cli,

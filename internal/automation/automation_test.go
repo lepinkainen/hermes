@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chromedp/chromedp"
 	"github.com/lepinkainen/hermes/internal/automation"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -82,135 +81,6 @@ func TestCopyFile(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no such file or directory")
 }
-
-// MockCDPRunner is a test implementation of CDPRunner
-type MockCDPRunner struct {
-	NewExecAllocatorFunc func(ctx context.Context, opts ...chromedp.ExecAllocatorOption) (context.Context, context.CancelFunc)
-	NewContextFunc       func(parent context.Context, opts ...chromedp.ContextOption) (context.Context, context.CancelFunc)
-	RunFunc              func(ctx context.Context, actions ...chromedp.Action) error
-}
-
-func (m *MockCDPRunner) NewExecAllocator(ctx context.Context, opts ...chromedp.ExecAllocatorOption) (context.Context, context.CancelFunc) {
-	if m.NewExecAllocatorFunc != nil {
-		return m.NewExecAllocatorFunc(ctx, opts...)
-	}
-	return ctx, func() {}
-}
-
-func (m *MockCDPRunner) NewContext(parent context.Context, opts ...chromedp.ContextOption) (context.Context, context.CancelFunc) {
-	if m.NewContextFunc != nil {
-		return m.NewContextFunc(parent, opts...)
-	}
-	return parent, func() {}
-}
-
-func (m *MockCDPRunner) Run(ctx context.Context, actions ...chromedp.Action) error {
-	if m.RunFunc != nil {
-		return m.RunFunc(ctx, actions...)
-	}
-	return nil
-}
-
-func TestConfigureDownloadDirectory(t *testing.T) {
-	t.Parallel()
-
-	tempDir := t.TempDir()
-	ctx := context.Background()
-
-	t.Run("successfully configures download directory", func(t *testing.T) {
-		t.Parallel()
-		runner := &MockCDPRunner{
-			RunFunc: func(ctx context.Context, actions ...chromedp.Action) error {
-				assert.Len(t, actions, 1) // Expecting one action
-				return nil
-			},
-		}
-		err := automation.ConfigureDownloadDirectory(ctx, runner, tempDir)
-		require.NoError(t, err)
-	})
-
-	t.Run("returns error if chromedp.Run fails", func(t *testing.T) {
-		t.Parallel()
-		runner := &MockCDPRunner{
-			RunFunc: func(ctx context.Context, actions ...chromedp.Action) error {
-				return assert.AnError
-			},
-		}
-		err := automation.ConfigureDownloadDirectory(ctx, runner, tempDir)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to configure download directory")
-	})
-}
-
-func TestWaitForSelector(t *testing.T) {
-	t.Skip("Skipping WaitForSelector tests - requires more complex chromedp mocking")
-	// TODO: Implement proper mocking for chromedp.Evaluate that can set boolean values
-}
-
-func TestNewBrowser(t *testing.T) {
-	t.Parallel()
-
-	t.Run("creates browser context with headless mode", func(t *testing.T) {
-		t.Parallel()
-		runner := &MockCDPRunner{}
-
-		ctx, cancel := automation.NewBrowser(runner, automation.AutomationOptions{
-			Headless: true,
-		})
-
-		assert.NotNil(t, ctx)
-		assert.NotNil(t, cancel)
-
-		// Cleanup
-		cancel()
-	})
-
-	t.Run("creates browser context with headful mode", func(t *testing.T) {
-		t.Parallel()
-		runner := &MockCDPRunner{}
-
-		ctx, cancel := automation.NewBrowser(runner, automation.AutomationOptions{
-			Headless: false,
-		})
-
-		assert.NotNil(t, ctx)
-		assert.NotNil(t, cancel)
-
-		// Cleanup
-		cancel()
-	})
-
-	t.Run("combined cancel function works", func(t *testing.T) {
-		t.Parallel()
-		allocCanceled := false
-		browserCanceled := false
-
-		runner := &MockCDPRunner{
-			NewExecAllocatorFunc: func(ctx context.Context, opts ...chromedp.ExecAllocatorOption) (context.Context, context.CancelFunc) {
-				return ctx, func() {
-					allocCanceled = true
-				}
-			},
-			NewContextFunc: func(parent context.Context, opts ...chromedp.ContextOption) (context.Context, context.CancelFunc) {
-				return parent, func() {
-					browserCanceled = true
-				}
-			},
-		}
-
-		_, cancel := automation.NewBrowser(runner, automation.AutomationOptions{
-			Headless: true,
-		})
-
-		// Call the combined cancel function
-		cancel()
-
-		assert.True(t, allocCanceled, "allocator cancel should be called")
-		assert.True(t, browserCanceled, "browser cancel should be called")
-	})
-}
-
-// TODO: Test BuildExecAllocatorOptions
 
 func TestPollWithTimeout(t *testing.T) {
 	t.Parallel()
@@ -305,7 +175,7 @@ func TestWaitForURLChange(t *testing.T) {
 			return "https://example.com/dashboard", nil
 		}
 
-		err := automation.WaitForURLChange(ctx, &MockCDPRunner{}, getURL, []string{"/login", "/signin"}, 1*time.Second)
+		err := automation.WaitForURLChange(ctx, getURL, []string{"/login", "/signin"}, 1*time.Second)
 		require.NoError(t, err)
 		assert.Equal(t, 1, callCount)
 	})
@@ -323,7 +193,7 @@ func TestWaitForURLChange(t *testing.T) {
 			return "https://example.com/home", nil
 		}
 
-		err := automation.WaitForURLChange(ctx, &MockCDPRunner{}, getURL, []string{"/login"}, 5*time.Second)
+		err := automation.WaitForURLChange(ctx, getURL, []string{"/login"}, 5*time.Second)
 		require.NoError(t, err)
 		assert.Equal(t, 3, callCount)
 	})
@@ -336,7 +206,7 @@ func TestWaitForURLChange(t *testing.T) {
 			return "https://example.com/login", nil
 		}
 
-		err := automation.WaitForURLChange(ctx, &MockCDPRunner{}, getURL, []string{"/login"}, 50*time.Millisecond)
+		err := automation.WaitForURLChange(ctx, getURL, []string{"/login"}, 50*time.Millisecond)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "timeout")
 	})
@@ -350,7 +220,7 @@ func TestWaitForURLChange(t *testing.T) {
 			return "", expectedErr
 		}
 
-		err := automation.WaitForURLChange(ctx, &MockCDPRunner{}, getURL, []string{"/login"}, 1*time.Second)
+		err := automation.WaitForURLChange(ctx, getURL, []string{"/login"}, 1*time.Second)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, expectedErr)
 	})

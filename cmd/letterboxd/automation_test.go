@@ -250,11 +250,11 @@ func TestMergeWatchedAndRatingsMissingWatchedFile(t *testing.T) {
 }
 
 func TestWaitForLoginSuccessRespectsContext(t *testing.T) {
-	t.Skip("Requires chromedp integration - will be tested with fix implementation")
+	t.Skip("Requires browser integration - will be tested with fix implementation")
 }
 
 func TestWaitForSelectorRespectsContext(t *testing.T) {
-	t.Skip("Requires chromedp integration - will be tested with fix implementation")
+	t.Skip("Requires browser integration - will be tested with fix implementation")
 }
 
 func TestMergeWatchedAndRatings_EdgeCases(t *testing.T) {

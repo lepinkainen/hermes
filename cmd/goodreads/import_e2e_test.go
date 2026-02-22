@@ -10,7 +10,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/lepinkainen/hermes/internal/automation"
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
@@ -39,7 +38,6 @@ func TestGoodreadsImportE2E(t *testing.T) {
 		},
 		ParseGoodreads,
 		DefaultDownloadGoodreadsCSVFunc,
-		&automation.DefaultCDPRunner{},
 	)
 	require.NoError(t, err)
 
@@ -139,7 +137,6 @@ func TestGoodreadsImportE2E_DatasetteDisabled(t *testing.T) {
 		},
 		ParseGoodreads,
 		DefaultDownloadGoodreadsCSVFunc,
-		&automation.DefaultCDPRunner{},
 	)
 	require.NoError(t, err)
 
@@ -185,7 +182,6 @@ func TestGoodreadsImportE2E_JSON(t *testing.T) {
 		},
 		ParseGoodreads,
 		DefaultDownloadGoodreadsCSVFunc,
-		&automation.DefaultCDPRunner{},
 	)
 	require.NoError(t, err)
 
@@ -245,7 +241,6 @@ func TestGoodreadsImportE2E_CacheHit(t *testing.T) {
 		},
 		ParseGoodreads,
 		DefaultDownloadGoodreadsCSVFunc,
-		&automation.DefaultCDPRunner{},
 	)
 	require.NoError(t, err)
 
@@ -275,7 +270,6 @@ func TestGoodreadsImportE2E_CacheHit(t *testing.T) {
 		},
 		ParseGoodreads,
 		DefaultDownloadGoodreadsCSVFunc,
-		&automation.DefaultCDPRunner{},
 	)
 	require.NoError(t, err)
 

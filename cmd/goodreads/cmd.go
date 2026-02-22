@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/lepinkainen/hermes/internal/automation"
 	"github.com/lepinkainen/hermes/internal/cmdutil"
 	"github.com/spf13/viper"
 )
@@ -21,18 +20,17 @@ type ParseParams struct {
 	Automated         bool
 	DryRun            bool
 	AutomationOptions AutomationOptions
-	Runner            automation.CDPRunner
 }
 
 type ParseGoodreadsFuncType func(params ParseParams) error
-type DownloadGoodreadsCSVFuncType func(ctx context.Context, runner automation.CDPRunner, opts AutomationOptions) (string, error)
+type DownloadGoodreadsCSVFuncType func(ctx context.Context, opts AutomationOptions) (string, error)
 
 var DefaultParseGoodreadsFunc ParseGoodreadsFuncType = ParseGoodreads
 var DefaultDownloadGoodreadsCSVFunc DownloadGoodreadsCSVFuncType = AutomateGoodreadsExport
 
 // ParseGoodreadsWithParams allows calling goodreads parsing with specific parameters
 // This is used by the Kong-based CLI implementation
-func ParseGoodreadsWithParams(params ParseParams, parseFunc ParseGoodreadsFuncType, downloadFunc DownloadGoodreadsCSVFuncType, runner automation.CDPRunner) error {
+func ParseGoodreadsWithParams(params ParseParams, parseFunc ParseGoodreadsFuncType, downloadFunc DownloadGoodreadsCSVFuncType) error {
 	cmdConfig := &cmdutil.BaseCommandConfig{
 		OutputDir:  params.OutputDir,
 		ConfigKey:  "goodreads",
@@ -56,7 +54,7 @@ func ParseGoodreadsWithParams(params ParseParams, parseFunc ParseGoodreadsFuncTy
 		ctx, cancel := context.WithTimeout(context.Background(), params.AutomationOptions.Timeout)
 		defer cancel()
 
-		csvPath, err := downloadFunc(ctx, runner, params.AutomationOptions)
+		csvPath, err := downloadFunc(ctx, params.AutomationOptions)
 		if err != nil {
 			return err
 		}
@@ -93,15 +91,13 @@ type GoodreadsCmd struct {
 	// Dependencies
 	parseFunc    ParseGoodreadsFuncType
 	downloadFunc DownloadGoodreadsCSVFuncType
-	runner       automation.CDPRunner
 }
 
 // Init initializes the GoodreadsCmd with its dependencies.
 // This method is used for dependency injection in tests or when manually constructing the command.
-func (g *GoodreadsCmd) Init(parseFn ParseGoodreadsFuncType, downloadFn DownloadGoodreadsCSVFuncType, runner automation.CDPRunner) {
+func (g *GoodreadsCmd) Init(parseFn ParseGoodreadsFuncType, downloadFn DownloadGoodreadsCSVFuncType) {
 	g.parseFunc = parseFn
 	g.downloadFunc = downloadFn
-	g.runner = runner
 }
 
 func (g *GoodreadsCmd) Run() error {
@@ -173,5 +169,5 @@ func (g *GoodreadsCmd) Run() error {
 		downloadFunc = DefaultDownloadGoodreadsCSVFunc
 	}
 
-	return ParseGoodreadsWithParams(params, parseFunc, downloadFunc, g.runner)
+	return ParseGoodreadsWithParams(params, parseFunc, downloadFunc)
 }

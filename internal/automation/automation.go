@@ -9,72 +9,76 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chromedp/cdproto/browser"
-	"github.com/chromedp/chromedp"
+	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/launcher"
+	"github.com/go-rod/rod/lib/proto"
 )
-
-type CDPRunner interface {
-	NewExecAllocator(ctx context.Context, opts ...chromedp.ExecAllocatorOption) (context.Context, context.CancelFunc)
-	NewContext(parent context.Context, opts ...chromedp.ContextOption) (context.Context, context.CancelFunc)
-	Run(ctx context.Context, actions ...chromedp.Action) error
-}
-
-// DefaultCDPRunner is the default implementation using chromedp functions directly.
-type DefaultCDPRunner struct{}
-
-func (d *DefaultCDPRunner) NewExecAllocator(ctx context.Context, opts ...chromedp.ExecAllocatorOption) (context.Context, context.CancelFunc) {
-	return chromedp.NewExecAllocator(ctx, opts...)
-}
-
-func (d *DefaultCDPRunner) NewContext(parent context.Context, opts ...chromedp.ContextOption) (context.Context, context.CancelFunc) {
-	return chromedp.NewContext(parent, opts...)
-}
-
-func (d *DefaultCDPRunner) Run(ctx context.Context, actions ...chromedp.Action) error {
-	return chromedp.Run(ctx, actions...)
-}
 
 // AutomationOptions holds common configuration for browser automation
 type AutomationOptions struct {
 	Headless bool
 }
 
-// NewBrowser creates a new chromedp browser context with the given options and runner.
-func NewBrowser(runner CDPRunner, opts AutomationOptions) (context.Context, context.CancelFunc) {
-	allocOpts := []chromedp.ExecAllocatorOption{
-		chromedp.NoDefaultBrowserCheck,
-		chromedp.NoFirstRun,
-		chromedp.Flag("headless", opts.Headless),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("disable-sync", true),
-		chromedp.Flag("mute-audio", true),
-		chromedp.Flag("disable-default-apps", true),
-		chromedp.Flag("no-default-browser-check", true),
-	}
-	allocCtx, cancelAllocator := runner.NewExecAllocator(context.Background(), allocOpts...)
-	browserCtx, cancelBrowser := runner.NewContext(allocCtx)
-
-	combinedCancel := func() {
-		cancelBrowser()
-		cancelAllocator()
-	}
-	return browserCtx, combinedCancel
+// BrowserSession wraps a rod browser and page for automation workflows.
+type BrowserSession struct {
+	Browser *rod.Browser
+	cleanup func()
 }
 
-// ConfigureDownloadDirectory sets the download behavior for the browser
-func ConfigureDownloadDirectory(ctx context.Context, runner CDPRunner, downloadDir string) error {
-	action := browser.SetDownloadBehavior(browser.SetDownloadBehaviorBehaviorAllow).
-		WithDownloadPath(downloadDir).
-		WithEventsEnabled(true)
-	slog.Debug("Configuring download directory", "path", downloadDir)
-	if err := runner.Run(ctx, action); err != nil {
-		return fmt.Errorf("failed to configure download directory: %w", err)
+// Close cleans up the browser session.
+func (s *BrowserSession) Close() {
+	if s.cleanup != nil {
+		s.cleanup()
 	}
-	return nil
 }
 
-// WaitForSelector waits for one of the given selectors to become visible on the page
-func WaitForSelector(ctx context.Context, runner CDPRunner, selectors []string, description string, timeout time.Duration) (string, error) {
+// NewBrowser creates a new rod browser with the given options.
+func NewBrowser(opts AutomationOptions) (*BrowserSession, error) {
+	l := launcher.New().
+		Headless(opts.Headless).
+		Set("disable-gpu").
+		Set("disable-sync").
+		Set("mute-audio").
+		Set("disable-default-apps").
+		Set("no-default-browser-check")
+
+	controlURL, err := l.Launch()
+	if err != nil {
+		return nil, fmt.Errorf("failed to launch browser: %w", err)
+	}
+
+	browser := rod.New().ControlURL(controlURL)
+	if err := browser.Connect(); err != nil {
+		l.Kill()
+		return nil, fmt.Errorf("failed to connect to browser: %w", err)
+	}
+
+	cleanup := func() {
+		_ = browser.Close()
+		l.Kill()
+	}
+
+	return &BrowserSession{
+		Browser: browser,
+		cleanup: cleanup,
+	}, nil
+}
+
+// NavigatePage creates a new page and navigates to the given URL.
+func NavigatePage(browser *rod.Browser, url string) (*rod.Page, error) {
+	page, err := browser.Page(proto.TargetCreateTarget{URL: url})
+	if err != nil {
+		return nil, fmt.Errorf("failed to navigate to %s: %w", url, err)
+	}
+	if err := page.WaitLoad(); err != nil {
+		return nil, fmt.Errorf("failed to wait for page load at %s: %w", url, err)
+	}
+	return page, nil
+}
+
+// WaitForSelector waits for one of the given selectors to become visible on the page.
+// Supports both CSS selectors and XPath selectors (prefixed with //).
+func WaitForSelector(page *rod.Page, selectors []string, description string, timeout time.Duration) (string, *rod.Element, error) {
 	slog.Debug("Waiting for selector", "desc", description, "selectors", strings.Join(selectors, " | "))
 
 	deadline := time.Now().Add(timeout)
@@ -82,42 +86,126 @@ func WaitForSelector(ctx context.Context, runner CDPRunner, selectors []string, 
 	defer ticker.Stop()
 
 	for {
-		// Check each selector
 		for _, sel := range selectors {
-			var exists bool
+			var el *rod.Element
+			var err error
 
-			// For XPath selectors (starting with //)
 			if strings.HasPrefix(sel, "//") {
-				checkScript := fmt.Sprintf(`!!document.evaluate(%q, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue`, sel)
-				if err := runner.Run(ctx, chromedp.Evaluate(checkScript, &exists)); err == nil && exists {
-					slog.Debug("Found selector", "desc", description, "selector", sel)
-					return sel, nil
+				// XPath selector
+				els, findErr := page.ElementsX(sel)
+				if findErr == nil && len(els) > 0 {
+					el = els[0]
+					err = nil
 				}
 			} else {
-				// For CSS selectors
-				checkScript := fmt.Sprintf(`!!document.querySelector(%q)`, sel)
-				if err := runner.Run(ctx, chromedp.Evaluate(checkScript, &exists)); err == nil && exists {
-					slog.Debug("Found selector", "desc", description, "selector", sel)
-					return sel, nil
+				// CSS selector
+				has, _, findErr := page.Has(sel)
+				if findErr == nil && has {
+					el, err = page.Element(sel)
 				}
 			}
+
+			if err == nil && el != nil {
+				slog.Debug("Found selector", "desc", description, "selector", sel)
+				return sel, el, nil
+			}
+		}
+
+		if time.Now().After(deadline) {
+			url := page.MustInfo().URL
+			slog.Debug("Selector timeout", "desc", description, "url", url)
+			return "", nil, fmt.Errorf("timeout waiting for %s", description)
+		}
+
+		<-ticker.C
+	}
+}
+
+// WaitForSelectorWithContext is like WaitForSelector but also respects context cancellation.
+func WaitForSelectorWithContext(ctx context.Context, page *rod.Page, selectors []string, description string, timeout time.Duration) (string, *rod.Element, error) {
+	slog.Debug("Waiting for selector", "desc", description, "selectors", strings.Join(selectors, " | "))
+
+	deadline := time.Now().Add(timeout)
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		for _, sel := range selectors {
+			var el *rod.Element
+			var err error
+
+			if strings.HasPrefix(sel, "//") {
+				els, findErr := page.ElementsX(sel)
+				if findErr == nil && len(els) > 0 {
+					el = els[0]
+					err = nil
+				}
+			} else {
+				has, _, findErr := page.Has(sel)
+				if findErr == nil && has {
+					el, err = page.Element(sel)
+				}
+			}
+
+			if err == nil && el != nil {
+				slog.Debug("Found selector", "desc", description, "selector", sel)
+				return sel, el, nil
+			}
+		}
+
+		if time.Now().After(deadline) {
+			url := page.MustInfo().URL
+			slog.Debug("Selector timeout", "desc", description, "url", url)
+			return "", nil, fmt.Errorf("timeout waiting for %s", description)
 		}
 
 		select {
 		case <-ctx.Done():
-			return "", fmt.Errorf("selector wait canceled for %s: %w", description, ctx.Err())
+			return "", nil, fmt.Errorf("selector wait canceled for %s: %w", description, ctx.Err())
 		case <-ticker.C:
-			if time.Now().After(deadline) {
-				// Dump page content for debugging
-				var htmlContent string
-				var currentURL string
-				_ = runner.Run(ctx, chromedp.Location(&currentURL))
-				_ = runner.Run(ctx, chromedp.OuterHTML("html", &htmlContent, chromedp.ByQuery))
-				slog.Debug("Selector timeout", "desc", description, "url", currentURL, "html_length", len(htmlContent))
-				return "", fmt.Errorf("timeout waiting for %s", description)
-			}
+			continue
 		}
 	}
+}
+
+// ConfigureDownloadDirectory sets the download behavior for the browser.
+func ConfigureDownloadDirectory(browser *rod.Browser, downloadDir string) error {
+	slog.Debug("Configuring download directory", "path", downloadDir)
+
+	// Get the first page/target to set download behavior on
+	pages, err := browser.Pages()
+	if err != nil {
+		return fmt.Errorf("failed to get browser pages: %w", err)
+	}
+
+	for _, page := range pages {
+		err := proto.BrowserSetDownloadBehavior{
+			Behavior:      proto.BrowserSetDownloadBehaviorBehaviorAllow,
+			DownloadPath:  downloadDir,
+			EventsEnabled: true,
+		}.Call(page)
+		if err != nil {
+			return fmt.Errorf("failed to configure download directory: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// ConfigurePageDownloadDirectory sets the download behavior for a specific page.
+func ConfigurePageDownloadDirectory(page *rod.Page, downloadDir string) error {
+	slog.Debug("Configuring download directory for page", "path", downloadDir)
+
+	err := proto.BrowserSetDownloadBehavior{
+		Behavior:      proto.BrowserSetDownloadBehaviorBehaviorAllow,
+		DownloadPath:  downloadDir,
+		EventsEnabled: true,
+	}.Call(page)
+	if err != nil {
+		return fmt.Errorf("failed to configure download directory: %w", err)
+	}
+
+	return nil
 }
 
 // PrepareDownloadDir prepares a directory for browser downloads.
@@ -202,7 +290,7 @@ func PollWithTimeout[T any](ctx context.Context, interval, timeout time.Duration
 // This is useful for detecting when authentication completes and redirects away from login pages.
 // The getURL function should return the current URL.
 // The excludePatterns are URL substrings that indicate we're still on the login page.
-func WaitForURLChange(ctx context.Context, runner CDPRunner, getURL func() (string, error), excludePatterns []string, timeout time.Duration) error {
+func WaitForURLChange(ctx context.Context, getURL func() (string, error), excludePatterns []string, timeout time.Duration) error {
 	_, err := PollWithTimeout(
 		ctx,
 		500*time.Millisecond,
@@ -227,4 +315,13 @@ func WaitForURLChange(ctx context.Context, runner CDPRunner, getURL func() (stri
 		},
 	)
 	return err
+}
+
+// GetPageURL returns the current URL of a rod page.
+func GetPageURL(page *rod.Page) (string, error) {
+	info, err := page.Info()
+	if err != nil {
+		return "", err
+	}
+	return info.URL, nil
 }

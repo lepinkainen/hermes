@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/lepinkainen/hermes/internal/automation"
 	"github.com/lepinkainen/hermes/internal/cmdutil"
 	"github.com/spf13/viper"
 )
@@ -24,9 +23,8 @@ type ParseLetterboxdFuncType func(
 	tmdbContentSectionsFlag []string,
 	useTMDBCoverCacheFlag bool,
 	tmdbCoverCachePathFlag string,
-	runner automation.CDPRunner,
 ) error
-type DownloadLetterboxdCSVFuncType func(ctx context.Context, runner automation.CDPRunner, opts AutomationOptions) (string, error)
+type DownloadLetterboxdCSVFuncType func(ctx context.Context, opts AutomationOptions) (string, error)
 
 // Define package-level variables for flags
 var (
@@ -53,8 +51,8 @@ var parseLetterboxdFunc = ParseLetterboxd
 var downloadLetterboxdCSV = downloadLetterboxdZip
 
 // DownloadLetterboxdCSV wraps the automation function for use by root.go
-func DownloadLetterboxdCSV(ctx context.Context, runner automation.CDPRunner, opts AutomationOptions) (string, error) {
-	return downloadLetterboxdCSV(ctx, runner, opts)
+func DownloadLetterboxdCSV(ctx context.Context, opts AutomationOptions) (string, error) {
+	return downloadLetterboxdCSV(ctx, opts)
 }
 
 // LetterboxdCmd represents the letterboxd import command
@@ -77,8 +75,6 @@ type LetterboxdCmd struct {
 	DownloadDir        string        `help:"Directory for downloaded exports" default:"exports"`
 	AutomationTimeout  time.Duration `help:"Timeout for automation process" default:"3m"`
 	DryRun             bool          `help:"Run automation without importing (testing)"`
-
-	Runner automation.CDPRunner `kong:"-"`
 }
 
 func (l *LetterboxdCmd) Run() error {
@@ -137,7 +133,7 @@ func (l *LetterboxdCmd) Run() error {
 			Timeout:     automationTimeout,
 		}
 
-		csvPath, err := DownloadLetterboxdCSV(ctx, l.Runner, opts)
+		csvPath, err := DownloadLetterboxdCSV(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("letterboxd automation failed: %w", err)
 		}
@@ -162,7 +158,6 @@ func (l *LetterboxdCmd) Run() error {
 		l.TMDBContentSections,
 		viper.GetBool("tmdb.cover_cache.enabled"),
 		viper.GetString("tmdb.cover_cache.path"),
-		l.Runner,
 	)
 }
 
@@ -179,7 +174,6 @@ func ParseLetterboxdWithParams(
 	tmdbContentSectionsFlag []string,
 	useTMDBCoverCacheFlag bool,
 	tmdbCoverCachePathFlag string,
-	runner automation.CDPRunner,
 ) error {
 	// Set the global variables that ParseLetterboxd expects
 	csvFile = inputFile

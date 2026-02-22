@@ -1,3 +1,5 @@
+//go:build integration
+
 package letterboxd
 
 import (
@@ -8,7 +10,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/lepinkainen/hermes/internal/automation"
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
@@ -281,7 +282,6 @@ func TestLetterboxdImportE2E_CacheHit(t *testing.T) {
 		nil,   // tmdbContentSections
 		false, // useTMDBCoverCache
 		"",    // tmdbCoverCachePath
-		&automation.DefaultCDPRunner{},
 	)
 	require.NoError(t, err)
 
@@ -310,7 +310,6 @@ func TestLetterboxdImportE2E_CacheHit(t *testing.T) {
 		nil,   // tmdbContentSections
 		false, // useTMDBCoverCache
 		"",    // tmdbCoverCachePath
-		&automation.DefaultCDPRunner{},
 	)
 	require.NoError(t, err)
 

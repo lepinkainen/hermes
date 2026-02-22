@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lepinkainen/hermes/internal/automation"
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +28,7 @@ func TestParseGoodreadsWithParams_ConfigFallback(t *testing.T) {
 		OutputDir:  env.Path("output"),
 		WriteJSON:  true,
 		JSONOutput: env.Path("books.json"),
-	}, mockParseGoodreads, DefaultDownloadGoodreadsCSVFunc, &automation.DefaultCDPRunner{})
+	}, mockParseGoodreads, DefaultDownloadGoodreadsCSVFunc)
 
 	require.NoError(t, err, "ParseGoodreadsWithParams should not error")
 
@@ -47,7 +46,7 @@ func TestParseGoodreadsWithParams_AutomationFlow(t *testing.T) {
 	downloaded := env.Path("automated.csv")
 
 	var capturedOpts AutomationOptions
-	mockDownloadGoodreadsCSV := func(_ context.Context, _ automation.CDPRunner, opts AutomationOptions) (string, error) {
+	mockDownloadGoodreadsCSV := func(_ context.Context, opts AutomationOptions) (string, error) {
 		capturedOpts = opts
 		return downloaded, nil
 	}
@@ -69,7 +68,7 @@ func TestParseGoodreadsWithParams_AutomationFlow(t *testing.T) {
 			Headless: true,
 			Timeout:  time.Minute,
 		},
-	}, mockParseGoodreads, mockDownloadGoodreadsCSV, &automation.DefaultCDPRunner{})
+	}, mockParseGoodreads, mockDownloadGoodreadsCSV)
 
 	require.NoError(t, err)
 
@@ -97,7 +96,7 @@ func TestGoodreadsCmdRun_ParameterPassing(t *testing.T) {
 		return nil
 	}
 
-	mockDownloadGoodreadsCSV := func(_ context.Context, _ automation.CDPRunner, opts AutomationOptions) (string, error) {
+	mockDownloadGoodreadsCSV := func(_ context.Context, opts AutomationOptions) (string, error) {
 		return "", nil
 	}
 
@@ -114,7 +113,7 @@ func TestGoodreadsCmdRun_ParameterPassing(t *testing.T) {
 		AutomationTimeout: 5 * time.Minute,
 		DryRun:            false,
 	}
-	cmd.Init(mockParseGoodreads, mockDownloadGoodreadsCSV, &mockCDPRunner{})
+	cmd.Init(mockParseGoodreads, mockDownloadGoodreadsCSV)
 
 	err := cmd.Run()
 	require.NoError(t, err)

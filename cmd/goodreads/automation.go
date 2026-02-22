@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chromedp/chromedp"
+	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/proto"
 	"github.com/lepinkainen/hermes/internal/automation"
 )
 
@@ -28,7 +29,7 @@ type AutomationOptions struct {
 	Timeout     time.Duration
 }
 
-func AutomateGoodreadsExport(parentCtx context.Context, runner automation.CDPRunner, opts AutomationOptions) (string, error) {
+func AutomateGoodreadsExport(parentCtx context.Context, opts AutomationOptions) (string, error) {
 	if opts.Email == "" || opts.Password == "" {
 		return "", errors.New("goodreads automation requires both email and password")
 	}
@@ -38,7 +39,7 @@ func AutomateGoodreadsExport(parentCtx context.Context, runner automation.CDPRun
 		timeout = defaultAutomationTimeout
 	}
 
-	_, cancel := context.WithTimeout(parentCtx, timeout)
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
 	defer cancel()
 
 	downloadDir, cleanup, err := automation.PrepareDownloadDir(opts.DownloadDir, "hermes-goodreads-*")
@@ -52,22 +53,30 @@ func AutomateGoodreadsExport(parentCtx context.Context, runner automation.CDPRun
 	}()
 	slog.Info("Prepared Goodreads download directory", "path", downloadDir, "headless", opts.Headless)
 
-	browserCtx, cancelBrowser := automation.NewBrowser(runner, automation.AutomationOptions{Headless: opts.Headless})
-	defer cancelBrowser()
+	session, err := automation.NewBrowser(automation.AutomationOptions{Headless: opts.Headless})
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
 
-	if err := automation.ConfigureDownloadDirectory(browserCtx, runner, downloadDir); err != nil {
+	page, err := automation.NavigatePage(session.Browser, "https://www.goodreads.com/user/sign_in")
+	if err != nil {
+		return "", fmt.Errorf("failed to open login page: %w", err)
+	}
+
+	if err := automation.ConfigurePageDownloadDirectory(page, downloadDir); err != nil {
 		return "", err
 	}
 
-	if err := performGoodreadsLogin(browserCtx, runner, opts); err != nil {
+	if err := performGoodreadsLogin(ctx, page, opts); err != nil {
 		return "", err
 	}
 
-	if err := triggerGoodreadsExport(browserCtx, runner); err != nil {
+	if err := triggerGoodreadsExport(ctx, page); err != nil {
 		return "", err
 	}
 
-	exportLink, err := waitForExportLink(browserCtx, runner)
+	exportLink, err := waitForExportLink(ctx, page)
 	if err != nil {
 		return "", err
 	}
@@ -75,17 +84,24 @@ func AutomateGoodreadsExport(parentCtx context.Context, runner automation.CDPRun
 	slog.Info("Initiating download of export file")
 
 	// Try clicking the link instead of navigating directly
-	// This is more natural and might avoid HTTP response issues
 	clickSelector := fmt.Sprintf(`//a[@href="%s"]`, strings.TrimPrefix(exportLink, "https://www.goodreads.com"))
-	if err := runner.Run(browserCtx, chromedp.Click(clickSelector, chromedp.BySearch)); err != nil {
-		// Fallback to navigation if click fails
-		slog.Info("Click failed, trying direct navigation", "error", err)
-		if err := runner.Run(browserCtx, chromedp.Navigate(exportLink)); err != nil {
-			return "", fmt.Errorf("failed to start Goodreads export download: %w", err)
+	els, err := page.ElementsX(clickSelector)
+	if err == nil && len(els) > 0 {
+		if clickErr := els[0].Click(proto.InputMouseButtonLeft, 1); clickErr != nil {
+			slog.Info("Click failed, trying direct navigation", "error", clickErr)
+			if navErr := page.Navigate(exportLink); navErr != nil {
+				return "", fmt.Errorf("failed to start Goodreads export download: %w", navErr)
+			}
+		}
+	} else {
+		// Fallback to navigation if selector not found
+		slog.Info("Export link element not found, trying direct navigation")
+		if navErr := page.Navigate(exportLink); navErr != nil {
+			return "", fmt.Errorf("failed to start Goodreads export download: %w", navErr)
 		}
 	}
 
-	csvPath, err := waitForDownload(browserCtx, runner, downloadDir)
+	csvPath, err := waitForDownload(ctx, downloadDir)
 	if err != nil {
 		return "", err
 	}
@@ -99,64 +115,61 @@ func AutomateGoodreadsExport(parentCtx context.Context, runner automation.CDPRun
 	return finalPath, nil
 }
 
-func performGoodreadsLogin(ctx context.Context, runner automation.CDPRunner, opts AutomationOptions) error {
+func performGoodreadsLogin(ctx context.Context, page *rod.Page, opts AutomationOptions) error {
 	slog.Info("Logging in to Goodreads", "email", opts.Email)
 
-	if err := runner.Run(ctx, chromedp.Navigate("https://www.goodreads.com/user/sign_in")); err != nil {
-		return fmt.Errorf("failed to open login page: %w", err)
-	}
-
-	if err := runner.Run(ctx, chromedp.WaitVisible(`//button[contains(., "Sign in with email")]`, chromedp.BySearch)); err != nil {
+	// Wait for email login button
+	_, emailBtn, err := automation.WaitForSelectorWithContext(ctx, page, []string{
+		`//button[contains(., "Sign in with email")]`,
+	}, "email login button", 10*time.Second)
+	if err != nil {
 		return fmt.Errorf("email login button not visible: %w", err)
 	}
-	if err := runner.Run(ctx, chromedp.Click(`//button[contains(., "Sign in with email")]`, chromedp.BySearch)); err != nil {
+	if err := emailBtn.Click(proto.InputMouseButtonLeft, 1); err != nil {
 		return fmt.Errorf("failed to click email login button: %w", err)
 	}
 
 	// Wait for navigation to complete (may redirect to Amazon sign-in page)
 	slog.Debug("Waiting for page to load after clicking email sign-in button")
-	var currentURL string
-	if err := runner.Run(ctx, chromedp.Sleep(2*time.Second)); err != nil {
-		return fmt.Errorf("failed to wait after clicking email button: %w", err)
-	}
-	if err := runner.Run(ctx, chromedp.Location(&currentURL)); err == nil {
-		slog.Info("Current page after clicking email sign-in", "url", currentURL)
-	}
+	time.Sleep(2 * time.Second)
 
-	emailSelector, err := automation.WaitForSelector(ctx, runner, []string{
+	url, _ := automation.GetPageURL(page)
+	slog.Info("Current page after clicking email sign-in", "url", url)
+
+	_, emailEl, err := automation.WaitForSelectorWithContext(ctx, page, []string{
 		`//input[@type="email" or @name="email" or @id="ap_email"]`,
 		`//input[@name="user[email]"]`,
 	}, "email field", 10*time.Second)
 	if err != nil {
 		return err
 	}
-	if err := runner.Run(ctx, chromedp.SendKeys(emailSelector, opts.Email, chromedp.BySearch)); err != nil {
+	if err := emailEl.Input(opts.Email); err != nil {
 		return fmt.Errorf("failed to fill email: %w", err)
 	}
 
-	passwordSelector, err := automation.WaitForSelector(ctx, runner, []string{
+	_, passwordEl, err := automation.WaitForSelectorWithContext(ctx, page, []string{
 		`//input[@type="password" or @name="password" or @id="ap_password"]`,
 		`//input[@name="user[password]"]`,
 	}, "password field", 10*time.Second)
 	if err != nil {
 		return err
 	}
-	if err := runner.Run(ctx, chromedp.SendKeys(passwordSelector, opts.Password, chromedp.BySearch)); err != nil {
+	if err := passwordEl.Input(opts.Password); err != nil {
 		return fmt.Errorf("failed to fill password: %w", err)
 	}
 
-	submitSelector, err := automation.WaitForSelector(ctx, runner, []string{
+	_, submitEl, err := automation.WaitForSelectorWithContext(ctx, page, []string{
 		`//button[@type="submit" or contains(., "Sign in")]`,
 		`//input[@type="submit" and (@name="signIn" or @id="signInSubmit")]`,
 	}, "sign-in submit button", 10*time.Second)
 	if err != nil {
 		return err
 	}
-	if err := runner.Run(ctx, chromedp.Click(submitSelector, chromedp.BySearch)); err != nil {
+	if err := submitEl.Click(proto.InputMouseButtonLeft, 1); err != nil {
 		return fmt.Errorf("failed to submit login form: %w", err)
 	}
 
-	if err := waitForLoginSuccess(ctx, runner); err != nil {
+	if err := waitForLoginSuccess(ctx, page); err != nil {
 		return err
 	}
 
@@ -164,17 +177,14 @@ func performGoodreadsLogin(ctx context.Context, runner automation.CDPRunner, opt
 	return nil
 }
 
-func waitForLoginSuccess(ctx context.Context, runner automation.CDPRunner) error {
+func waitForLoginSuccess(ctx context.Context, page *rod.Page) error {
 	start := time.Now()
 	slog.Info("Waiting for Goodreads login to complete")
 
 	err := automation.WaitForURLChange(
 		ctx,
-		runner,
 		func() (string, error) {
-			var location string
-			err := runner.Run(ctx, chromedp.Location(&location))
-			return location, err
+			return automation.GetPageURL(page)
 		},
 		[]string{"/sign_in", "ap/signin"},
 		30*time.Second,
@@ -188,10 +198,10 @@ func waitForLoginSuccess(ctx context.Context, runner automation.CDPRunner) error
 	return nil
 }
 
-func triggerGoodreadsExport(ctx context.Context, runner automation.CDPRunner) error {
+func triggerGoodreadsExport(ctx context.Context, page *rod.Page) error {
 	slog.Info("Navigating to Goodreads export page")
 
-	if err := runner.Run(ctx, chromedp.Navigate("https://www.goodreads.com/review/import")); err != nil {
+	if err := page.Navigate("https://www.goodreads.com/review/import"); err != nil {
 		return fmt.Errorf("failed to navigate to import page: %w", err)
 	}
 
@@ -199,22 +209,18 @@ func triggerGoodreadsExport(ctx context.Context, runner automation.CDPRunner) er
 	time.Sleep(2 * time.Second)
 
 	// Check if an export link already exists (from a previous export)
-	var existingLink string
-	_ = runner.Run(ctx, chromedp.Evaluate(`
-		(() => {
-			const fileList = document.getElementById('exportFile');
-			if (fileList) {
-				const link = fileList.querySelector('a');
-				if (link && link.href) {
-					return link.href;
-				}
+	existingLink, err := page.Eval(`() => {
+		const fileList = document.getElementById('exportFile');
+		if (fileList) {
+			const link = fileList.querySelector('a');
+			if (link && link.href) {
+				return link.href;
 			}
-			return "";
-		})()
-	`, &existingLink))
-
-	if existingLink != "" {
-		slog.Info("Found existing export link, skipping export button click", "link", existingLink)
+		}
+		return "";
+	}`)
+	if err == nil && existingLink.Value.Str() != "" {
+		slog.Info("Found existing export link, skipping export button click", "link", existingLink.Value.Str())
 		return nil
 	}
 
@@ -222,7 +228,7 @@ func triggerGoodreadsExport(ctx context.Context, runner automation.CDPRunner) er
 	slog.Info("No existing export link found, triggering new export")
 
 	// Try multiple selectors for the export button
-	exportButtonSelector, err := automation.WaitForSelector(ctx, runner, []string{
+	_, exportBtn, err := automation.WaitForSelectorWithContext(ctx, page, []string{
 		`//button[contains(., 'Export Library')]`,
 		`//input[@value='Export Library']`,
 		`//input[@type='submit' and contains(@value, 'Export')]`,
@@ -231,9 +237,9 @@ func triggerGoodreadsExport(ctx context.Context, runner automation.CDPRunner) er
 		return err
 	}
 
-	slog.Info("Found export button", "selector", exportButtonSelector)
+	slog.Info("Found export button, clicking")
 
-	if err := runner.Run(ctx, chromedp.Click(exportButtonSelector, chromedp.BySearch)); err != nil {
+	if err := exportBtn.Click(proto.InputMouseButtonLeft, 1); err != nil {
 		return fmt.Errorf("failed to click export button: %w", err)
 	}
 
@@ -241,41 +247,40 @@ func triggerGoodreadsExport(ctx context.Context, runner automation.CDPRunner) er
 	return nil
 }
 
-func waitForExportLink(ctx context.Context, runner automation.CDPRunner) (string, error) {
+func waitForExportLink(ctx context.Context, page *rod.Page) (string, error) {
 	start := time.Now()
 	ticker := time.NewTicker(exportPollInterval)
 	defer ticker.Stop()
 
 	tries := 0
 	for {
-		var exportLink string
-		if err := runner.Run(ctx, chromedp.Evaluate(`
-			(() => {
-				// Try looking in the fileList div first (most reliable)
-				const fileList = document.getElementById('exportFile');
-				if (fileList) {
-					const link = fileList.querySelector('a');
-					if (link && link.href) {
-						return link.href;
-					}
+		result, err := page.Eval(`() => {
+			// Try looking in the fileList div first (most reliable)
+			const fileList = document.getElementById('exportFile');
+			if (fileList) {
+				const link = fileList.querySelector('a');
+				if (link && link.href) {
+					return link.href;
 				}
+			}
 
-				// Fallback: try multiple possible link patterns
-				let link = document.querySelector('a[href*="review_porter/export"]');
-				if (!link) {
-					link = document.querySelector('a[href*="goodreads_export.csv"]');
-				}
-				if (!link) {
-					link = document.querySelector('a[href*="goodreads_library_export.csv"]');
-				}
+			// Fallback: try multiple possible link patterns
+			let link = document.querySelector('a[href*="review_porter/export"]');
+			if (!link) {
+				link = document.querySelector('a[href*="goodreads_export.csv"]');
+			}
+			if (!link) {
+				link = document.querySelector('a[href*="goodreads_library_export.csv"]');
+			}
 
-				// Return the full absolute URL
-				return link ? link.href : "";
-			})()
-		`, &exportLink)); err != nil {
+			// Return the full absolute URL
+			return link ? link.href : "";
+		}`)
+		if err != nil {
 			return "", fmt.Errorf("failed to check Goodreads export link: %w", err)
 		}
 
+		exportLink := result.Value.Str()
 		if exportLink != "" {
 			slog.Info("Found Goodreads export link", "link", exportLink, "waited", time.Since(start))
 			return exportLink, nil
@@ -285,14 +290,13 @@ func waitForExportLink(ctx context.Context, runner automation.CDPRunner) (string
 			slog.Info("Waiting for Goodreads export link", "elapsed", time.Since(start))
 
 			// Debug: check specifically for the export file div
-			var exportHTML string
-			_ = runner.Run(ctx, chromedp.Evaluate(`
-				(() => {
-					const div = document.getElementById('exportFile');
-					return div ? div.innerHTML : 'exportFile div not found';
-				})()
-			`, &exportHTML))
-			slog.Info("Export file div content", "html", exportHTML)
+			divResult, divErr := page.Eval(`() => {
+				const div = document.getElementById('exportFile');
+				return div ? div.innerHTML : 'exportFile div not found';
+			}`)
+			if divErr == nil {
+				slog.Info("Export file div content", "html", divResult.Value.Str())
+			}
 		}
 		tries++
 
@@ -303,17 +307,16 @@ func waitForExportLink(ctx context.Context, runner automation.CDPRunner) (string
 		}
 
 		// Only reload if we've tried several times without success
-		// Don't reload immediately as it might clear the just-generated link
 		if tries > 3 {
 			slog.Debug("Reloading page to check for export link", "tries", tries)
-			if err := runner.Run(ctx, chromedp.Reload()); err != nil {
-				slog.Debug("Failed to refresh Goodreads export page", "error", err)
+			if reloadErr := page.Reload(); reloadErr != nil {
+				slog.Debug("Failed to refresh Goodreads export page", "error", reloadErr)
 			}
 		}
 	}
 }
 
-func waitForDownload(ctx context.Context, runner automation.CDPRunner, downloadDir string) (string, error) {
+func waitForDownload(ctx context.Context, downloadDir string) (string, error) {
 	start := time.Now()
 
 	path, err := automation.PollWithTimeout(

@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chromedp/chromedp"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,24 +33,9 @@ func TestWaitForDownloadFindsExistingFile(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	runner := &mockCDPRunner{}
-	path, err := waitForDownload(ctx, runner, tempDir)
+	path, err := waitForDownload(ctx, tempDir)
 	require.NoError(t, err)
 	require.Equal(t, target, path)
-}
-
-type mockCDPRunner struct{}
-
-func (m *mockCDPRunner) NewExecAllocator(ctx context.Context, opts ...chromedp.ExecAllocatorOption) (context.Context, context.CancelFunc) {
-	return context.Background(), func() {}
-}
-
-func (m *mockCDPRunner) NewContext(parent context.Context, opts ...chromedp.ContextOption) (context.Context, context.CancelFunc) {
-	return context.Background(), func() {}
-}
-
-func (m *mockCDPRunner) Run(ctx context.Context, actions ...chromedp.Action) error {
-	return nil
 }
 
 func TestFindDownloadedCSVSkipsPartialFiles(t *testing.T) {
