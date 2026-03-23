@@ -106,7 +106,7 @@ func LogFileWriteResult(written bool, filePath string) {
 
 // WriteJSONFile writes data as JSON to a file, respecting the overwrite flag
 // Returns true if the file was written, false if it was skipped
-func WriteJSONFile(data interface{}, filePath string, overwrite bool) (bool, error) {
+func WriteJSONFile(data any, filePath string, overwrite bool) (bool, error) {
 	// Check if file exists and we shouldn't overwrite
 	if FileExists(filePath) && !overwrite {
 		slog.Debug("Skipped existing JSON file", "path", filePath)

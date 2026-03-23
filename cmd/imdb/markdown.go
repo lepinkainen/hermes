@@ -56,9 +56,7 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	// Add runtime and duration
 	if movie.RuntimeMins > 0 {
 		fm.Set("runtime", movie.RuntimeMins)
-		hours := movie.RuntimeMins / 60
-		mins := movie.RuntimeMins % 60
-		fm.Set("duration", fmt.Sprintf("%dh %dm", hours, mins))
+		fm.Set("duration", fileutil.FormatDuration(movie.RuntimeMins))
 	}
 
 	// Add directors as an array
@@ -79,10 +77,7 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	}
 
 	// Add decade tag
-	if movie.Year > 0 {
-		decade := (movie.Year / 10) * 10
-		tc.AddFormat("year/%ds", decade)
-	}
+	tc.AddIf(movie.Year > 0, obsidian.DecadeTag(movie.Year))
 
 	// Add genres as tags with genre/ prefix
 	for _, genre := range movie.Genres {

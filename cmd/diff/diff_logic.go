@@ -1,8 +1,9 @@
 package diff
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -302,23 +303,23 @@ func buildIMDbMatches(matches []imdbMovie) []diffMatch {
 }
 
 func sortDiffItems(items []diffItem) {
-	sort.Slice(items, func(i, j int) bool {
-		iTitle := strings.ToLower(items[i].Title)
-		jTitle := strings.ToLower(items[j].Title)
-		if iTitle == jTitle {
-			return items[i].Year < items[j].Year
+	slices.SortFunc(items, func(a, b diffItem) int {
+		aTitle := strings.ToLower(a.Title)
+		bTitle := strings.ToLower(b.Title)
+		if aTitle == bTitle {
+			return cmp.Compare(a.Year, b.Year)
 		}
-		return iTitle < jTitle
+		return cmp.Compare(aTitle, bTitle)
 	})
 }
 
 func sortMatches(matches []diffMatch) {
-	sort.Slice(matches, func(i, j int) bool {
-		iTitle := strings.ToLower(matches[i].Title)
-		jTitle := strings.ToLower(matches[j].Title)
-		if iTitle == jTitle {
-			return matches[i].Year < matches[j].Year
+	slices.SortFunc(matches, func(a, b diffMatch) int {
+		aTitle := strings.ToLower(a.Title)
+		bTitle := strings.ToLower(b.Title)
+		if aTitle == bTitle {
+			return cmp.Compare(a.Year, b.Year)
 		}
-		return iTitle < jTitle
+		return cmp.Compare(aTitle, bTitle)
 	})
 }

@@ -295,17 +295,17 @@ func TestTagsFromAny(t *testing.T) {
 		},
 		{
 			name:  "interface slice",
-			input: []interface{}{"action", "comedy", "drama"},
+			input: []any{"action", "comedy", "drama"},
 			want:  []string{"action", "comedy", "drama"},
 		},
 		{
 			name:  "interface slice with mixed types",
-			input: []interface{}{"action", 123, "comedy", nil, "drama"},
+			input: []any{"action", 123, "comedy", nil, "drama"},
 			want:  []string{"action", "comedy", "drama"},
 		},
 		{
 			name:  "interface slice with empty strings",
-			input: []interface{}{"action", "", "comedy"},
+			input: []any{"action", "", "comedy"},
 			want:  []string{"action", "comedy"},
 		},
 		{
@@ -320,7 +320,7 @@ func TestTagsFromAny(t *testing.T) {
 		},
 		{
 			name:  "empty interface slice",
-			input: []interface{}{},
+			input: []any{},
 			want:  []string{},
 		},
 	}

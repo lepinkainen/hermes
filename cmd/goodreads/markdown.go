@@ -103,10 +103,7 @@ func buildBookFrontmatter(book Book) *obsidian.Frontmatter {
 	tc.AddIf(book.MyRating > 0, fmt.Sprintf("rating/%.0f", book.MyRating))
 
 	// Add decade tag if we have a year
-	if book.YearPublished > 0 {
-		decade := (book.YearPublished / 10) * 10
-		tc.AddFormat("year/%ds", decade)
-	}
+	tc.AddIf(book.YearPublished > 0, obsidian.DecadeTag(book.YearPublished))
 
 	// Add shelf tag
 	tc.AddIf(book.ExclusiveShelf != "", fmt.Sprintf("shelf/%s", book.ExclusiveShelf))
@@ -207,7 +204,7 @@ func buildPrivateNotesSection(notes string) string {
 	var body strings.Builder
 	body.WriteString(">[!note]- Private Notes\n")
 
-	for _, line := range strings.Split(notes, "\n") {
+	for line := range strings.SplitSeq(notes, "\n") {
 		body.WriteString("> ")
 		body.WriteString(line)
 		body.WriteString("\n")

@@ -1,8 +1,9 @@
 package steam
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -28,9 +29,7 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 
 	// Add duration (formatted playtime)
 	if game.PlaytimeForever > 0 {
-		hours := game.PlaytimeForever / 60
-		mins := game.PlaytimeForever % 60
-		fm.Set("duration", fmt.Sprintf("%dh %dm", hours, mins))
+		fm.Set("duration", fileutil.FormatDuration(game.PlaytimeForever))
 	}
 
 	// Add release date
@@ -39,9 +38,9 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	}
 
 	// Add achievement metadata to frontmatter
+	var achievementsTotal, achievementsUnlocked int
 	if len(details.Achievements) > 0 {
-		achievementsTotal := len(details.Achievements)
-		achievementsUnlocked := 0
+		achievementsTotal = len(details.Achievements)
 		for _, ach := range details.Achievements {
 			if ach.Achieved == 1 {
 				achievementsUnlocked++
@@ -81,21 +80,23 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 		fm.Set("publishers", details.Publishers)
 	}
 
+	// Convert categories and genres to string slices (reused for frontmatter and content)
+	categories := make([]string, len(details.Categories))
+	for i, cat := range details.Categories {
+		categories[i] = cat.Description
+	}
+	genres := make([]string, len(details.Genres))
+	for i, genre := range details.Genres {
+		genres[i] = genre.Description
+	}
+
 	// Add categories as an array
-	if len(details.Categories) > 0 {
-		categories := make([]string, len(details.Categories))
-		for i, cat := range details.Categories {
-			categories[i] = cat.Description
-		}
+	if len(categories) > 0 {
 		fm.Set("categories", categories)
 	}
 
 	// Add genres as an array
-	if len(details.Genres) > 0 {
-		genres := make([]string, len(details.Genres))
-		for i, genre := range details.Genres {
-			genres[i] = genre.Description
-		}
+	if len(genres) > 0 {
 		fm.Set("genres", genres)
 	}
 
@@ -121,15 +122,6 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	}
 
 	// Build Steam content sections using the existing steam_sections.go
-	categories := make([]string, len(details.Categories))
-	for i, cat := range details.Categories {
-		categories[i] = cat.Description
-	}
-	genres := make([]string, len(details.Genres))
-	for i, genre := range details.Genres {
-		genres[i] = genre.Description
-	}
-
 	steamDetails := &content.SteamGameDetails{
 		AppID:       game.AppID,
 		Name:        game.Name,
@@ -160,7 +152,7 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 
 	// Add achievements section (not in content markers since it's game-specific data)
 	if len(details.Achievements) > 0 {
-		achievementsSection := buildAchievementsSection(details.Achievements)
+		achievementsSection := buildAchievementsSection(details.Achievements, achievementsTotal, achievementsUnlocked)
 		if achievementsSection != "" {
 			body.WriteString(achievementsSection)
 			body.WriteString("\n\n")
@@ -190,7 +182,7 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 }
 
 // buildAchievementsSection creates the achievements section with progress and checklist
-func buildAchievementsSection(achievements []Achievement) string {
+func buildAchievementsSection(achievements []Achievement, achievementsTotal, achievementsUnlocked int) string {
 	if len(achievements) == 0 {
 		return ""
 	}
@@ -202,24 +194,15 @@ func buildAchievementsSection(achievements []Achievement) string {
 	achievementsCopy := make([]Achievement, len(achievements))
 	copy(achievementsCopy, achievements)
 
-	sort.SliceStable(achievementsCopy, func(i, j int) bool {
-		if achievementsCopy[i].Achieved != achievementsCopy[j].Achieved {
-			return achievementsCopy[i].Achieved > achievementsCopy[j].Achieved
+	slices.SortStableFunc(achievementsCopy, func(a, b Achievement) int {
+		if a.Achieved != b.Achieved {
+			return cmp.Compare(b.Achieved, a.Achieved)
 		}
-		if achievementsCopy[i].Achieved == 1 {
-			return achievementsCopy[i].UnlockTime > achievementsCopy[j].UnlockTime
+		if a.Achieved == 1 {
+			return cmp.Compare(b.UnlockTime, a.UnlockTime)
 		}
-		return achievementsCopy[i].Name < achievementsCopy[j].Name
+		return cmp.Compare(a.Name, b.Name)
 	})
-
-	// Calculate stats
-	achievementsTotal := len(achievementsCopy)
-	achievementsUnlocked := 0
-	for _, ach := range achievementsCopy {
-		if ach.Achieved == 1 {
-			achievementsUnlocked++
-		}
-	}
 
 	// Progress summary
 	builder.WriteString(fmt.Sprintf("**Progress**: %d / %d (%.1f%%)\n\n",

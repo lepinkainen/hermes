@@ -1,7 +1,6 @@
 package tmdb
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -29,7 +28,7 @@ func TestCachedGetMetadataByID_ForceBypassesCache(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
-	ctx := context.Background()
+	ctx := t.Context()
 
 	metadata, fromCache, err := client.CachedGetMetadataByID(ctx, 101, "movie", false)
 	if err != nil {
@@ -87,7 +86,7 @@ func TestCachedGetFullMovieDetails_ForceBypassesCache(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
-	ctx := context.Background()
+	ctx := t.Context()
 
 	details, fromCache, err := client.CachedGetFullMovieDetails(ctx, 101, false)
 	if err != nil {

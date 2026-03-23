@@ -1,7 +1,6 @@
 package tmdb
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -34,7 +33,7 @@ func TestGetMovieDetails_Success(t *testing.T) {
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
 
-	details, err := client.GetMovieDetails(context.Background(), 550)
+	details, err := client.GetMovieDetails(t.Context(), 550)
 	require.NoError(t, err)
 	require.NotNil(t, details)
 
@@ -52,7 +51,7 @@ func TestGetMovieDetails_NotFound(t *testing.T) {
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
 
-	details, err := client.GetMovieDetails(context.Background(), 999999)
+	details, err := client.GetMovieDetails(t.Context(), 999999)
 	require.Error(t, err)
 	require.Nil(t, details)
 }
@@ -79,7 +78,7 @@ func TestGetTVDetails_Success(t *testing.T) {
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
 
-	details, err := client.GetTVDetails(context.Background(), 1396, "")
+	details, err := client.GetTVDetails(t.Context(), 1396, "")
 	require.NoError(t, err)
 	require.NotNil(t, details)
 
@@ -107,7 +106,7 @@ func TestGetTVDetails_WithAppendToResponse(t *testing.T) {
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
 
-	details, err := client.GetTVDetails(context.Background(), 1396, "external_ids,keywords")
+	details, err := client.GetTVDetails(t.Context(), 1396, "external_ids,keywords")
 	require.NoError(t, err)
 	require.NotNil(t, details)
 
@@ -145,7 +144,7 @@ func TestGetFullMovieDetails_Success(t *testing.T) {
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
 
-	details, err := client.GetFullMovieDetails(context.Background(), 550)
+	details, err := client.GetFullMovieDetails(t.Context(), 550)
 	require.NoError(t, err)
 	require.NotNil(t, details)
 
@@ -179,7 +178,7 @@ func TestGetFullTVDetails_Success(t *testing.T) {
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
 
-	details, err := client.GetFullTVDetails(context.Background(), 1396)
+	details, err := client.GetFullTVDetails(t.Context(), 1396)
 	require.NoError(t, err)
 	require.NotNil(t, details)
 
@@ -206,7 +205,7 @@ func TestGetMetadataByID_Movie(t *testing.T) {
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
 
-	metadata, err := client.GetMetadataByID(context.Background(), 550, "movie")
+	metadata, err := client.GetMetadataByID(t.Context(), 550, "movie")
 	require.NoError(t, err)
 	require.NotNil(t, metadata)
 
@@ -236,7 +235,7 @@ func TestGetMetadataByID_TV(t *testing.T) {
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
 
-	metadata, err := client.GetMetadataByID(context.Background(), 1396, "tv")
+	metadata, err := client.GetMetadataByID(t.Context(), 1396, "tv")
 	require.NoError(t, err)
 	require.NotNil(t, metadata)
 
@@ -252,7 +251,7 @@ func TestGetMetadataByID_TV(t *testing.T) {
 func TestGetMetadataByID_InvalidMediaType(t *testing.T) {
 	client := NewClient("test-api-key")
 
-	metadata, err := client.GetMetadataByID(context.Background(), 123, "invalid")
+	metadata, err := client.GetMetadataByID(t.Context(), 123, "invalid")
 	require.Error(t, err)
 	require.Equal(t, ErrInvalidMediaType, err)
 	require.Nil(t, metadata)
@@ -281,7 +280,7 @@ func TestGetMetadataByResult_Movie(t *testing.T) {
 		Title:     "Fight Club",
 	}
 
-	metadata, err := client.GetMetadataByResult(context.Background(), result)
+	metadata, err := client.GetMetadataByResult(t.Context(), result)
 	require.NoError(t, err)
 	require.NotNil(t, metadata)
 	require.Equal(t, 550, metadata.TMDBID)
@@ -312,7 +311,7 @@ func TestGetMetadataByResult_TV(t *testing.T) {
 		Name:      "Breaking Bad",
 	}
 
-	metadata, err := client.GetMetadataByResult(context.Background(), result)
+	metadata, err := client.GetMetadataByResult(t.Context(), result)
 	require.NoError(t, err)
 	require.NotNil(t, metadata)
 	require.Equal(t, 1396, metadata.TMDBID)
@@ -328,7 +327,7 @@ func TestGetMetadataByResult_InvalidMediaType(t *testing.T) {
 		Name:      "Test Person",
 	}
 
-	metadata, err := client.GetMetadataByResult(context.Background(), result)
+	metadata, err := client.GetMetadataByResult(t.Context(), result)
 	require.Error(t, err)
 	require.Equal(t, ErrInvalidMediaType, err)
 	require.Nil(t, metadata)
@@ -352,7 +351,7 @@ func TestGetMetadataByID_NoRuntime(t *testing.T) {
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
 
-	metadata, err := client.GetMetadataByID(context.Background(), 550, "movie")
+	metadata, err := client.GetMetadataByID(t.Context(), 550, "movie")
 	require.NoError(t, err)
 	require.NotNil(t, metadata)
 	require.Nil(t, metadata.Runtime, "runtime should be nil when not provided")
@@ -376,7 +375,7 @@ func TestGetMetadataByID_NoGenres(t *testing.T) {
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
 
-	metadata, err := client.GetMetadataByID(context.Background(), 1396, "tv")
+	metadata, err := client.GetMetadataByID(t.Context(), 1396, "tv")
 	require.NoError(t, err)
 	require.NotNil(t, metadata)
 	require.Empty(t, metadata.GenreTags, "genre tags should be empty when genres not provided")

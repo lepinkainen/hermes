@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+// coverHTTPClient is reused across cover downloads to share connection pools.
+var coverHTTPClient = &http.Client{
+	Timeout: 30 * time.Second,
+}
+
 // CoverDownloadOptions holds options for downloading cover images.
 type CoverDownloadOptions struct {
 	// URL is the source URL of the cover image
@@ -63,11 +68,7 @@ func DownloadCover(opts CoverDownloadOptions) (*CoverDownloadResult, error) {
 	}
 
 	// Download the image
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
-	resp, err := client.Get(opts.URL)
+	resp, err := coverHTTPClient.Get(opts.URL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download cover: %w", err)
 	}

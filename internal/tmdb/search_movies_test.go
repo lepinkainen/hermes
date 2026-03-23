@@ -1,7 +1,6 @@
 package tmdb
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -42,7 +41,7 @@ func TestSearchMovies_FiltersAndLimits(t *testing.T) {
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
 
-	results, err := client.SearchMovies(context.Background(), "matrix", 1999, 0)
+	results, err := client.SearchMovies(t.Context(), "matrix", 1999, 0)
 	require.NoError(t, err)
 	assert.Len(t, results, 1)
 	assert.Equal(t, 2, results[0].ID)

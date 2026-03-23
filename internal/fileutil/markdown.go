@@ -42,7 +42,7 @@ func (mb *MarkdownBuilder) AddYear(year int) *MarkdownBuilder {
 }
 
 // AddField adds a simple key-value field to the frontmatter
-func (mb *MarkdownBuilder) AddField(key string, value interface{}) *MarkdownBuilder {
+func (mb *MarkdownBuilder) AddField(key string, value any) *MarkdownBuilder {
 	switch v := value.(type) {
 	case string:
 		if v != "" {
@@ -90,30 +90,6 @@ func (mb *MarkdownBuilder) AddTags(tags ...string) *MarkdownBuilder {
 		}
 	}
 	return mb
-}
-
-// GetDecadeTag returns a decade tag based on the year
-func (mb *MarkdownBuilder) GetDecadeTag(year int) string {
-	switch {
-	case year >= 2020:
-		return "year/2020s"
-	case year >= 2010:
-		return "year/2010s"
-	case year >= 2000:
-		return "year/2000s"
-	case year >= 1990:
-		return "year/1990s"
-	case year >= 1980:
-		return "year/1980s"
-	case year >= 1970:
-		return "year/1970s"
-	case year >= 1960:
-		return "year/1960s"
-	case year >= 1950:
-		return "year/1950s"
-	default:
-		return "year/pre-1950s"
-	}
 }
 
 // AddDuration adds a duration field to the frontmatter

@@ -1,7 +1,6 @@
 package tmdb
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -97,7 +96,7 @@ func TestFindByIMDBID(t *testing.T) {
 
 			client := NewClient("test-api-key", opts...)
 
-			gotID, gotType, err := client.FindByIMDBID(context.Background(), tt.imdbID)
+			gotID, gotType, err := client.FindByIMDBID(t.Context(), tt.imdbID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FindByIMDBID() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -147,7 +146,7 @@ func TestSearchMulti(t *testing.T) {
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
 
-	results, err := client.SearchMulti(context.Background(), "test", 1994, 10)
+	results, err := client.SearchMulti(t.Context(), "test", 1994, 10)
 	if err != nil {
 		t.Fatalf("SearchMulti() error = %v", err)
 	}

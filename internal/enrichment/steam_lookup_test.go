@@ -37,7 +37,7 @@ func TestFetchSteamStoreSearch_ParseResponse(t *testing.T) {
 	defer server.Close()
 
 	// Test the HTTP call and parsing directly with the mock server
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL+"?term=Half-Life&l=english&cc=US", nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL+"?term=Half-Life&l=english&cc=US", nil)
 	require.NoError(t, err)
 
 	client := &http.Client{}
@@ -70,7 +70,7 @@ func TestSteamStoreSearchResponse_EmptyResults(t *testing.T) {
 	}))
 	defer server.Close()
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL, nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL, nil)
 	require.NoError(t, err)
 
 	client := &http.Client{}
@@ -95,7 +95,7 @@ func TestSteamStoreSearch_HTTPErrorHandling(t *testing.T) {
 	}))
 	defer server.Close()
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL, nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL, nil)
 	require.NoError(t, err)
 
 	client := &http.Client{}
@@ -116,7 +116,7 @@ func TestSteamStoreSearch_InvalidJSONHandling(t *testing.T) {
 	}))
 	defer server.Close()
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL, nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL, nil)
 	require.NoError(t, err)
 
 	client := &http.Client{}
@@ -140,7 +140,7 @@ func TestSteamStoreSearch_ContextCancellation(t *testing.T) {
 	}))
 	defer server.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, nil)
@@ -171,7 +171,7 @@ func TestSteamStoreSearch_QueryEscaping(t *testing.T) {
 	}))
 	defer server.Close()
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL+"?term=Grand+Theft+Auto+V", nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL+"?term=Grand+Theft+Auto+V", nil)
 	require.NoError(t, err)
 
 	client := &http.Client{}

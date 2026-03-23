@@ -1,7 +1,6 @@
 package tmdb
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -26,11 +25,11 @@ func TestGetGenresCachesResponse(t *testing.T) {
 
 	client := NewClient("key", WithBaseURL(server.URL), WithHTTPClient(server.Client()), WithRateLimiter(nil))
 
-	genres, err := client.getGenres(context.Background(), "movie")
+	genres, err := client.getGenres(t.Context(), "movie")
 	require.NoError(t, err)
 	assert.Equal(t, "Action", genres[1])
 
-	genres, err = client.getGenres(context.Background(), "movie")
+	genres, err = client.getGenres(t.Context(), "movie")
 	require.NoError(t, err)
 	assert.Equal(t, "Action", genres[1])
 
@@ -57,7 +56,7 @@ func TestBuildGenreTags(t *testing.T) {
 		},
 	}
 
-	tags, err := client.buildGenreTags(context.Background(), "movie", details)
+	tags, err := client.buildGenreTags(t.Context(), "movie", details)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"movie/Science-Fiction"}, tags)
 }

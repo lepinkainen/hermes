@@ -1,7 +1,8 @@
 package book
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 )
 
 // Merger defines the interface for merging book information from multiple sources.
@@ -29,8 +30,8 @@ func (m *PriorityMerger) Merge(results []EnricherResult) *EnrichmentData {
 	}
 
 	// Sort by priority (lower = higher precedence)
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Priority < results[j].Priority
+	slices.SortFunc(results, func(a, b EnricherResult) int {
+		return cmp.Compare(a.Priority, b.Priority)
 	})
 
 	merged := &EnrichmentData{}

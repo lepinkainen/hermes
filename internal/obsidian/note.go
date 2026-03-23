@@ -193,7 +193,7 @@ func (f *Frontmatter) Keys() []string {
 }
 
 // MarshalYAML implements custom YAML marshaling with sorted keys and flow-style tags.
-func (f *Frontmatter) MarshalYAML() (interface{}, error) {
+func (f *Frontmatter) MarshalYAML() (any, error) {
 	// Create a mapping node with sorted key-value pairs
 	node := &yaml.Node{
 		Kind:    yaml.MappingNode,

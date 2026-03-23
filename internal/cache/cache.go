@@ -42,6 +42,9 @@ var (
 	globalCache      *CacheDB
 	globalCacheOnce  sync.Once
 	globalCacheMutex sync.Mutex
+
+	configTTL     time.Duration
+	configTTLOnce sync.Once
 )
 
 // ResetGlobalCache closes the current global cache and resets the singleton
@@ -55,7 +58,27 @@ func ResetGlobalCache() error {
 	}
 	globalCache = nil
 	globalCacheOnce = sync.Once{}
+	configTTLOnce = sync.Once{}
 	return nil
+}
+
+// getConfigTTL returns the cache TTL from config, parsed once and cached.
+func getConfigTTL() time.Duration {
+	configTTLOnce.Do(func() {
+		ttlStr := viper.GetString("cache.ttl")
+		if ttlStr == "" {
+			configTTL = DefaultCacheTTL
+			return
+		}
+		parsed, err := time.ParseDuration(ttlStr)
+		if err != nil {
+			slog.Warn("Invalid cache TTL, using default", "ttl", ttlStr, "error", err)
+			configTTL = DefaultCacheTTL
+			return
+		}
+		configTTL = parsed
+	})
+	return configTTL
 }
 
 // GetGlobalCache returns the singleton cache database instance
@@ -243,18 +266,8 @@ func getOrFetchWithPolicy[T any](tableName, cacheKey string, fetchFunc FetchFunc
 		return data, false, fetchErr
 	}
 
-	// Get TTL duration from config
-	ttlStr := viper.GetString("cache.ttl")
-	if ttlStr == "" {
-		ttlStr = "720h" // Default 30 days
-	}
-	ttl, err := time.ParseDuration(ttlStr)
-	if err != nil {
-		slog.Warn("Invalid cache TTL, using default", "ttl", ttlStr, "error", err)
-		ttl = 720 * time.Hour
-	}
-
 	// Check cache first
+	ttl := getConfigTTL()
 	cached, fromCache, err := cache.Get(tableName, cacheKey, ttl)
 	if err == nil && fromCache {
 		var result T
@@ -304,18 +317,8 @@ func getOrFetchWithTTLSelector[T any](tableName, cacheKey string, fetchFunc Fetc
 		return data, false, fetchErr
 	}
 
-	// Get default TTL from config for cache lookups
-	ttlStr := viper.GetString("cache.ttl")
-	if ttlStr == "" {
-		ttlStr = "720h" // Default 30 days
-	}
-	defaultTTL, err := time.ParseDuration(ttlStr)
-	if err != nil {
-		slog.Warn("Invalid cache TTL, using default", "ttl", ttlStr, "error", err)
-		defaultTTL = 720 * time.Hour
-	}
-
 	// Check cache first (use maximum TTL for lookup to find both short and long-lived entries)
+	defaultTTL := getConfigTTL()
 	maxTTL := defaultTTL
 	cached, fromCache, err := cache.Get(tableName, cacheKey, maxTTL)
 	if err == nil && fromCache {

@@ -231,7 +231,7 @@ func TestLetterboxdImportE2E_JSON(t *testing.T) {
 	content, err := os.ReadFile(jsonOutput)
 	require.NoError(t, err)
 
-	var items []map[string]interface{}
+	var items []map[string]any
 	err = json.Unmarshal(content, &items)
 	require.NoError(t, err)
 	require.Len(t, items, 20, "Expected 20 items in JSON output")

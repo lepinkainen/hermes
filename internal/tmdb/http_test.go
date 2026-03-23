@@ -1,7 +1,6 @@
 package tmdb
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -43,7 +42,7 @@ func TestGetJSONRetriesOnTimeout(t *testing.T) {
 	client := NewClient("key", WithHTTPClient(&testHTTPDoer{}), WithRetryAttempts(2), WithRateLimiter(nil))
 
 	var payload map[string]string
-	err := client.getJSON(context.Background(), "http://example.test/", &payload)
+	err := client.getJSON(t.Context(), "http://example.test/", &payload)
 	require.NoError(t, err)
 	assert.Equal(t, "ok", payload["status"])
 }
@@ -75,7 +74,7 @@ func TestDoJSONRequestStatusError(t *testing.T) {
 	client := NewClient("key", WithBaseURL(server.URL), WithHTTPClient(server.Client()), WithRateLimiter(nil))
 
 	var payload map[string]any
-	err := client.doJSONRequest(context.Background(), server.URL, &payload)
+	err := client.doJSONRequest(t.Context(), server.URL, &payload)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected status 500")
 }

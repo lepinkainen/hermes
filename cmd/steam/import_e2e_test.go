@@ -344,7 +344,7 @@ func TestSteamImportE2E_JSON(t *testing.T) {
 	content, err := os.ReadFile(jsonPath)
 	require.NoError(t, err)
 
-	var items []map[string]interface{}
+	var items []map[string]any
 	err = json.Unmarshal(content, &items)
 	require.NoError(t, err)
 	require.Len(t, items, 3, "Expected 3 items in JSON output")

@@ -87,7 +87,7 @@ func TestPollWithTimeout(t *testing.T) {
 
 	t.Run("returns immediately when condition is met", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		callCount := 0
 		checkFunc := func() (string, bool, error) {
@@ -103,7 +103,7 @@ func TestPollWithTimeout(t *testing.T) {
 
 	t.Run("polls until condition is met", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		callCount := 0
 		checkFunc := func() (string, bool, error) {
@@ -122,7 +122,7 @@ func TestPollWithTimeout(t *testing.T) {
 
 	t.Run("returns error when timeout exceeded", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		checkFunc := func() (string, bool, error) {
 			return "", false, nil
@@ -135,7 +135,7 @@ func TestPollWithTimeout(t *testing.T) {
 
 	t.Run("returns error when context canceled", func(t *testing.T) {
 		t.Parallel()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 
 		checkFunc := func() (string, bool, error) {
 			cancel() // Cancel on first call
@@ -149,7 +149,7 @@ func TestPollWithTimeout(t *testing.T) {
 
 	t.Run("propagates check function errors", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		expectedErr := errors.New("check failed")
 		checkFunc := func() (string, bool, error) {
@@ -167,7 +167,7 @@ func TestWaitForURLChange(t *testing.T) {
 
 	t.Run("detects URL change immediately", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		callCount := 0
 		getURL := func() (string, error) {
@@ -182,7 +182,7 @@ func TestWaitForURLChange(t *testing.T) {
 
 	t.Run("polls until URL changes", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		callCount := 0
 		getURL := func() (string, error) {
@@ -200,7 +200,7 @@ func TestWaitForURLChange(t *testing.T) {
 
 	t.Run("returns error on timeout", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		getURL := func() (string, error) {
 			return "https://example.com/login", nil
@@ -213,7 +213,7 @@ func TestWaitForURLChange(t *testing.T) {
 
 	t.Run("propagates getURL errors", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		expectedErr := errors.New("navigation error")
 		getURL := func() (string, error) {

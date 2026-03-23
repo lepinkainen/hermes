@@ -1,7 +1,6 @@
 package tmdb
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -41,7 +40,7 @@ func TestGetCoverAndMetadataByResult(t *testing.T) {
 
 	client := NewClient("key", WithBaseURL(server.URL), WithHTTPClient(server.Client()), WithImageBaseURL("https://images.example"), WithRateLimiter(nil))
 
-	cover, metadata, err := client.GetCoverAndMetadataByResult(context.Background(), SearchResult{ID: 123, MediaType: "movie", PosterPath: "/poster.jpg"})
+	cover, metadata, err := client.GetCoverAndMetadataByResult(t.Context(), SearchResult{ID: 123, MediaType: "movie", PosterPath: "/poster.jpg"})
 	require.NoError(t, err)
 	require.Equal(t, "https://images.example/poster.jpg", cover)
 	require.NotNil(t, metadata)

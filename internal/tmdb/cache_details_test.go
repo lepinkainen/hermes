@@ -1,7 +1,6 @@
 package tmdb
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -25,12 +24,12 @@ func TestCachedGetMovieDetailsCaches(t *testing.T) {
 
 	client := NewClient("key", WithBaseURL(server.URL), WithHTTPClient(server.Client()))
 
-	details, fromCache, err := client.CachedGetMovieDetails(context.Background(), 101)
+	details, fromCache, err := client.CachedGetMovieDetails(t.Context(), 101)
 	require.NoError(t, err)
 	require.False(t, fromCache)
 	require.Equal(t, float64(101), details["id"])
 
-	details, fromCache, err = client.CachedGetMovieDetails(context.Background(), 101)
+	details, fromCache, err = client.CachedGetMovieDetails(t.Context(), 101)
 	require.NoError(t, err)
 	require.True(t, fromCache)
 	require.Equal(t, float64(101), details["id"])
@@ -52,12 +51,12 @@ func TestCachedGetTVDetailsCaches(t *testing.T) {
 
 	client := NewClient("key", WithBaseURL(server.URL), WithHTTPClient(server.Client()))
 
-	details, fromCache, err := client.CachedGetTVDetails(context.Background(), 202, "external_ids")
+	details, fromCache, err := client.CachedGetTVDetails(t.Context(), 202, "external_ids")
 	require.NoError(t, err)
 	require.False(t, fromCache)
 	require.Equal(t, float64(202), details["id"])
 
-	details, fromCache, err = client.CachedGetTVDetails(context.Background(), 202, "external_ids")
+	details, fromCache, err = client.CachedGetTVDetails(t.Context(), 202, "external_ids")
 	require.NoError(t, err)
 	require.True(t, fromCache)
 	require.Equal(t, float64(202), details["id"])

@@ -94,7 +94,7 @@ func (ts *TagSet) AddIf(condition bool, tag string) {
 }
 
 // AddFormat adds a formatted tag (like fmt.Sprintf).
-func (ts *TagSet) AddFormat(format string, args ...interface{}) {
+func (ts *TagSet) AddFormat(format string, args ...any) {
 	tag := fmt.Sprintf(format, args...)
 	ts.Add(tag)
 }
@@ -138,6 +138,16 @@ func MergeTags(existing, new []string) []string {
 	return result
 }
 
+// DecadeTag returns a decade tag for the given year using arithmetic (e.g., "year/2020s").
+// Works for any year without needing hardcoded decade ranges.
+func DecadeTag(year int) string {
+	if year <= 0 {
+		return ""
+	}
+	decade := (year / 10) * 10
+	return fmt.Sprintf("year/%ds", decade)
+}
+
 // TagsFromAny safely extracts a string slice from a polymorphic YAML value.
 // YAML unmarshaling can produce []interface{} or []string, this handles both.
 func TagsFromAny(val any) []string {
@@ -157,7 +167,7 @@ func TagsFromAny(val any) []string {
 	}
 
 	// Handle []interface{} from YAML
-	if ifaceSlice, ok := val.([]interface{}); ok {
+	if ifaceSlice, ok := val.([]any); ok {
 		result := make([]string, 0, len(ifaceSlice))
 		for _, item := range ifaceSlice {
 			if str, ok := item.(string); ok && str != "" {

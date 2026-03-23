@@ -20,7 +20,7 @@ func TestMarkdownBuilder(t *testing.T) {
 		AddField("runtime_mins", 120).
 		AddDuration(120).
 		AddStringArray("genres", []string{"Action", "Drama"}).
-		AddTags("tag1", "tag2", builder.GetDecadeTag(2021)).
+		AddTags("tag1", "tag2", "year/2020s").
 		AddParagraph("This is a test paragraph.").
 		AddImage("https://example.com/image.jpg").
 		AddCallout("summary", "Plot", "This is the plot summary.").

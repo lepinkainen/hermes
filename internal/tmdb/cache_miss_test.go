@@ -1,7 +1,6 @@
 package tmdb
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -37,7 +36,7 @@ func TestCachedSearchMovies_DoesNotCacheMisses(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
-	ctx := context.Background()
+	ctx := t.Context()
 
 	results, fromCache, err := client.CachedSearchMovies(ctx, "query", 0, 5)
 	if err != nil {
@@ -104,7 +103,7 @@ func TestCachedFindByIMDBID_DoesNotCacheMisses(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient("test-api-key", WithBaseURL(server.URL))
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tmdbID, mediaType, fromCache, err := client.CachedFindByIMDBID(ctx, "tt0123456")
 	if err != nil {

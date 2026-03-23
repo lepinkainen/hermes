@@ -2,7 +2,6 @@ package tmdb
 
 import (
 	"bytes"
-	"context"
 	"image"
 	"image/color"
 	"image/png"
@@ -29,7 +28,7 @@ func TestGetCoverURLByID(t *testing.T) {
 		WithImageBaseURL("https://images.example"),
 	)
 
-	cover, err := client.GetCoverURLByID(context.Background(), 101, "movie")
+	cover, err := client.GetCoverURLByID(t.Context(), 101, "movie")
 	if err != nil {
 		t.Fatalf("GetCoverURLByID error = %v", err)
 	}
@@ -37,7 +36,7 @@ func TestGetCoverURLByID(t *testing.T) {
 		t.Fatalf("GetCoverURLByID cover = %s, want %s", cover, "https://images.example/poster.jpg")
 	}
 
-	_, err = client.GetCoverURLByID(context.Background(), 101, "unknown")
+	_, err = client.GetCoverURLByID(t.Context(), 101, "unknown")
 	if err == nil {
 		t.Fatalf("expected error for invalid media type")
 	}
@@ -57,7 +56,7 @@ func TestGetCoverURLByIDNoPoster(t *testing.T) {
 	)
 
 	// Use unique movie ID to avoid cache collision with other tests
-	_, err := client.GetCoverURLByID(context.Background(), 102, "movie")
+	_, err := client.GetCoverURLByID(t.Context(), 102, "movie")
 	if err == nil || err != ErrNoPoster {
 		t.Fatalf("expected ErrNoPoster, got %v", err)
 	}
@@ -81,7 +80,7 @@ func TestGetCoverAndMetadataByIDWithMissingPoster(t *testing.T) {
 	)
 
 	// Use unique movie ID to avoid cache collision with other tests
-	cover, meta, err := client.GetCoverAndMetadataByID(context.Background(), 103, "movie")
+	cover, meta, err := client.GetCoverAndMetadataByID(t.Context(), 103, "movie")
 	if err != nil {
 		t.Fatalf("GetCoverAndMetadataByID error = %v", err)
 	}
@@ -118,7 +117,7 @@ func TestDownloadAndResizeImage(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	path := env.Path("poster.png")
 
-	if err := client.DownloadAndResizeImage(context.Background(), server.URL, path, 0); err != nil {
+	if err := client.DownloadAndResizeImage(t.Context(), server.URL, path, 0); err != nil {
 		t.Fatalf("DownloadAndResizeImage error = %v", err)
 	}
 	if _, err := os.Stat(path); err != nil {

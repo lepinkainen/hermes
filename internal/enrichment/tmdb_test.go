@@ -138,7 +138,7 @@ func TestEnrichFromTMDB_UsesExistingIDAndDownloadsCover(t *testing.T) {
 		StoredMediaType: "movie",
 	}
 
-	enrichment, err := EnrichFromTMDB(context.Background(), "Heat", 1995, "tt0113277", 949, opts)
+	enrichment, err := EnrichFromTMDB(t.Context(), "Heat", 1995, "tt0113277", 949, opts)
 	require.NoError(t, err)
 	require.NotNil(t, enrichment)
 
@@ -177,7 +177,7 @@ func TestEnrichFromTMDB_SearchesWhenNoExistingID(t *testing.T) {
 	restoreKey := withTMDBAPIKey(t, "test-key")
 	defer restoreKey()
 
-	enrichment, err := EnrichFromTMDB(context.Background(), "Alpha", 2024, "", 0, TMDBEnrichmentOptions{
+	enrichment, err := EnrichFromTMDB(t.Context(), "Alpha", 2024, "", 0, TMDBEnrichmentOptions{
 		GenerateContent: false,
 	})
 	require.NoError(t, err)
@@ -209,7 +209,7 @@ func TestEnrichFromTMDB_UsesStoredIDAndTypeWithoutSearch(t *testing.T) {
 	restoreKey := withTMDBAPIKey(t, "test-key")
 	defer restoreKey()
 
-	enrichment, err := EnrichFromTMDB(context.Background(), "Archer", 0, "", 101, TMDBEnrichmentOptions{
+	enrichment, err := EnrichFromTMDB(t.Context(), "Archer", 0, "", 101, TMDBEnrichmentOptions{
 		GenerateContent:   false,
 		Interactive:       true,
 		StoredMediaType:   "tv",
@@ -249,7 +249,7 @@ func TestEnrichFromTMDB_UsesExpectedTypeEvenWithLowVotes(t *testing.T) {
 	restoreKey := withTMDBAPIKey(t, "test-key")
 	defer restoreKey()
 
-	enrichment, err := EnrichFromTMDB(context.Background(), "Hikaru no Go", 0, "", 0, TMDBEnrichmentOptions{
+	enrichment, err := EnrichFromTMDB(t.Context(), "Hikaru no Go", 0, "", 0, TMDBEnrichmentOptions{
 		GenerateContent:   false,
 		Interactive:       false,
 		ExpectedMediaType: "tv",
@@ -269,7 +269,7 @@ func TestFindTMDBIDByIMDBIDHandlesErrors(t *testing.T) {
 		},
 	}
 
-	id, mediaType := findTMDBIDByIMDBID(context.Background(), client, "tt0")
+	id, mediaType := findTMDBIDByIMDBID(t.Context(), client, "tt0")
 	require.Equal(t, 0, id)
 	require.Equal(t, "", mediaType)
 }
@@ -320,7 +320,7 @@ func TestEnrichFromTMDB_CoverCacheHit(t *testing.T) {
 		StoredMediaType: "movie",
 	}
 
-	enrichment, err := EnrichFromTMDB(context.Background(), "Test Movie", 2024, "", 12345, opts)
+	enrichment, err := EnrichFromTMDB(t.Context(), "Test Movie", 2024, "", 12345, opts)
 	require.NoError(t, err)
 	require.NotNil(t, enrichment)
 
@@ -383,7 +383,7 @@ func TestEnrichFromTMDB_CoverCacheMiss(t *testing.T) {
 		StoredMediaType: "tv",
 	}
 
-	enrichment, err := EnrichFromTMDB(context.Background(), "Test Show", 2024, "", 67890, opts)
+	enrichment, err := EnrichFromTMDB(t.Context(), "Test Show", 2024, "", 67890, opts)
 	require.NoError(t, err)
 	require.NotNil(t, enrichment)
 
@@ -443,7 +443,7 @@ func TestEnrichFromTMDB_NoCacheUsed(t *testing.T) {
 		StoredMediaType: "movie",
 	}
 
-	enrichment, err := EnrichFromTMDB(context.Background(), "No Cache Movie", 2024, "", 11111, opts)
+	enrichment, err := EnrichFromTMDB(t.Context(), "No Cache Movie", 2024, "", 11111, opts)
 	require.NoError(t, err)
 	require.NotNil(t, enrichment)
 

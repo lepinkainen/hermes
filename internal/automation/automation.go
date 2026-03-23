@@ -76,52 +76,8 @@ func NavigatePage(browser *rod.Browser, url string) (*rod.Page, error) {
 	return page, nil
 }
 
-// WaitForSelector waits for one of the given selectors to become visible on the page.
-// Supports both CSS selectors and XPath selectors (prefixed with //).
-func WaitForSelector(page *rod.Page, selectors []string, description string, timeout time.Duration) (string, *rod.Element, error) {
-	slog.Debug("Waiting for selector", "desc", description, "selectors", strings.Join(selectors, " | "))
-
-	deadline := time.Now().Add(timeout)
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		for _, sel := range selectors {
-			var el *rod.Element
-			var err error
-
-			if strings.HasPrefix(sel, "//") {
-				// XPath selector
-				els, findErr := page.ElementsX(sel)
-				if findErr == nil && len(els) > 0 {
-					el = els[0]
-					err = nil
-				}
-			} else {
-				// CSS selector
-				has, _, findErr := page.Has(sel)
-				if findErr == nil && has {
-					el, err = page.Element(sel)
-				}
-			}
-
-			if err == nil && el != nil {
-				slog.Debug("Found selector", "desc", description, "selector", sel)
-				return sel, el, nil
-			}
-		}
-
-		if time.Now().After(deadline) {
-			url := page.MustInfo().URL
-			slog.Debug("Selector timeout", "desc", description, "url", url)
-			return "", nil, fmt.Errorf("timeout waiting for %s", description)
-		}
-
-		<-ticker.C
-	}
-}
-
-// WaitForSelectorWithContext is like WaitForSelector but also respects context cancellation.
+// WaitForSelectorWithContext waits for one of the given selectors to become visible on the page,
+// respecting context cancellation. Supports both CSS selectors and XPath selectors (prefixed with //).
 func WaitForSelectorWithContext(ctx context.Context, page *rod.Page, selectors []string, description string, timeout time.Duration) (string, *rod.Element, error) {
 	slog.Debug("Waiting for selector", "desc", description, "selectors", strings.Join(selectors, " | "))
 

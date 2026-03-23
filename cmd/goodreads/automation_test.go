@@ -30,7 +30,7 @@ func TestWaitForDownloadFindsExistingFile(t *testing.T) {
 	target := filepath.Join(tempDir, exportFileName)
 	require.NoError(t, os.WriteFile(target, []byte("ok"), 0o644))
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
 
 	path, err := waitForDownload(ctx, tempDir)
