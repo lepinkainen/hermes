@@ -172,7 +172,7 @@ func buildStarRating10(rating int) string {
 	hasHalf := (fiveStarRating - float64(fullStars)) >= 0.5
 
 	var builder strings.Builder
-	for i := 0; i < fullStars; i++ {
+	for range fullStars {
 		builder.WriteString("⭐")
 	}
 	if hasHalf {

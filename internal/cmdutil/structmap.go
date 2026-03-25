@@ -72,7 +72,7 @@ func normalizeValue(value reflect.Value, opts StructToMapOptions) any {
 		value = value.Elem()
 	}
 
-	if value.Type() == reflect.TypeOf(time.Time{}) {
+	if value.Type() == reflect.TypeFor[time.Time]() {
 		return value.Interface().(time.Time).String()
 	}
 

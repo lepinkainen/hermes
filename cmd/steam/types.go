@@ -64,7 +64,7 @@ type GameDetails struct {
 	} `json:"release_date"`
 	Categories   []Category     `json:"categories"`
 	Genres       []Genre        `json:"genres"`
-	Metacritic   MetacriticData `json:"metacritic,omitempty"`
+	Metacritic   MetacriticData `json:"metacritic"`
 	Achievements []Achievement  `json:"-"` // Populated separately from User Stats API, not from Store API
 }
 

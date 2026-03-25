@@ -178,8 +178,8 @@ func (mb *MarkdownBuilder) AddCallout(calloutType, title, content string) *Markd
 	}
 
 	// Add indented content
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(content, "\n")
+	for line := range lines {
 		fmt.Fprintf(&mb.content, "> %s\n", line)
 	}
 

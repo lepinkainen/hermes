@@ -91,7 +91,7 @@ type OpenLibraryEdition struct {
 		OCLC         []string `json:"oclc,omitempty"`
 		Goodreads    []string `json:"goodreads,omitempty"`
 		LibraryThing []string `json:"librarything,omitempty"`
-	} `json:"identifiers,omitempty"`
+	} `json:"identifiers"`
 	Languages []struct {
 		Key string `json:"key"`
 	} `json:"languages,omitempty"`
@@ -133,7 +133,7 @@ type OpenLibraryWork struct {
 		} `json:"author"`
 		Type struct {
 			Key string `json:"key"`
-		} `json:"type,omitempty"`
+		} `json:"type"`
 	} `json:"authors,omitempty"`
 }
 

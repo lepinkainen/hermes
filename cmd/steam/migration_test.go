@@ -100,7 +100,7 @@ func TestMigrateAchievementColumns_Idempotent(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run migration multiple times
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		err = MigrateAchievementColumns(db)
 		require.NoError(t, err, "Migration should be idempotent (iteration %d)", i)
 	}

@@ -62,10 +62,9 @@ func ParseMarkdown(content []byte) (*Note, error) {
 
 	// Extract frontmatter and body
 	frontmatterStr := afterFirst[:endIdx]
-	bodyStartIdx := 3 + len(frontmatterStr) + 5 // "---" + frontmatter + "\n---\n"
-	if bodyStartIdx > len(contentStr) {
-		bodyStartIdx = len(contentStr)
-	}
+	bodyStartIdx := min(
+		// "---" + frontmatter + "\n---\n"
+		3+len(frontmatterStr)+5, len(contentStr))
 	body := strings.TrimPrefix(contentStr[bodyStartIdx:], "\n")
 
 	// Parse YAML frontmatter
