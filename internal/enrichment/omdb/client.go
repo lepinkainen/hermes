@@ -19,19 +19,11 @@ const (
 	omdbBaseURL = "http://www.omdbapi.com"
 )
 
-var (
-	omdbRateLimiter *ratelimit.Limiter
-	omdbLimiterOnce sync.Once
-)
-
 // getOMDBRateLimiter returns a singleton rate limiter for OMDB.
 // OMDB free tier allows 1000 requests/day; we use 1 req/sec to be conservative.
-func getOMDBRateLimiter() *ratelimit.Limiter {
-	omdbLimiterOnce.Do(func() {
-		omdbRateLimiter = ratelimit.New("OMDB", 1)
-	})
-	return omdbRateLimiter
-}
+var getOMDBRateLimiter = sync.OnceValue(func() *ratelimit.Limiter {
+	return ratelimit.New("OMDB", 1)
+})
 
 // GetAPIKey retrieves the OMDB API key from config
 // It checks multiple config keys in order of preference

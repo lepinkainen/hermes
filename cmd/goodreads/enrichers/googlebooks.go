@@ -22,10 +22,8 @@ const (
 
 // GoogleBooksEnricher implements the book.Enricher interface for Google Books API.
 type GoogleBooksEnricher struct {
-	httpClient  *http.Client
-	rateLimiter *ratelimit.Limiter
-	clientOnce  sync.Once
-	limiterOnce sync.Once
+	getHTTPClient  func() *http.Client
+	getRateLimiter func() *ratelimit.Limiter
 }
 
 // Compile-time check that GoogleBooksEnricher implements book.Enricher.
@@ -33,7 +31,14 @@ var _ book.Enricher = (*GoogleBooksEnricher)(nil)
 
 // NewGoogleBooksEnricher creates a new Google Books enricher.
 func NewGoogleBooksEnricher() *GoogleBooksEnricher {
-	return &GoogleBooksEnricher{}
+	return &GoogleBooksEnricher{
+		getHTTPClient: sync.OnceValue(func() *http.Client {
+			return &http.Client{Timeout: 10 * time.Second}
+		}),
+		getRateLimiter: sync.OnceValue(func() *ratelimit.Limiter {
+			return ratelimit.New("GoogleBooks", 1)
+		}),
+	}
 }
 
 // Name returns the human-readable name of this enricher.
@@ -212,20 +217,6 @@ func (e *GoogleBooksEnricher) fetchFromAPI(ctx context.Context, isbn string) (*c
 	}
 
 	return &cachedGoogleBooksResult{Data: data}, nil
-}
-
-func (e *GoogleBooksEnricher) getHTTPClient() *http.Client {
-	e.clientOnce.Do(func() {
-		e.httpClient = &http.Client{Timeout: 10 * time.Second}
-	})
-	return e.httpClient
-}
-
-func (e *GoogleBooksEnricher) getRateLimiter() *ratelimit.Limiter {
-	e.limiterOnce.Do(func() {
-		e.rateLimiter = ratelimit.New("GoogleBooks", 1)
-	})
-	return e.rateLimiter
 }
 
 // normalizeISBN strips hyphens and spaces from ISBN.

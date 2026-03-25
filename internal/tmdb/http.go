@@ -64,8 +64,7 @@ func (c *Client) doJSONRequest(ctx context.Context, endpoint string, target any)
 }
 
 func isRetryable(err error) bool {
-	var urlErr *url.Error
-	if errors.As(err, &urlErr) {
+	if urlErr, ok := errors.AsType[*url.Error](err); ok {
 		if urlErr.Timeout() {
 			return true
 		}

@@ -21,10 +21,8 @@ const (
 
 // OpenLibraryEnricher implements the book.Enricher interface for OpenLibrary.
 type OpenLibraryEnricher struct {
-	httpClient  *http.Client
-	rateLimiter *ratelimit.Limiter
-	clientOnce  sync.Once
-	limiterOnce sync.Once
+	getHTTPClient  func() *http.Client
+	getRateLimiter func() *ratelimit.Limiter
 }
 
 // Compile-time check that OpenLibraryEnricher implements book.Enricher.
@@ -32,7 +30,14 @@ var _ book.Enricher = (*OpenLibraryEnricher)(nil)
 
 // NewOpenLibraryEnricher creates a new OpenLibrary enricher.
 func NewOpenLibraryEnricher() *OpenLibraryEnricher {
-	return &OpenLibraryEnricher{}
+	return &OpenLibraryEnricher{
+		getHTTPClient: sync.OnceValue(func() *http.Client {
+			return &http.Client{Timeout: 10 * time.Second}
+		}),
+		getRateLimiter: sync.OnceValue(func() *ratelimit.Limiter {
+			return ratelimit.New("OpenLibrary", 1)
+		}),
+	}
 }
 
 // Name returns the human-readable name of this enricher.
@@ -263,20 +268,6 @@ func (e *OpenLibraryEnricher) fetchEditionData(ctx context.Context, isbn string)
 	}
 
 	return &edition, nil
-}
-
-func (e *OpenLibraryEnricher) getHTTPClient() *http.Client {
-	e.clientOnce.Do(func() {
-		e.httpClient = &http.Client{Timeout: 10 * time.Second}
-	})
-	return e.httpClient
-}
-
-func (e *OpenLibraryEnricher) getRateLimiter() *ratelimit.Limiter {
-	e.limiterOnce.Do(func() {
-		e.rateLimiter = ratelimit.New("OpenLibrary", 1)
-	})
-	return e.rateLimiter
 }
 
 // extractDescription handles the various forms description can take.

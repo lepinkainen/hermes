@@ -77,15 +77,15 @@ func buildInfo(details map[string]any, mediaType string, letterboxdURI string) s
 		status = "Unknown"
 	}
 	if mediaType == "tv" && inProduction {
-		builder.WriteString(fmt.Sprintf("| **Status** | %s (In Production) |\n", status))
+		fmt.Fprintf(&builder, "| **Status** | %s (In Production) |\n", status)
 	} else {
-		builder.WriteString(fmt.Sprintf("| **Status** | %s |\n", status))
+		fmt.Fprintf(&builder, "| **Status** | %s |\n", status)
 	}
 
 	if mediaType == "tv" {
 		seasons, _ := intVal(details, "number_of_seasons")
 		episodes, _ := intVal(details, "number_of_episodes")
-		builder.WriteString(fmt.Sprintf("| **Seasons** | %d (%d episodes) |\n", seasons, episodes))
+		fmt.Fprintf(&builder, "| **Seasons** | %d (%d episodes) |\n", seasons, episodes)
 
 		firstAir := stringVal(details, "first_air_date")
 		lastAir := stringVal(details, "last_air_date")
@@ -97,51 +97,51 @@ func buildInfo(details map[string]any, mediaType string, letterboxdURI string) s
 			case inProduction:
 				airText = fmt.Sprintf("%s → Present", firstAir)
 			}
-			builder.WriteString(fmt.Sprintf("| **Aired** | %s |\n", airText))
+			fmt.Fprintf(&builder, "| **Aired** | %s |\n", airText)
 		}
 	} else {
 		if runtime, ok := intVal(details, "runtime"); ok && runtime > 0 {
-			builder.WriteString(fmt.Sprintf("| **Runtime** | %d min |\n", runtime))
+			fmt.Fprintf(&builder, "| **Runtime** | %d min |\n", runtime)
 		}
 		release := stringVal(details, "release_date")
 		if release != "" {
-			builder.WriteString(fmt.Sprintf("| **Released** | %s |\n", release))
+			fmt.Fprintf(&builder, "| **Released** | %s |\n", release)
 		}
 
 		// Add director(s) - movies only
 		directors := getDirectors(details)
 		if len(directors) > 0 {
-			builder.WriteString(fmt.Sprintf("| **Director** | %s |\n", strings.Join(directors, ", ")))
+			fmt.Fprintf(&builder, "| **Director** | %s |\n", strings.Join(directors, ", "))
 		}
 
 		// Add writer(s) - movies only
 		writers := getWriters(details)
 		if len(writers) > 0 {
-			builder.WriteString(fmt.Sprintf("| **Writer** | %s |\n", strings.Join(writers, ", ")))
+			fmt.Fprintf(&builder, "| **Writer** | %s |\n", strings.Join(writers, ", "))
 		}
 
 		// Add top 5 cast - movies only
 		actors := getTopActors(details)
 		if len(actors) > 0 {
-			builder.WriteString(fmt.Sprintf("| **Cast** | %s |\n", strings.Join(actors, ", ")))
+			fmt.Fprintf(&builder, "| **Cast** | %s |\n", strings.Join(actors, ", "))
 		}
 	}
 
 	if rating, ok := floatVal(details, "vote_average"); ok && rating > 0 {
 		votes, _ := intVal(details, "vote_count")
-		builder.WriteString(fmt.Sprintf("| **Rating** | ⭐ %.1f/10 (%s votes) |\n", rating, formatNumber(votes)))
+		fmt.Fprintf(&builder, "| **Rating** | ⭐ %.1f/10 (%s votes) |\n", rating, formatNumber(votes))
 	}
 
 	if mediaType == "tv" {
 		if networkName := firstStringFromArray(details, "networks", "name"); networkName != "" {
-			builder.WriteString(fmt.Sprintf("| **Network** | %s |\n", networkName))
+			fmt.Fprintf(&builder, "| **Network** | %s |\n", networkName)
 		}
 	} else {
 		if budget, ok := intVal(details, "budget"); ok && budget > 0 {
-			builder.WriteString(fmt.Sprintf("| **Budget** | $%s |\n", formatNumber(budget)))
+			fmt.Fprintf(&builder, "| **Budget** | $%s |\n", formatNumber(budget))
 		}
 		if revenue, ok := intVal(details, "revenue"); ok && revenue > 0 {
-			builder.WriteString(fmt.Sprintf("| **Revenue** | $%s |\n", formatNumber(revenue)))
+			fmt.Fprintf(&builder, "| **Revenue** | $%s |\n", formatNumber(revenue))
 		}
 	}
 
@@ -153,29 +153,29 @@ func buildInfo(details map[string]any, mediaType string, letterboxdURI string) s
 			}
 			parts = append(parts, fmt.Sprintf("%s %s", countryFlag(code), code))
 		}
-		builder.WriteString(fmt.Sprintf("| **Origin** | %s |\n", strings.Join(parts, " ")))
+		fmt.Fprintf(&builder, "| **Origin** | %s |\n", strings.Join(parts, " "))
 	}
 
 	if mediaType == "tv" {
 		if rating := usContentRating(details); rating != "" {
-			builder.WriteString(fmt.Sprintf("| **Content Rating** | %s |\n", rating))
+			fmt.Fprintf(&builder, "| **Content Rating** | %s |\n", rating)
 		}
 	}
 
 	if imdb := nestedString(details, "external_ids", "imdb_id"); imdb != "" {
-		builder.WriteString(fmt.Sprintf("| **IMDB** | [imdb.com/title/%s](https://www.imdb.com/title/%s/) |\n", imdb, imdb))
+		fmt.Fprintf(&builder, "| **IMDB** | [imdb.com/title/%s](https://www.imdb.com/title/%s/) |\n", imdb, imdb)
 	}
 	if tvdb := nestedString(details, "external_ids", "tvdb_id"); tvdb != "" {
-		builder.WriteString(fmt.Sprintf("| **TVDB** | [thetvdb.com/%s](https://thetvdb.com/series/%s) |\n", tvdb, tvdb))
+		fmt.Fprintf(&builder, "| **TVDB** | [thetvdb.com/%s](https://thetvdb.com/series/%s) |\n", tvdb, tvdb)
 	}
 
 	if letterboxdURI != "" {
 		displayText := extractLetterboxdDisplayText(letterboxdURI)
-		builder.WriteString(fmt.Sprintf("| **Letterboxd** | [%s](%s) |\n", displayText, letterboxdURI))
+		fmt.Fprintf(&builder, "| **Letterboxd** | [%s](%s) |\n", displayText, letterboxdURI)
 	}
 
 	if homepage := stringVal(details, "homepage"); homepage != "" {
-		builder.WriteString(fmt.Sprintf("| **Homepage** | [%s](%s) |\n", friendlyHomepageName(homepage), homepage))
+		fmt.Fprintf(&builder, "| **Homepage** | [%s](%s) |\n", friendlyHomepageName(homepage), homepage)
 	}
 
 	return strings.TrimRight(builder.String(), "\n")
@@ -247,21 +247,21 @@ func buildSeasons(details map[string]any) string {
 		episodeCount, _ := intVal(s, "episode_count")
 		poster := stringVal(s, "poster_path")
 
-		builder.WriteString(fmt.Sprintf("### %s (%s)", name, year))
+		fmt.Fprintf(&builder, "### %s (%s)", name, year)
 		if vote > 0 {
-			builder.WriteString(fmt.Sprintf(" • ⭐ %.1f/10", vote))
+			fmt.Fprintf(&builder, " • ⭐ %.1f/10", vote)
 		}
 		builder.WriteString("\n\n")
 
 		if poster != "" {
-			builder.WriteString(fmt.Sprintf("![%s](https://image.tmdb.org/t/p/w300%s)\n\n", name, poster))
+			fmt.Fprintf(&builder, "![%s](https://image.tmdb.org/t/p/w300%s)\n\n", name, poster)
 		}
 
 		if overview != "" {
-			builder.WriteString(fmt.Sprintf("_%s_\n\n", overview))
+			fmt.Fprintf(&builder, "_%s_\n\n", overview)
 		}
 
-		builder.WriteString(fmt.Sprintf("**Episodes:** %d", episodeCount))
+		fmt.Fprintf(&builder, "**Episodes:** %d", episodeCount)
 
 		inProduction := boolVal(details, "in_production")
 		isLatest := idx == len(raw)-1

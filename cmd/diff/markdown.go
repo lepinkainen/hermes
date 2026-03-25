@@ -34,14 +34,14 @@ func buildDiffNote(imdbOnly, letterboxdOnly []diffItem, stats diffStats, now tim
 
 func buildDiffBody(imdbOnly, letterboxdOnly []diffItem, stats diffStats, now time.Time, mainDBPath, cacheDBPath string) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("# IMDb vs Letterboxd Diff (%s)\n\n", now.Format("2006-01-02")))
+	fmt.Fprintf(&b, "# IMDb vs Letterboxd Diff (%s)\n\n", now.Format("2006-01-02"))
 	b.WriteString("This report compares IMDb and Letterboxd movie imports in SQLite. TV titles are excluded.\n\n")
-	b.WriteString(fmt.Sprintf("- Main DB: `%s`\n", mainDBPath))
+	fmt.Fprintf(&b, "- Main DB: `%s`\n", mainDBPath)
 	if cacheDBPath != "" {
-		b.WriteString(fmt.Sprintf("- Cache DB: `%s`\n", cacheDBPath))
+		fmt.Fprintf(&b, "- Cache DB: `%s`\n", cacheDBPath)
 	}
 	b.WriteString("- Matching: IMDb ID, then auto-resolved title+year, then fuzzy suggestions\n")
-	b.WriteString(fmt.Sprintf("- Auto-resolved title+year matches: %d\n\n", stats.resolvedTitleYear))
+	fmt.Fprintf(&b, "- Auto-resolved title+year matches: %d\n\n", stats.resolvedTitleYear)
 
 	writeDiffSection(&b, "IMDb-only (missing from Letterboxd)", imdbOnly)
 	writeDiffSection(&b, "Letterboxd-only (missing from IMDb)", letterboxdOnly)

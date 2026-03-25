@@ -56,44 +56,44 @@ func buildLetterboxdInfo(details *LetterboxdMovieDetails) string {
 
 	// Title and Year
 	if details.Title != "" {
-		builder.WriteString(fmt.Sprintf("| **Title** | %s (%d) |\n", details.Title, details.Year))
+		fmt.Fprintf(&builder, "| **Title** | %s (%d) |\n", details.Title, details.Year)
 	}
 
 	// Rating (convert to stars)
 	if details.Rating > 0 {
 		stars := buildStarRating(details.Rating)
-		builder.WriteString(fmt.Sprintf("| **My Rating** | %s (%.1f/5) |\n", stars, details.Rating))
+		fmt.Fprintf(&builder, "| **My Rating** | %s (%.1f/5) |\n", stars, details.Rating)
 	}
 
 	// Date watched
 	if details.DateWatched != "" {
-		builder.WriteString(fmt.Sprintf("| **Date Watched** | %s |\n", details.DateWatched))
+		fmt.Fprintf(&builder, "| **Date Watched** | %s |\n", details.DateWatched)
 	}
 
 	// Runtime
 	if details.Runtime > 0 {
-		builder.WriteString(fmt.Sprintf("| **Runtime** | %d min |\n", details.Runtime))
+		fmt.Fprintf(&builder, "| **Runtime** | %d min |\n", details.Runtime)
 	}
 
 	// Director
 	if details.Director != "" {
-		builder.WriteString(fmt.Sprintf("| **Director** | %s |\n", details.Director))
+		fmt.Fprintf(&builder, "| **Director** | %s |\n", details.Director)
 	}
 
 	// Genres
 	if len(details.Genres) > 0 {
-		builder.WriteString(fmt.Sprintf("| **Genres** | %s |\n", strings.Join(details.Genres, ", ")))
+		fmt.Fprintf(&builder, "| **Genres** | %s |\n", strings.Join(details.Genres, ", "))
 	}
 
 	// Letterboxd link
 	if details.LetterboxdURI != "" {
 		displayText := extractLetterboxdPath(details.LetterboxdURI)
-		builder.WriteString(fmt.Sprintf("| **Letterboxd** | [%s](%s) |\n", displayText, details.LetterboxdURI))
+		fmt.Fprintf(&builder, "| **Letterboxd** | [%s](%s) |\n", displayText, details.LetterboxdURI)
 	}
 
 	// IMDb link
 	if details.ImdbID != "" {
-		builder.WriteString(fmt.Sprintf("| **IMDb** | [%s](https://www.imdb.com/title/%s/) |\n", details.ImdbID, details.ImdbID))
+		fmt.Fprintf(&builder, "| **IMDb** | [%s](https://www.imdb.com/title/%s/) |\n", details.ImdbID, details.ImdbID)
 	}
 
 	return strings.TrimRight(builder.String(), "\n")
@@ -121,7 +121,7 @@ func buildLetterboxdCast(details *LetterboxdMovieDetails) string {
 	builder.WriteString("## Cast\n\n")
 
 	for _, actor := range details.Cast {
-		builder.WriteString(fmt.Sprintf("- %s\n", actor))
+		fmt.Fprintf(&builder, "- %s\n", actor)
 	}
 
 	return strings.TrimRight(builder.String(), "\n")

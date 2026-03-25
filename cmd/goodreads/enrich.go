@@ -11,14 +11,8 @@ import (
 
 var (
 	defaultEnrichers []bookpkg.Enricher
-	enrichersOnce    sync.Once
 	defaultMerger    bookpkg.Merger
-)
-
-// getDefaultEnrichers returns the list of configured book enrichers.
-// ISBNdb is included only if the API key is configured.
-func getDefaultEnrichers() []bookpkg.Enricher {
-	enrichersOnce.Do(func() {
+	initEnrichers    = sync.OnceFunc(func() {
 		defaultEnrichers = []bookpkg.Enricher{
 			enrichers.NewISBNdbEnricher(),      // Priority 0 - highest (skips if no API key)
 			enrichers.NewOpenLibraryEnricher(), // Priority 1
@@ -26,6 +20,12 @@ func getDefaultEnrichers() []bookpkg.Enricher {
 		}
 		defaultMerger = bookpkg.NewPriorityMerger()
 	})
+)
+
+// getDefaultEnrichers returns the list of configured book enrichers.
+// ISBNdb is included only if the API key is configured.
+func getDefaultEnrichers() []bookpkg.Enricher {
+	initEnrichers()
 	return defaultEnrichers
 }
 

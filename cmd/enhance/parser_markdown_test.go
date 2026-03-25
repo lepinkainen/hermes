@@ -83,7 +83,6 @@ Personal wrap up after TMDB block.
 		require.NoError(t, err)
 
 		// TMDB says show has ended, should overwrite the previous finished: false
-		finished := true
 		tmdbData := &enrichment.TMDBEnrichment{
 			TMDBID:          2024,
 			TMDBType:        "tv",
@@ -92,7 +91,7 @@ Personal wrap up after TMDB block.
 			GenreTags:       []string{"Action", "Drama"},
 			CoverPath:       "_attachments/new-cover.jpg",
 			ContentMarkdown: "## Fresh Overview\nNew TMDB summary.",
-			Finished:        &finished,
+			Finished:        new(true),
 		}
 
 		note.AddTMDBData(tmdbData)

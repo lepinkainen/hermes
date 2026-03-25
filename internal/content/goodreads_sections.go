@@ -82,54 +82,54 @@ func buildGoodreadsInfoSection(details *GoodreadsBookDetails) string {
 	if details.YearPublished > 0 {
 		titleLine = fmt.Sprintf("%s (%d)", titleLine, details.YearPublished)
 	}
-	builder.WriteString(fmt.Sprintf("| **Title** | %s |\n", titleLine))
+	fmt.Fprintf(&builder, "| **Title** | %s |\n", titleLine)
 
 	// Authors
 	if len(details.Authors) > 0 {
-		builder.WriteString(fmt.Sprintf("| **Author** | %s |\n", strings.Join(details.Authors, ", ")))
+		fmt.Fprintf(&builder, "| **Author** | %s |\n", strings.Join(details.Authors, ", "))
 	}
 
 	// Publisher
 	if details.Publisher != "" {
-		builder.WriteString(fmt.Sprintf("| **Publisher** | %s |\n", details.Publisher))
+		fmt.Fprintf(&builder, "| **Publisher** | %s |\n", details.Publisher)
 	}
 
 	// Pages
 	if details.Pages > 0 {
-		builder.WriteString(fmt.Sprintf("| **Pages** | %d |\n", details.Pages))
+		fmt.Fprintf(&builder, "| **Pages** | %d |\n", details.Pages)
 	}
 
 	// Binding
 	if details.Binding != "" {
-		builder.WriteString(fmt.Sprintf("| **Binding** | %s |\n", details.Binding))
+		fmt.Fprintf(&builder, "| **Binding** | %s |\n", details.Binding)
 	}
 
 	// Original publication year (if different from published year)
 	if details.OriginalPublicationYear > 0 && details.OriginalPublicationYear != details.YearPublished {
-		builder.WriteString(fmt.Sprintf("| **Original Publication** | %d |\n", details.OriginalPublicationYear))
+		fmt.Fprintf(&builder, "| **Original Publication** | %d |\n", details.OriginalPublicationYear)
 	}
 
 	// Ratings
 	if details.MyRating > 0 {
 		stars := buildStarRating5(details.MyRating)
-		builder.WriteString(fmt.Sprintf("| **My Rating** | %s (%.1f/5) |\n", stars, details.MyRating))
+		fmt.Fprintf(&builder, "| **My Rating** | %s (%.1f/5) |\n", stars, details.MyRating)
 	}
 	if details.AverageRating > 0 {
-		builder.WriteString(fmt.Sprintf("| **Average Rating** | %.2f/5 |\n", details.AverageRating))
+		fmt.Fprintf(&builder, "| **Average Rating** | %.2f/5 |\n", details.AverageRating)
 	}
 
 	// ISBNs
 	if details.ISBN != "" {
-		builder.WriteString(fmt.Sprintf("| **ISBN** | %s |\n", details.ISBN))
+		fmt.Fprintf(&builder, "| **ISBN** | %s |\n", details.ISBN)
 	}
 	if details.ISBN13 != "" {
-		builder.WriteString(fmt.Sprintf("| **ISBN-13** | %s |\n", details.ISBN13))
+		fmt.Fprintf(&builder, "| **ISBN-13** | %s |\n", details.ISBN13)
 	}
 
 	// Goodreads link
 	if details.GoodreadsID != "" {
-		builder.WriteString(fmt.Sprintf("| **Goodreads** | [goodreads.com/book/show/%s](https://www.goodreads.com/book/show/%s) |\n",
-			details.GoodreadsID, details.GoodreadsID))
+		fmt.Fprintf(&builder, "| **Goodreads** | [goodreads.com/book/show/%s](https://www.goodreads.com/book/show/%s) |\n",
+			details.GoodreadsID, details.GoodreadsID)
 	}
 
 	return builder.String()

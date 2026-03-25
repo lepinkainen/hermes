@@ -122,7 +122,7 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 
 	// Add cover image using Obsidian syntax
 	if coverFilename != "" {
-		body.WriteString(fmt.Sprintf("![[%s|%d]]\n\n", coverFilename, defaultCoverWidth))
+		fmt.Fprintf(&body, "![[%s|%d]]\n\n", coverFilename, defaultCoverWidth)
 	}
 
 	// Build Letterboxd content sections

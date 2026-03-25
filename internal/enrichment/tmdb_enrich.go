@@ -72,7 +72,6 @@ func applyPrimaryMetadata(ctx context.Context, client tmdbClient, enrichment *TM
 
 	// For TV shows, determine if the show has finished based on status
 	if enrichment.TMDBType == "tv" && metadata.Status != "" {
-		finished := metadata.Status == "Ended" || metadata.Status == "Canceled" || metadata.Status == "Cancelled"
-		enrichment.Finished = &finished
+		enrichment.Finished = new(metadata.Status == "Ended" || metadata.Status == "Canceled" || metadata.Status == "Cancelled")
 	}
 }

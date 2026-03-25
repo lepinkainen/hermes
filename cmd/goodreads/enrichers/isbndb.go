@@ -21,10 +21,8 @@ const (
 
 // ISBNdbEnricher implements the book.Enricher interface for ISBNdb API.
 type ISBNdbEnricher struct {
-	httpClient  *http.Client
-	rateLimiter *ratelimit.Limiter
-	clientOnce  sync.Once
-	limiterOnce sync.Once
+	getHTTPClient  func() *http.Client
+	getRateLimiter func() *ratelimit.Limiter
 }
 
 // Compile-time check that ISBNdbEnricher implements book.Enricher.
@@ -32,7 +30,14 @@ var _ book.Enricher = (*ISBNdbEnricher)(nil)
 
 // NewISBNdbEnricher creates a new ISBNdb enricher.
 func NewISBNdbEnricher() *ISBNdbEnricher {
-	return &ISBNdbEnricher{}
+	return &ISBNdbEnricher{
+		getHTTPClient: sync.OnceValue(func() *http.Client {
+			return &http.Client{Timeout: 10 * time.Second}
+		}),
+		getRateLimiter: sync.OnceValue(func() *ratelimit.Limiter {
+			return ratelimit.New("ISBNdb", 1)
+		}),
+	}
 }
 
 // Name returns the human-readable name of this enricher.
@@ -228,21 +233,6 @@ func (e *ISBNdbEnricher) fetchFromAPI(ctx context.Context, isbn, apiKey string) 
 	}
 
 	return &cachedISBNdbResult{Data: data}, nil
-}
-
-func (e *ISBNdbEnricher) getHTTPClient() *http.Client {
-	e.clientOnce.Do(func() {
-		e.httpClient = &http.Client{Timeout: 10 * time.Second}
-	})
-	return e.httpClient
-}
-
-func (e *ISBNdbEnricher) getRateLimiter() *ratelimit.Limiter {
-	e.limiterOnce.Do(func() {
-		// Free tier: 1 request per second
-		e.rateLimiter = ratelimit.New("ISBNdb", 1)
-	})
-	return e.rateLimiter
 }
 
 func (e *ISBNdbEnricher) getAPIKey() string {

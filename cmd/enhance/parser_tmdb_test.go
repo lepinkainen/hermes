@@ -105,13 +105,12 @@ func TestAddTMDBDataFinishedField(t *testing.T) {
 			Frontmatter: fm,
 		}
 
-		finished := true
 		tmdbData := &enrichment.TMDBEnrichment{
 			TMDBID:        12345,
 			TMDBType:      "tv",
 			RuntimeMins:   45,
 			TotalEpisodes: 100,
-			Finished:      &finished,
+			Finished:      new(true),
 		}
 
 		note.AddTMDBData(tmdbData)
@@ -129,13 +128,12 @@ func TestAddTMDBDataFinishedField(t *testing.T) {
 			Frontmatter: fm,
 		}
 
-		finished := false
 		tmdbData := &enrichment.TMDBEnrichment{
 			TMDBID:        12346,
 			TMDBType:      "tv",
 			RuntimeMins:   45,
 			TotalEpisodes: 50,
-			Finished:      &finished,
+			Finished:      new(false),
 		}
 
 		note.AddTMDBData(tmdbData)

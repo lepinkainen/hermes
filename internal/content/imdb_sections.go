@@ -77,27 +77,27 @@ func buildIMDbInfoSection(details *IMDbMovieDetails) string {
 	if details.OriginalTitle != "" && details.OriginalTitle != details.Title {
 		titleStr = fmt.Sprintf("%s / %s (%d)", details.Title, details.OriginalTitle, details.Year)
 	}
-	builder.WriteString(fmt.Sprintf("| **Title** | %s |\n", titleStr))
+	fmt.Fprintf(&builder, "| **Title** | %s |\n", titleStr)
 
 	// My Rating
 	if details.MyRating > 0 {
-		builder.WriteString(fmt.Sprintf("| **My Rating** | %s (%d/10) |\n",
-			buildStarRating10(details.MyRating), details.MyRating))
+		fmt.Fprintf(&builder, "| **My Rating** | %s (%d/10) |\n",
+			buildStarRating10(details.MyRating), details.MyRating)
 	}
 
 	// IMDb Rating
 	if details.IMDbRating > 0 {
-		builder.WriteString(fmt.Sprintf("| **IMDb Rating** | %.1f/10 |\n", details.IMDbRating))
+		fmt.Fprintf(&builder, "| **IMDb Rating** | %.1f/10 |\n", details.IMDbRating)
 	}
 
 	// Date Rated
 	if details.DateRated != "" {
-		builder.WriteString(fmt.Sprintf("| **Date Rated** | %s |\n", details.DateRated))
+		fmt.Fprintf(&builder, "| **Date Rated** | %s |\n", details.DateRated)
 	}
 
 	// Runtime
 	if details.Runtime > 0 {
-		builder.WriteString(fmt.Sprintf("| **Runtime** | %d min |\n", details.Runtime))
+		fmt.Fprintf(&builder, "| **Runtime** | %d min |\n", details.Runtime)
 	}
 
 	// Directors
@@ -106,30 +106,30 @@ func buildIMDbInfoSection(details *IMDbMovieDetails) string {
 		if len(details.Directors) > 1 {
 			directorLabel = "Directors"
 		}
-		builder.WriteString(fmt.Sprintf("| **%s** | %s |\n",
-			directorLabel, strings.Join(details.Directors, ", ")))
+		fmt.Fprintf(&builder, "| **%s** | %s |\n",
+			directorLabel, strings.Join(details.Directors, ", "))
 	}
 
 	// Genres
 	if len(details.Genres) > 0 {
-		builder.WriteString(fmt.Sprintf("| **Genres** | %s |\n",
-			strings.Join(details.Genres, ", ")))
+		fmt.Fprintf(&builder, "| **Genres** | %s |\n",
+			strings.Join(details.Genres, ", "))
 	}
 
 	// Content Rating
 	if details.ContentRating != "" {
-		builder.WriteString(fmt.Sprintf("| **Content Rating** | %s |\n", details.ContentRating))
+		fmt.Fprintf(&builder, "| **Content Rating** | %s |\n", details.ContentRating)
 	}
 
 	// Awards (brief)
 	if details.Awards != "" {
-		builder.WriteString(fmt.Sprintf("| **Awards** | %s |\n", details.Awards))
+		fmt.Fprintf(&builder, "| **Awards** | %s |\n", details.Awards)
 	}
 
 	// IMDb Link
 	if details.IMDbID != "" {
 		imdbURL := fmt.Sprintf("https://www.imdb.com/title/%s/", details.IMDbID)
-		builder.WriteString(fmt.Sprintf("| **IMDb** | [%s](%s) |\n", details.IMDbID, imdbURL))
+		fmt.Fprintf(&builder, "| **IMDb** | [%s](%s) |\n", details.IMDbID, imdbURL)
 	}
 
 	return builder.String()

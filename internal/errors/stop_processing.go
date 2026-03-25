@@ -18,6 +18,6 @@ func NewStopProcessingError(reason string) *StopProcessingError {
 
 // IsStopProcessingError reports whether err is a StopProcessingError (even when wrapped).
 func IsStopProcessingError(err error) bool {
-	var stopErr *StopProcessingError
-	return errors.As(err, &stopErr)
+	_, ok := errors.AsType[*StopProcessingError](err)
+	return ok
 }

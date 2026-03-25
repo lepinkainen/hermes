@@ -118,7 +118,7 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 
 	// Add cover image using Obsidian syntax
 	if coverFilename != "" {
-		body.WriteString(fmt.Sprintf("![[%s|%d]]\n\n", coverFilename, defaultCoverWidth))
+		fmt.Fprintf(&body, "![[%s|%d]]\n\n", coverFilename, defaultCoverWidth)
 	}
 
 	// Build Steam content sections using the existing steam_sections.go
@@ -163,7 +163,7 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	if len(details.Screenshots) > 0 {
 		body.WriteString("## Screenshots\n\n")
 		for _, screenshot := range details.Screenshots {
-			body.WriteString(fmt.Sprintf("![%s](%s)\n\n", game.Name, screenshot.PathURL))
+			fmt.Fprintf(&body, "![%s](%s)\n\n", game.Name, screenshot.PathURL)
 		}
 	}
 
@@ -205,10 +205,10 @@ func buildAchievementsSection(achievements []Achievement, achievementsTotal, ach
 	})
 
 	// Progress summary
-	builder.WriteString(fmt.Sprintf("**Progress**: %d / %d (%.1f%%)\n\n",
+	fmt.Fprintf(&builder, "**Progress**: %d / %d (%.1f%%)\n\n",
 		achievementsUnlocked,
 		achievementsTotal,
-		(float64(achievementsUnlocked)/float64(achievementsTotal))*100))
+		(float64(achievementsUnlocked)/float64(achievementsTotal))*100)
 
 	// Checklist
 	for _, ach := range achievementsCopy {
@@ -222,9 +222,9 @@ func buildAchievementsSection(achievements []Achievement, achievementsTotal, ach
 			}
 		}
 
-		builder.WriteString(fmt.Sprintf("- %s **%s**", checkbox, ach.Name))
+		fmt.Fprintf(&builder, "- %s **%s**", checkbox, ach.Name)
 		if ach.Description != "" {
-			builder.WriteString(fmt.Sprintf(": %s", ach.Description))
+			fmt.Fprintf(&builder, ": %s", ach.Description)
 		}
 		builder.WriteString(timestamp)
 		builder.WriteString("\n")

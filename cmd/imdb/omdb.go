@@ -17,25 +17,19 @@ import (
 )
 
 var (
-	omdbBaseURL     = "http://www.omdbapi.com"
-	omdbRateLimiter *ratelimit.Limiter
-	omdbLimiterOnce sync.Once
-	omdbHTTPGet     = func(url string) (*http.Response, error) {
+	omdbBaseURL = "http://www.omdbapi.com"
+	omdbHTTPGet = func(url string) (*http.Response, error) {
 		return http.Get(url)
 	}
 	omdbHTTPDo = func(req *http.Request) (*http.Response, error) {
 		return http.DefaultClient.Do(req)
 	}
-)
-
-// getOMDBRateLimiter returns a singleton rate limiter for OMDB.
-// OMDB free tier allows 1000 requests/day; we use 1 req/sec to be conservative.
-func getOMDBRateLimiter() *ratelimit.Limiter {
-	omdbLimiterOnce.Do(func() {
-		omdbRateLimiter = ratelimit.New("OMDB", 1)
+	// getOMDBRateLimiter returns a singleton rate limiter for OMDB.
+	// OMDB free tier allows 1000 requests/day; we use 1 req/sec to be conservative.
+	getOMDBRateLimiter = sync.OnceValue(func() *ratelimit.Limiter {
+		return ratelimit.New("OMDB", 1)
 	})
-	return omdbRateLimiter
-}
+)
 
 func fetchMovieData(imdbID string) (*MovieSeen, error) {
 	return fetchMovieDataWithContext(context.Background(), imdbID)

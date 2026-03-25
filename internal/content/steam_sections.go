@@ -68,26 +68,26 @@ func buildSteamInfo(details *SteamGameDetails) string {
 
 	// Developers
 	if len(details.Developers) > 0 {
-		builder.WriteString(fmt.Sprintf("| **Developer** | %s |\n", strings.Join(details.Developers, ", ")))
+		fmt.Fprintf(&builder, "| **Developer** | %s |\n", strings.Join(details.Developers, ", "))
 	}
 
 	// Publishers
 	if len(details.Publishers) > 0 {
-		builder.WriteString(fmt.Sprintf("| **Publisher** | %s |\n", strings.Join(details.Publishers, ", ")))
+		fmt.Fprintf(&builder, "| **Publisher** | %s |\n", strings.Join(details.Publishers, ", "))
 	}
 
 	// Release Date
 	if details.ReleaseDate != "" {
 		if details.ComingSoon {
-			builder.WriteString(fmt.Sprintf("| **Release Date** | %s (Coming Soon) |\n", details.ReleaseDate))
+			fmt.Fprintf(&builder, "| **Release Date** | %s (Coming Soon) |\n", details.ReleaseDate)
 		} else {
-			builder.WriteString(fmt.Sprintf("| **Release Date** | %s |\n", details.ReleaseDate))
+			fmt.Fprintf(&builder, "| **Release Date** | %s |\n", details.ReleaseDate)
 		}
 	}
 
 	// Genres
 	if len(details.Genres) > 0 {
-		builder.WriteString(fmt.Sprintf("| **Genres** | %s |\n", strings.Join(details.Genres, ", ")))
+		fmt.Fprintf(&builder, "| **Genres** | %s |\n", strings.Join(details.Genres, ", "))
 	}
 
 	// Categories (e.g., Single-player, Multi-player, Steam Achievements)
@@ -97,21 +97,21 @@ func buildSteamInfo(details *SteamGameDetails) string {
 		if len(cats) > 5 {
 			cats = cats[:5]
 		}
-		builder.WriteString(fmt.Sprintf("| **Features** | %s |\n", strings.Join(cats, ", ")))
+		fmt.Fprintf(&builder, "| **Features** | %s |\n", strings.Join(cats, ", "))
 	}
 
 	// Metacritic
 	if details.Metacritic.Score > 0 {
 		if details.Metacritic.URL != "" {
-			builder.WriteString(fmt.Sprintf("| **Metacritic** | [%d/100](%s) |\n", details.Metacritic.Score, details.Metacritic.URL))
+			fmt.Fprintf(&builder, "| **Metacritic** | [%d/100](%s) |\n", details.Metacritic.Score, details.Metacritic.URL)
 		} else {
-			builder.WriteString(fmt.Sprintf("| **Metacritic** | %d/100 |\n", details.Metacritic.Score))
+			fmt.Fprintf(&builder, "| **Metacritic** | %d/100 |\n", details.Metacritic.Score)
 		}
 	}
 
 	// Steam Store link
 	if details.AppID > 0 {
-		builder.WriteString(fmt.Sprintf("| **Steam** | [store.steampowered.com/app/%d](https://store.steampowered.com/app/%d) |\n", details.AppID, details.AppID))
+		fmt.Fprintf(&builder, "| **Steam** | [store.steampowered.com/app/%d](https://store.steampowered.com/app/%d) |\n", details.AppID, details.AppID)
 	}
 
 	return strings.TrimRight(builder.String(), "\n")
