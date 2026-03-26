@@ -104,6 +104,17 @@ func initConfig() {
 	viper.SetDefault("letterboxd.automation.timeout", "3m")
 	viper.SetDefault("letterboxd.automation.download_dir", "exports")
 
+	// Enhance defaults
+	viper.SetDefault("enhance.input_dirs", []string{})
+	viper.SetDefault("enhance.recursive", false)
+	viper.SetDefault("enhance.dry_run", false)
+	viper.SetDefault("enhance.regenerate_data", false)
+	viper.SetDefault("enhance.force", false)
+	viper.SetDefault("enhance.refresh_cache", false)
+	viper.SetDefault("enhance.tmdb_no_interactive", false)
+	viper.SetDefault("enhance.tmdb_content_sections", []string{})
+	viper.SetDefault("enhance.omdb_no_enrich", false)
+
 	// Enable environment variable support
 	viper.AutomaticEnv()
 	// Bind specific environment variables to config keys

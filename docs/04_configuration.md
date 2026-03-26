@@ -111,6 +111,25 @@ steam:
 
 Enhance and TMDB enrichment use a TMDB API key. The preferred source is the `TMDB_API_KEY` environment variable. You can also place the key in the config file using `TMDBAPIKey` if you need a file-based option.
 
+You can also configure default `enhance` subcommand options in the config file so `hermes enhance` can run without repeating flags on the command line.
+
+```yaml
+enhance:
+  input_dirs:
+    - "/Users/you/Obsidian Main Vault/Watchlist/TV"
+    - "/Users/you/Obsidian Main Vault/Watchlist/Movies"
+  recursive: false
+  dry_run: false
+  regenerate_data: false
+  force: false
+  refresh_cache: false
+  tmdb_no_interactive: false
+  tmdb_content_sections: []
+  omdb_no_enrich: false
+```
+
+Flags still override config values when provided.
+
 ## Command-Line Flags
 
 Flags override config values. Global flags live at the root command, and importer-specific flags live under each subcommand.
@@ -159,15 +178,15 @@ Steam:
 - `--api-key`
 
 Enhance:
-- `--input-dirs`
-- `--recursive`
-- `--dry-run`
-- `--regenerate-data`
-- `--force`
-- `--refresh-cache`
-- `--tmdb-no-interactive`
-- `--tmdb-content-sections`
-- `--omdb-no-enrich`
+- `--input-dirs` (or `enhance.input_dirs` in config)
+- `--recursive` (or `enhance.recursive`)
+- `--dry-run` (or `enhance.dry_run`)
+- `--regenerate-data` (or `enhance.regenerate_data`)
+- `--force` (or `enhance.force`)
+- `--refresh-cache` (or `enhance.refresh_cache`)
+- `--tmdb-no-interactive` (or `enhance.tmdb_no_interactive`)
+- `--tmdb-content-sections` (or `enhance.tmdb_content_sections`)
+- `--omdb-no-enrich` (or `enhance.omdb_no_enrich`)
 
 Diff:
 - `--output`

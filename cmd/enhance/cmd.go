@@ -20,7 +20,7 @@ import (
 
 // EnhanceCmd represents the enhance command
 type EnhanceCmd struct {
-	InputDirs           []string `short:"d" help:"Directories containing markdown files to enhance (can specify multiple)" required:""`
+	InputDirs           []string `short:"d" help:"Directories containing markdown files to enhance (can specify multiple)"`
 	Recursive           bool     `short:"r" help:"Scan subdirectories recursively" default:"false"`
 	DryRun              bool     `help:"Show what would be done without making changes" default:"false"`
 	RegenerateData      bool     `help:"Regenerate data sections (TMDB/Steam) even if they already exist" default:"false"`
@@ -32,20 +32,68 @@ type EnhanceCmd struct {
 }
 
 func (e *EnhanceCmd) Run() error {
-	for _, inputDir := range e.InputDirs {
+	inputDirs := e.InputDirs
+	if len(inputDirs) == 0 {
+		inputDirs = viper.GetStringSlice("enhance.input_dirs")
+	}
+	if len(inputDirs) == 0 {
+		return fmt.Errorf("at least one input directory is required (provide via --input-dirs flag or enhance.input_dirs in config)")
+	}
+
+	recursive := e.Recursive
+	if !recursive && viper.IsSet("enhance.recursive") {
+		recursive = viper.GetBool("enhance.recursive")
+	}
+
+	dryRun := e.DryRun
+	if !dryRun && viper.IsSet("enhance.dry_run") {
+		dryRun = viper.GetBool("enhance.dry_run")
+	}
+
+	regenerateData := e.RegenerateData
+	if !regenerateData && viper.IsSet("enhance.regenerate_data") {
+		regenerateData = viper.GetBool("enhance.regenerate_data")
+	}
+
+	force := e.Force
+	if !force && viper.IsSet("enhance.force") {
+		force = viper.GetBool("enhance.force")
+	}
+
+	refreshCache := e.RefreshCache
+	if !refreshCache && viper.IsSet("enhance.refresh_cache") {
+		refreshCache = viper.GetBool("enhance.refresh_cache")
+	}
+
+	tmdbNoInteractive := e.TMDBNoInteractive
+	if !tmdbNoInteractive && viper.IsSet("enhance.tmdb_no_interactive") {
+		tmdbNoInteractive = viper.GetBool("enhance.tmdb_no_interactive")
+	}
+
+	tmdbContentSections := e.TMDBContentSections
+	if len(tmdbContentSections) == 0 {
+		tmdbContentSections = viper.GetStringSlice("enhance.tmdb_content_sections")
+	}
+
+	omdbNoEnrich := e.OMDBNoEnrich
+	if !omdbNoEnrich && viper.IsSet("enhance.omdb_no_enrich") {
+		omdbNoEnrich = viper.GetBool("enhance.omdb_no_enrich")
+	}
+
+	for _, inputDir := range inputDirs {
 		opts := Options{
 			InputDir:            inputDir,
-			Recursive:           e.Recursive,
-			DryRun:              e.DryRun,
-			RegenerateData:      e.RegenerateData,
-			Force:               e.Force,
-			RefreshCache:        e.RefreshCache,
-			TMDBDownloadCover:   true,                 // Always download covers
-			TMDBInteractive:     !e.TMDBNoInteractive, // Invert: default is interactive
-			TMDBContentSections: e.TMDBContentSections,
+			Recursive:           recursive,
+			DryRun:              dryRun,
+			RegenerateData:      regenerateData,
+			Force:               force,
+			RefreshCache:        refreshCache,
+			TMDBDownloadCover:   true,               // Always download covers
+			TMDBInteractive:     !tmdbNoInteractive, // Invert: default is interactive
+			TMDBContentSections: tmdbContentSections,
 			UseTMDBCoverCache:   viper.GetBool("tmdb.cover_cache.enabled"),
 			TMDBCoverCachePath:  viper.GetString("tmdb.cover_cache.path"),
-			OMDBEnrich:          !e.OMDBNoEnrich, // Invert: default is enabled
+			OMDBEnrich:          !omdbNoEnrich, // Invert: default is enabled
 		}
 
 		if err := EnhanceNotesFunc(opts); err != nil {

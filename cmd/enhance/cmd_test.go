@@ -12,6 +12,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/obsidian"
 	"github.com/lepinkainen/hermes/internal/testutil"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
 
@@ -470,6 +471,92 @@ func TestEnhanceCmd_Run_OptionsMapping(t *testing.T) {
 	assert.True(t, capturedOpts.TMDBInteractive)
 }
 
+func TestEnhanceCmd_Run_UsesConfigValues(t *testing.T) {
+	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"))
+	env := testutil.NewTestEnv(t)
+	viper.Set("enhance.input_dirs", []string{filepath.Join(env.RootDir(), "dir1"), filepath.Join(env.RootDir(), "dir2")})
+	viper.Set("enhance.recursive", true)
+	viper.Set("enhance.dry_run", true)
+	viper.Set("enhance.regenerate_data", true)
+	viper.Set("enhance.force", true)
+	viper.Set("enhance.refresh_cache", true)
+	viper.Set("enhance.tmdb_no_interactive", true)
+	viper.Set("enhance.tmdb_content_sections", []string{"cast", "crew"})
+	viper.Set("enhance.omdb_no_enrich", true)
+
+	var captured []Options
+	mockFunc := func(opts Options) error {
+		captured = append(captured, opts)
+		return nil
+	}
+
+	origFunc := EnhanceNotesFunc
+	EnhanceNotesFunc = mockFunc
+	defer func() { EnhanceNotesFunc = origFunc }()
+
+	err := (&EnhanceCmd{}).Run()
+	require.NoError(t, err)
+	require.Len(t, captured, 2)
+
+	assert.Equal(t, filepath.Join(env.RootDir(), "dir1"), captured[0].InputDir)
+	assert.Equal(t, filepath.Join(env.RootDir(), "dir2"), captured[1].InputDir)
+	assert.True(t, captured[0].Recursive)
+	assert.True(t, captured[0].DryRun)
+	assert.True(t, captured[0].RegenerateData)
+	assert.True(t, captured[0].Force)
+	assert.True(t, captured[0].RefreshCache)
+	assert.False(t, captured[0].TMDBInteractive)
+	assert.Equal(t, []string{"cast", "crew"}, captured[0].TMDBContentSections)
+	assert.False(t, captured[0].OMDBEnrich)
+}
+
+func TestEnhanceCmd_Run_FlagValuesOverrideConfig(t *testing.T) {
+	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"))
+	env := testutil.NewTestEnv(t)
+	viper.Set("enhance.input_dirs", []string{filepath.Join(env.RootDir(), "config-dir")})
+	viper.Set("enhance.recursive", false)
+	viper.Set("enhance.dry_run", false)
+	viper.Set("enhance.regenerate_data", false)
+	viper.Set("enhance.force", false)
+	viper.Set("enhance.refresh_cache", false)
+	viper.Set("enhance.tmdb_no_interactive", false)
+	viper.Set("enhance.tmdb_content_sections", []string{"config-section"})
+	viper.Set("enhance.omdb_no_enrich", false)
+
+	var capturedOpts Options
+	mockFunc := func(opts Options) error {
+		capturedOpts = opts
+		return nil
+	}
+
+	origFunc := EnhanceNotesFunc
+	EnhanceNotesFunc = mockFunc
+	defer func() { EnhanceNotesFunc = origFunc }()
+
+	err := (&EnhanceCmd{
+		InputDirs:           []string{filepath.Join(env.RootDir(), "flag-dir")},
+		Recursive:           true,
+		DryRun:              true,
+		RegenerateData:      true,
+		Force:               true,
+		RefreshCache:        true,
+		TMDBNoInteractive:   true,
+		TMDBContentSections: []string{"flag-section"},
+		OMDBNoEnrich:        true,
+	}).Run()
+	require.NoError(t, err)
+
+	assert.Equal(t, filepath.Join(env.RootDir(), "flag-dir"), capturedOpts.InputDir)
+	assert.True(t, capturedOpts.Recursive)
+	assert.True(t, capturedOpts.DryRun)
+	assert.True(t, capturedOpts.RegenerateData)
+	assert.True(t, capturedOpts.Force)
+	assert.True(t, capturedOpts.RefreshCache)
+	assert.False(t, capturedOpts.TMDBInteractive)
+	assert.Equal(t, []string{"flag-section"}, capturedOpts.TMDBContentSections)
+	assert.False(t, capturedOpts.OMDBEnrich)
+}
+
 func TestEnhanceCmd_Run_MultipleDirectories(t *testing.T) {
 	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"))
 	env := testutil.NewTestEnv(t)
@@ -607,4 +694,12 @@ func TestEnhanceCmd_Run_PropagatesError(t *testing.T) {
 	err := cmd.Run()
 	require.Error(t, err)
 	assert.Equal(t, expectedErr, err)
+}
+
+func TestEnhanceCmd_Run_RequiresInputDirsFromFlagOrConfig(t *testing.T) {
+	testutil.SetTestConfigWithOptions(t, testutil.WithTMDBAPIKey("test-key"))
+
+	err := (&EnhanceCmd{}).Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one input directory is required")
 }

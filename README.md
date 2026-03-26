@@ -58,10 +58,16 @@ Comprehensive documentation is available in the `docs/` directory:
 Enrich existing Obsidian markdown notes with TMDB metadata:
 
 ```bash
-hermes enhance ./markdown/movies --recursive
+hermes enhance --input-dirs ./markdown/movies --recursive
 ```
 
-See [docs/04_configuration.md](docs/04_configuration.md#enhance) for configuration options.
+Or configure default enhance directories/options in `config.yml` and run:
+
+```bash
+hermes enhance
+```
+
+See [docs/04_configuration.md](docs/04_configuration.md#enhance-and-tmdb) for configuration options.
 
 ### Diff
 

@@ -260,6 +260,14 @@ func TestEnhanceCommandParsing(t *testing.T) {
 	assert.Equal(t, []string{"cast", "crew"}, cli.Enhance.TMDBContentSections)
 }
 
+func TestEnhanceCommandParsing_AllowsConfigOnlyInvocation(t *testing.T) {
+	resetCmdState(t)
+
+	cli, _ := parseCLI(t, "enhance")
+
+	assert.Empty(t, cli.Enhance.InputDirs)
+}
+
 func TestCLIDefaultFlags(t *testing.T) {
 	resetCmdState(t)
 
