@@ -1,6 +1,6 @@
 # DISABLED: govulncheck panics with Go 1.25 and go-json-experiment/json
 # See: https://github.com/golang/go/issues/75584
-# Re-enable when Go 1.26 is released (tracked in bd issue)
+# Re-enable when Go 1.26 is released.
 name: Govulncheck Scan
 # on: [push, pull_request]
 
