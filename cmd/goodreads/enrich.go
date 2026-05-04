@@ -17,6 +17,7 @@ var (
 			enrichers.NewISBNdbEnricher(),      // Priority 0 - highest (skips if no API key)
 			enrichers.NewOpenLibraryEnricher(), // Priority 1
 			enrichers.NewGoogleBooksEnricher(), // Priority 2
+			enrichers.NewBookBrainzEnricher(),  // Priority 3
 		}
 		defaultMerger = bookpkg.NewPriorityMerger()
 	})

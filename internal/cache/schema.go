@@ -102,6 +102,17 @@ CREATE TABLE IF NOT EXISTS googlebooks_cache (
 CREATE INDEX IF NOT EXISTS idx_googlebooks_cached_at ON googlebooks_cache(cached_at);
 `
 
+// BookBrainzCacheSchema defines the schema for BookBrainz book cache
+const BookBrainzCacheSchema = `
+CREATE TABLE IF NOT EXISTS bookbrainz_cache (
+	cache_key TEXT PRIMARY KEY NOT NULL,
+	data TEXT NOT NULL,
+	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_bookbrainz_cached_at ON bookbrainz_cache(cached_at);
+`
+
 // LetterboxdMappingCacheSchema defines the schema for Letterboxd URI → TMDB/IMDB ID mappings
 // This cache persists user-confirmed TMDB selections to avoid re-prompting on subsequent imports
 const LetterboxdMappingCacheSchema = `
@@ -138,6 +149,7 @@ var AllCacheSchemas = []string{
 	LetterboxdCacheSchema,
 	TMDBCacheSchema,
 	GoogleBooksCacheSchema,
+	BookBrainzCacheSchema,
 	LetterboxdMappingCacheSchema,
 	ISBNdbCacheSchema,
 }
@@ -154,6 +166,7 @@ var ValidCacheTableNames = map[string]bool{
 	"letterboxd_cache":         true,
 	"tmdb_cache":               true,
 	"googlebooks_cache":        true,
+	"bookbrainz_cache":         true,
 	"letterboxd_mapping_cache": true,
 	"isbndb_cache":             true,
 }
