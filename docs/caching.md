@@ -12,6 +12,7 @@ Hermes now uses a SQLite-backed cache (`cache.db`) to store responses from exter
   - `googlebooks_cache` (Goodreads/Google Books lookups)
   - `bookbrainz_cache` (Goodreads/BookBrainz lookups)
   - `isbndb_cache` (Goodreads/ISBNdb lookups)
+  - `finna_cache` (Goodreads/Finna lookups — Finnish national library)
   - `steam_cache` (Steam app lookups)
   - `letterboxd_cache` (Letterboxd TMDB lookups)
   - `tmdb_cache` (TMDB metadata and search results)
@@ -39,7 +40,7 @@ TTL accepts any Go duration string (e.g., `24h`, `7h30m`, `30m`).
 Negative caching stores "not found" responses with a shorter TTL than successful responses. This prevents repeated API calls for non-existent items while allowing the cache to refresh sooner if new data becomes available.
 
 **Current implementation:**
-- **Goodreads (OpenLibrary, Google Books, BookBrainz, ISBNdb)**: "Not found" responses cached for **7 days**, successful responses for **30 days**
+- **Goodreads (OpenLibrary, Google Books, BookBrainz, ISBNdb, Finna)**: "Not found" responses cached for **7 days**, successful responses for **30 days**
 - **TMDB**: Empty search results are **not cached** at all (policy-based caching)
 - **Other sources**: Standard 30-day TTL for all responses
 

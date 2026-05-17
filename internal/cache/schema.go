@@ -138,6 +138,17 @@ CREATE TABLE IF NOT EXISTS isbndb_cache (
 CREATE INDEX IF NOT EXISTS idx_isbndb_cached_at ON isbndb_cache(cached_at);
 `
 
+// FinnaCacheSchema defines the schema for Finna book cache
+const FinnaCacheSchema = `
+CREATE TABLE IF NOT EXISTS finna_cache (
+	cache_key TEXT PRIMARY KEY NOT NULL,
+	data TEXT NOT NULL,
+	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_finna_cached_at ON finna_cache(cached_at);
+`
+
 // AllCacheSchemas contains all cache table schemas for easy initialization
 var AllCacheSchemas = []string{
 	OMDBCacheSchema,
@@ -152,6 +163,7 @@ var AllCacheSchemas = []string{
 	BookBrainzCacheSchema,
 	LetterboxdMappingCacheSchema,
 	ISBNdbCacheSchema,
+	FinnaCacheSchema,
 }
 
 // ValidCacheTableNames is the whitelist of allowed cache table names
@@ -169,4 +181,5 @@ var ValidCacheTableNames = map[string]bool{
 	"bookbrainz_cache":         true,
 	"letterboxd_mapping_cache": true,
 	"isbndb_cache":             true,
+	"finna_cache":              true,
 }

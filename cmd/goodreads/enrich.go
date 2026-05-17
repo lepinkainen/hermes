@@ -18,6 +18,7 @@ var (
 			enrichers.NewOpenLibraryEnricher(), // Priority 1
 			enrichers.NewGoogleBooksEnricher(), // Priority 2
 			enrichers.NewBookBrainzEnricher(),  // Priority 3
+			enrichers.NewFinnaEnricher(),       // Priority 4 - Finnish library coverage
 		}
 		defaultMerger = bookpkg.NewPriorityMerger()
 	})

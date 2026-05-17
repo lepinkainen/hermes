@@ -31,7 +31,7 @@ The CSV file contains basic information about your books, including:
 
 ### Data Enrichment
 
-The importer enriches the basic Goodreads data with additional information from ISBNdb (when configured), [OpenLibrary](https://openlibrary.org/developers/api), Google Books, and BookBrainz, including:
+The importer enriches the basic Goodreads data with additional information from ISBNdb (when configured), [OpenLibrary](https://openlibrary.org/developers/api), Google Books, BookBrainz, and [Finna](https://api.finna.fi/) (the Finnish national library, useful for Finnish-language titles), including:
 
 - Cover images
 - Detailed descriptions
