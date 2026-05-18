@@ -7,11 +7,10 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/lepinkainen/hermes/internal/errors"
+	"github.com/lepinkainen/hermes/internal/parseutil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 	"github.com/spf13/viper"
 )
@@ -100,17 +99,14 @@ func fetchMovieDataWithContext(ctx context.Context, imdbID string) (*MovieSeen, 
 		Title:        omdbMovie.Title,
 		ImdbId:       omdbMovie.ImdbID,
 		TitleType:    omdbMovie.Type,
-		IMDbRating:   parseFloat(omdbMovie.ImdbRating),
+		IMDbRating:   parseutil.ParseFloat(omdbMovie.ImdbRating),
 		Plot:         omdbMovie.Plot,
 		PosterURL:    omdbMovie.Poster,
 		ContentRated: omdbMovie.Rated,
 		Awards:       omdbMovie.Awards,
-		// Parse genres from comma-separated string
-		Genres: strings.Split(omdbMovie.Genre, ", "),
-		// Parse directors from comma-separated string
-		Directors: strings.Split(omdbMovie.Director, ", "),
-		// Parse runtime to minutes
-		RuntimeMins: parseRuntime(omdbMovie.Runtime),
+		Genres:       parseutil.ParseCommaList(omdbMovie.Genre),
+		Directors:    parseutil.ParseCommaList(omdbMovie.Director),
+		RuntimeMins:  parseutil.ParseRuntime(omdbMovie.Runtime),
 	}
 
 	return movie, nil
@@ -127,17 +123,4 @@ func getOMDBAPIKey() (string, error) {
 	}
 
 	return apiKey, nil
-}
-
-// Helper functions to parse OMDB data
-func parseFloat(s string) float64 {
-	f, _ := strconv.ParseFloat(s, 64)
-	return f
-}
-
-func parseRuntime(runtime string) int {
-	// Convert "123 min" to 123
-	mins := strings.TrimSuffix(runtime, " min")
-	val, _ := strconv.Atoi(mins)
-	return val
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/enrichment/book"
+	"github.com/lepinkainen/hermes/internal/parseutil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 	"github.com/spf13/viper"
 )
@@ -96,7 +97,7 @@ func (e *ISBNdbEnricher) Enrich(ctx context.Context, isbn string) (*book.Enrichm
 	}
 
 	// Normalize ISBN
-	normalizedISBN := normalizeISBN(isbn)
+	normalizedISBN := parseutil.NormalizeISBN(isbn)
 
 	// Use cached fetch
 	cached, _, err := cache.GetOrFetchWithTTL("isbndb_cache", normalizedISBN, func() (*cachedISBNdbResult, error) {

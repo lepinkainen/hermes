@@ -6,42 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSplitString(t *testing.T) {
-	testCases := []struct {
-		name     string
-		input    string
-		expected []string
-	}{
-		{
-			name:     "empty string",
-			input:    "",
-			expected: nil,
-		},
-		{
-			name:     "single value",
-			input:    "Fiction",
-			expected: []string{"Fiction"},
-		},
-		{
-			name:     "multiple values",
-			input:    "Fiction,Fantasy,Adventure",
-			expected: []string{"Fiction", "Fantasy", "Adventure"},
-		},
-		{
-			name:     "values with spaces",
-			input:    "Fiction, Fantasy, Adventure",
-			expected: []string{"Fiction", "Fantasy", "Adventure"},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := splitString(tc.input)
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
 func TestGetDescription(t *testing.T) {
 	testCases := []struct {
 		name     string

@@ -7,10 +7,10 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/lepinkainen/hermes/internal/parseutil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 )
 
@@ -43,13 +43,6 @@ func getGoogleBooksRateLimiter() *ratelimit.Limiter {
 	return googleBooksRateLimiter
 }
 
-// normalizeISBN strips hyphens and spaces from ISBN
-func normalizeISBN(isbn string) string {
-	normalized := strings.ReplaceAll(isbn, "-", "")
-	normalized = strings.ReplaceAll(normalized, " ", "")
-	return normalized
-}
-
 // fetchBookDataFromGoogleBooks fetches book data from Google Books API by ISBN
 func fetchBookDataFromGoogleBooks(isbn string) (*GoogleBooksBook, error) {
 	return fetchBookDataFromGoogleBooksWithContext(context.Background(), isbn)
@@ -68,7 +61,7 @@ func fetchBookDataFromGoogleBooksWithContext(ctx context.Context, isbn string) (
 	}
 
 	// Normalize ISBN
-	normalizedISBN := normalizeISBN(isbn)
+	normalizedISBN := parseutil.NormalizeISBN(isbn)
 
 	// Build API URL
 	url := fmt.Sprintf("%s/volumes?q=isbn:%s", googleBooksBaseURL, normalizedISBN)

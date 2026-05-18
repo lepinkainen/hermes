@@ -1,19 +1,5 @@
 package goodreads
 
-import "strings"
-
-// Helper function to split comma-separated strings
-func splitString(str string) []string {
-	if str == "" {
-		return nil
-	}
-	var splitStrings = strings.Split(str, ",")
-	for i, s := range splitStrings {
-		splitStrings[i] = strings.TrimSpace(s)
-	}
-	return splitStrings
-}
-
 // Helper function to handle the description field
 func getDescription(desc any) string {
 	switch v := desc.(type) {

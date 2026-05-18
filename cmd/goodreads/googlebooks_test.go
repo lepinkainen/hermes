@@ -170,42 +170,6 @@ func TestFetchBookDataFromGoogleBooksMalformedJSON(t *testing.T) {
 	require.Contains(t, err.Error(), "failed to decode")
 }
 
-func TestNormalizeISBN(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "ISBN with hyphens",
-			input:    "978-0-316-76948-8",
-			expected: "9780316769488",
-		},
-		{
-			name:     "ISBN with spaces",
-			input:    "978 0 316 76948 8",
-			expected: "9780316769488",
-		},
-		{
-			name:     "ISBN with hyphens and spaces",
-			input:    "978-0-316 76948-8",
-			expected: "9780316769488",
-		},
-		{
-			name:     "ISBN already clean",
-			input:    "9780316769488",
-			expected: "9780316769488",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := normalizeISBN(tt.input)
-			require.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 func TestEnrichBookFromGoogleBooksDataMerge(t *testing.T) {
 	// Test that Google Books doesn't overwrite OpenLibrary data
 	book := &Book{

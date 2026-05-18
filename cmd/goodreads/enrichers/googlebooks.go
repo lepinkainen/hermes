@@ -12,6 +12,7 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/enrichment/book"
+	"github.com/lepinkainen/hermes/internal/parseutil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 )
 
@@ -82,7 +83,7 @@ func (e *GoogleBooksEnricher) Enrich(ctx context.Context, isbn string) (*book.En
 	}
 
 	// Normalize ISBN
-	normalizedISBN := normalizeISBN(isbn)
+	normalizedISBN := parseutil.NormalizeISBN(isbn)
 
 	// Use cached fetch
 	cached, _, err := cache.GetOrFetchWithTTL("googlebooks_cache", normalizedISBN, func() (*cachedGoogleBooksResult, error) {
@@ -217,11 +218,4 @@ func (e *GoogleBooksEnricher) fetchFromAPI(ctx context.Context, isbn string) (*c
 	}
 
 	return &cachedGoogleBooksResult{Data: data}, nil
-}
-
-// normalizeISBN strips hyphens and spaces from ISBN.
-func normalizeISBN(isbn string) string {
-	normalized := strings.ReplaceAll(isbn, "-", "")
-	normalized = strings.ReplaceAll(normalized, " ", "")
-	return normalized
 }

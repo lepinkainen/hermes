@@ -12,6 +12,7 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/enrichment/book"
+	"github.com/lepinkainen/hermes/internal/parseutil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 )
 
@@ -79,7 +80,7 @@ func (e *BookBrainzEnricher) Enrich(ctx context.Context, isbn string) (*book.Enr
 		return nil, book.ErrInvalidISBN
 	}
 
-	normalizedISBN := normalizeISBN(isbn)
+	normalizedISBN := parseutil.NormalizeISBN(isbn)
 	cached, _, err := cache.GetOrFetchWithTTL("bookbrainz_cache", normalizedISBN, func() (*cachedBookBrainzResult, error) {
 		return e.fetchFromAPI(ctx, normalizedISBN)
 	}, cache.SelectNegativeCacheTTL(func(r *cachedBookBrainzResult) bool {
@@ -241,7 +242,7 @@ func (e *BookBrainzEnricher) fetchEditionDetails(ctx context.Context, client *ht
 
 // findBestEditionMatch selects the edition whose identifiers match the queried ISBN.
 func findBestEditionMatch(results []bbEditionSearchResult, isbn string) *bbEditionSearchResult {
-	normalizedISBN := normalizeISBN(isbn)
+	normalizedISBN := parseutil.NormalizeISBN(isbn)
 	for i := range results {
 		r := &results[i]
 		if r.Type != "Edition" {
@@ -259,7 +260,7 @@ func editionMatchesISBN(edition *bbEditionSearchResult, normalizedISBN string) b
 		return false
 	}
 	for _, ident := range edition.IdentifierSet.Identifiers {
-		if normalizeISBN(ident.Value) == normalizedISBN {
+		if parseutil.NormalizeISBN(ident.Value) == normalizedISBN {
 			return true
 		}
 	}

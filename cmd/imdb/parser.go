@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/lepinkainen/hermes/internal/cmdutil"
 	"github.com/lepinkainen/hermes/internal/csvutil"
@@ -17,6 +16,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/importer/enrich"
 	"github.com/lepinkainen/hermes/internal/importer/mediaids"
 	"github.com/lepinkainen/hermes/internal/omdb"
+	"github.com/lepinkainen/hermes/internal/parseutil"
 )
 
 const IMDbMoviesSchema = `CREATE TABLE IF NOT EXISTS imdb_movies (
@@ -155,17 +155,8 @@ func parseMovieRecord(record []string) (MovieSeen, error) {
 		}
 	}
 
-	// Split genres into slice
-	var genres []string
-	if record[10] != "" {
-		genres = strings.Split(record[10], ", ")
-	}
-
-	// Split directors into slice
-	var directors []string
-	if record[13] != "" {
-		directors = strings.Split(record[13], ",")
-	}
+	genres := parseutil.ParseCommaList(record[10])
+	directors := parseutil.ParseCommaList(record[13])
 
 	return MovieSeen{
 		ImdbId:        record[0],   // Const

@@ -9,6 +9,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/lepinkainen/hermes/internal/parseutil"
 )
 
 func loadBooksFromCSV(filePath string, totalBooks int, outputDir string) ([]Book, error) {
@@ -81,7 +83,7 @@ func parseBookRecord(record []string) (*Book, error) {
 	book := &Book{
 		ID:                       bookID,
 		Title:                    record[1],
-		Authors:                  splitString(record[2]),
+		Authors:                  parseutil.ParseCommaList(record[2]),
 		ISBN:                     sanitizeISBNValue(record[5]),
 		ISBN13:                   sanitizeISBNValue(record[6]),
 		MyRating:                 parseFloatField(record[7]),
@@ -93,8 +95,8 @@ func parseBookRecord(record []string) (*Book, error) {
 		OriginalPublicationYear:  parseIntField(record[13]),
 		DateRead:                 record[14],
 		DateAdded:                record[15],
-		Bookshelves:              splitString(record[16]),
-		BookshelvesWithPositions: splitString(record[17]),
+		Bookshelves:              parseutil.ParseCommaList(record[16]),
+		BookshelvesWithPositions: parseutil.ParseCommaList(record[17]),
 		ExclusiveShelf:           record[18],
 		MyReview:                 record[19],
 		Spoiler:                  record[20],
