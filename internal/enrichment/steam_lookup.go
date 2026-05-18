@@ -16,8 +16,11 @@ import (
 	"github.com/lepinkainen/hermes/internal/tui"
 )
 
-// steamSearchURL is the Steam Store search API endpoint.
-const steamSearchURL = "https://store.steampowered.com/api/storesearch/?term=%s&l=english&cc=US"
+// HTTP seams — package vars so tests can redirect to an httptest.Server.
+var (
+	steamSearchURL        = "https://store.steampowered.com/api/storesearch/?term=%s&l=english&cc=US"
+	steamSearchHTTPClient = &http.Client{Timeout: 30 * time.Second}
+)
 
 // SteamStoreSearchResult represents a search result from Steam Store API.
 type SteamStoreSearchResult struct {
@@ -107,8 +110,7 @@ func fetchSteamStoreSearch(ctx context.Context, query string) ([]tui.SteamSearch
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := steamSearchHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Steam search: %w", err)
 	}

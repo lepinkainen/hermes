@@ -26,6 +26,8 @@ var (
 
 var openLibraryBaseURL = "https://openlibrary.org"
 
+const openLibraryCoverURLFormat = "https://covers.openlibrary.org/b/id/%d-L.jpg"
+
 // getHTTPClient returns a singleton HTTP client
 func getHTTPClient() *http.Client {
 	clientOnce.Do(func() {
@@ -160,5 +162,5 @@ func fetchCoverImage(coverID int) (string, error) {
 
 	// OpenLibrary provides cover images in different sizes
 	// We'll return the large size URL
-	return fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", coverID), nil
+	return fmt.Sprintf(openLibraryCoverURLFormat, coverID), nil
 }

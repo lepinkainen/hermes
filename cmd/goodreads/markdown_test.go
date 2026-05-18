@@ -1,7 +1,10 @@
 package goodreads
 
 import (
+	"io"
+	"net/http"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/lepinkainen/hermes/internal/fileutil"
@@ -9,11 +12,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// fakeCoverRoundTripper serves a fake JPEG body for known cover hosts and a
+// 404 for everything else, so the markdown writer can exercise both the
+// download-success and the URL-fallback branches without hitting the network.
+type fakeCoverRoundTripper struct{}
+
+func (fakeCoverRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	host := req.URL.Host
+	if strings.Contains(host, "covers.openlibrary.org") {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("fake-cover-bytes")),
+			Header:     make(http.Header),
+			Request:    req,
+		}, nil
+	}
+	return &http.Response{
+		StatusCode: http.StatusNotFound,
+		Body:       io.NopCloser(strings.NewReader("not found")),
+		Header:     make(http.Header),
+		Request:    req,
+	}, nil
+}
+
 func TestWriteBookToMarkdown(t *testing.T) {
 	// Setup test environment with automatic config management
 	env := testutil.NewTestEnv(t)
 	testutil.SetTestConfig(t)
 	golden := testutil.NewGoldenHelper(t, "testdata")
+
+	restoreCover := fileutil.SetCoverHTTPClient(&http.Client{
+		Transport: fakeCoverRoundTripper{},
+	})
+	t.Cleanup(restoreCover)
 
 	// Create test cases
 	testCases := []struct {

@@ -6,10 +6,10 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/errors"
+	"github.com/lepinkainen/hermes/internal/parseutil"
 	"github.com/spf13/viper"
 )
 
@@ -42,6 +42,14 @@ type Rating struct {
 	Value  string `json:"Value"`
 }
 
+// HTTP seams — package vars so tests can redirect to an httptest.Server.
+var (
+	omdbBaseURL = "http://www.omdbapi.com"
+	omdbHTTPGet = func(url string) (*http.Response, error) {
+		return http.Get(url)
+	}
+)
+
 // fetchMovieData retrieves movie data from the OMDB API by title and year
 func fetchMovieData(title string, year int) (*Movie, error) {
 	apiKey := viper.GetString("omdb.api_key")
@@ -57,9 +65,9 @@ func fetchMovieData(title string, year int) (*Movie, error) {
 	// Encode the title for URL
 	escapedTitle := strings.ReplaceAll(title, " ", "+")
 
-	url := fmt.Sprintf("http://www.omdbapi.com/?t=%s&y=%d&apikey=%s", escapedTitle, year, apiKey)
+	url := fmt.Sprintf("%s/?t=%s&y=%d&apikey=%s", omdbBaseURL, escapedTitle, year, apiKey)
 
-	resp, err := http.Get(url)
+	resp, err := omdbHTTPGet(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}
@@ -101,52 +109,16 @@ func fetchMovieData(title string, year int) (*Movie, error) {
 	// Create a new Movie with enriched data
 	movie := &Movie{
 		Name:        omdbMovie.Title,
-		Year:        parseYear(omdbMovie.Year),
+		Year:        parseutil.ParseYear(omdbMovie.Year),
 		Director:    omdbMovie.Director,
-		Cast:        parseCommaList(omdbMovie.Actors),
-		Genres:      parseCommaList(omdbMovie.Genre),
-		Runtime:     parseRuntime(omdbMovie.Runtime),
-		Rating:      parseFloat(omdbMovie.ImdbRating),
+		Cast:        parseutil.ParseCommaList(omdbMovie.Actors),
+		Genres:      parseutil.ParseCommaList(omdbMovie.Genre),
+		Runtime:     parseutil.ParseRuntime(omdbMovie.Runtime),
+		Rating:      parseutil.ParseFloat(omdbMovie.ImdbRating),
 		PosterURL:   omdbMovie.Poster,
 		Description: omdbMovie.Plot,
 		ImdbID:      omdbMovie.ImdbID,
 	}
 
 	return movie, nil
-}
-
-// Helper functions to parse OMDB data
-func parseFloat(s string) float64 {
-	f, _ := strconv.ParseFloat(s, 64)
-	return f
-}
-
-func parseRuntime(runtime string) int {
-	// Convert "123 min" to 123
-	mins := strings.TrimSuffix(runtime, " min")
-	val, _ := strconv.Atoi(mins)
-	return val
-}
-
-func parseYear(year string) int {
-	// Handle cases like "2019-2022" (for series)
-	if strings.Contains(year, "–") || strings.Contains(year, "-") {
-		parts := strings.FieldsFunc(year, func(r rune) bool {
-			return r == '–' || r == '-'
-		})
-		if len(parts) > 0 {
-			val, _ := strconv.Atoi(parts[0])
-			return val
-		}
-	}
-	val, _ := strconv.Atoi(year)
-	return val
-}
-
-func parseCommaList(list string) []string {
-	if list == "" || list == "N/A" {
-		return nil
-	}
-	items := strings.Split(list, ", ")
-	return items
 }

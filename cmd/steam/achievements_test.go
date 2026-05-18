@@ -2,9 +2,12 @@ package steam
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
+	internalerrors "github.com/lepinkainen/hermes/internal/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,4 +60,88 @@ func TestGetPlayerAchievements_ParsePrivateProfile(t *testing.T) {
 	require.False(t, resp.PlayerStats.Success, "Response should indicate failure")
 	require.Contains(t, resp.PlayerStats.Error, "private", "Error should mention 'private'")
 	require.Empty(t, resp.PlayerStats.Achievements, "Should have no achievements")
+}
+
+func TestGetPlayerAchievements_HTTPSuccess(t *testing.T) {
+	fixtureData, err := os.ReadFile("testdata/achievements_success.json")
+	require.NoError(t, err)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "key123", r.URL.Query().Get("key"))
+		assert.Equal(t, "76561198000000000", r.URL.Query().Get("steamid"))
+		assert.Equal(t, "440", r.URL.Query().Get("appid"))
+		assert.Equal(t, "en", r.URL.Query().Get("l"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(fixtureData)
+	}))
+	defer server.Close()
+
+	achievements, err := getPlayerAchievementsWithBaseURL("76561198000000000", "key123", 440, server.URL)
+	require.NoError(t, err)
+	require.Len(t, achievements, 2)
+	assert.Equal(t, "FIRST_KILL", achievements[0].APIName)
+	assert.Equal(t, 1, achievements[0].Achieved)
+}
+
+func TestGetPlayerAchievements_HTTPNoAchievements(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"playerstats":{"success":false,"error":"Requested app has no stats"}}`))
+	}))
+	defer server.Close()
+
+	achievements, err := getPlayerAchievementsWithBaseURL("76561198000000000", "key123", 999, server.URL)
+	require.NoError(t, err)
+	assert.Nil(t, achievements)
+}
+
+func TestGetPlayerAchievements_HTTPPrivateProfile(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"playerstats":{"success":false,"error":"Profile is not public"}}`))
+	}))
+	defer server.Close()
+
+	_, err := getPlayerAchievementsWithBaseURL("76561198000000000", "key123", 440, server.URL)
+	require.Error(t, err)
+	var profErr *internalerrors.SteamProfileError
+	require.ErrorAs(t, err, &profErr)
+}
+
+func TestGetPlayerAchievements_HTTPInvalidAPIKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`<html>401 Unauthorized</html>`))
+	}))
+	defer server.Close()
+
+	_, err := getPlayerAchievementsWithBaseURL("76561198000000000", "bad", 440, server.URL)
+	require.Error(t, err)
+	var profErr *internalerrors.SteamProfileError
+	require.ErrorAs(t, err, &profErr)
+	assert.Equal(t, 401, profErr.StatusCode)
+}
+
+func TestGetPlayerAchievements_HTTPRateLimit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "30")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer server.Close()
+
+	_, err := getPlayerAchievementsWithBaseURL("76561198000000000", "key", 440, server.URL)
+	require.Error(t, err)
+	assert.True(t, internalerrors.IsRateLimitError(err))
+}
+
+func TestGetPlayerAchievements_HTTPBadRequestNoAchievements(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`unparseable`))
+	}))
+	defer server.Close()
+
+	achievements, err := getPlayerAchievementsWithBaseURL("76561198000000000", "key", 440, server.URL)
+	require.NoError(t, err)
+	assert.Nil(t, achievements)
 }

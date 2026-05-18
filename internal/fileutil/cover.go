@@ -15,6 +15,14 @@ var coverHTTPClient = &http.Client{
 	Timeout: 30 * time.Second,
 }
 
+// SetCoverHTTPClient swaps the cover-download HTTP client and returns a
+// restore function. Test-only seam.
+func SetCoverHTTPClient(c *http.Client) func() {
+	prev := coverHTTPClient
+	coverHTTPClient = c
+	return func() { coverHTTPClient = prev }
+}
+
 // CoverDownloadOptions holds options for downloading cover images.
 type CoverDownloadOptions struct {
 	// URL is the source URL of the cover image

@@ -15,15 +15,21 @@ import (
 	"github.com/spf13/viper"
 )
 
-const (
+// HTTP and rate-limit seams — package vars so tests can redirect to an
+// httptest.Server and bypass the per-second OMDB throttle.
+var (
 	omdbBaseURL = "http://www.omdbapi.com"
+	omdbHTTPDo  = func(req *http.Request) (*http.Response, error) {
+		return http.DefaultClient.Do(req)
+	}
+	// OMDB free tier allows 1000 req/day; 1 req/sec is conservative.
+	getOMDBRateLimiter = sync.OnceValue(func() *ratelimit.Limiter {
+		return ratelimit.New("OMDB", 1)
+	})
+	omdbRateWait = func(ctx context.Context) error {
+		return getOMDBRateLimiter().Wait(ctx)
+	}
 )
-
-// getOMDBRateLimiter returns a singleton rate limiter for OMDB.
-// OMDB free tier allows 1000 requests/day; we use 1 req/sec to be conservative.
-var getOMDBRateLimiter = sync.OnceValue(func() *ratelimit.Limiter {
-	return ratelimit.New("OMDB", 1)
-})
 
 // GetAPIKey retrieves the OMDB API key from config
 // It checks multiple config keys in order of preference
@@ -56,9 +62,7 @@ func FetchByIMDBID(ctx context.Context, imdbID string) (*OMDBResponse, error) {
 		return nil, err
 	}
 
-	// Wait for rate limiter
-	limiter := getOMDBRateLimiter()
-	if err := limiter.Wait(ctx); err != nil {
+	if err := omdbRateWait(ctx); err != nil {
 		return nil, fmt.Errorf("rate limit wait failed: %w", err)
 	}
 
@@ -71,7 +75,7 @@ func FetchByIMDBID(ctx context.Context, imdbID string) (*OMDBResponse, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := omdbHTTPDo(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}
@@ -126,9 +130,7 @@ func FetchByTitleYear(ctx context.Context, title string, year int) (*OMDBRespons
 		return nil, err
 	}
 
-	// Wait for rate limiter
-	limiter := getOMDBRateLimiter()
-	if err := limiter.Wait(ctx); err != nil {
+	if err := omdbRateWait(ctx); err != nil {
 		return nil, fmt.Errorf("rate limit wait failed: %w", err)
 	}
 
@@ -144,7 +146,7 @@ func FetchByTitleYear(ctx context.Context, title string, year int) (*OMDBRespons
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := omdbHTTPDo(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}

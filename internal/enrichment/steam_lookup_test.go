@@ -188,6 +188,60 @@ func TestSteamStoreSearch_QueryEscaping(t *testing.T) {
 	require.Equal(t, 271590, searchResp.Items[0].AppID)
 }
 
+func withSteamSearchServer(t *testing.T, handler http.HandlerFunc) {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+
+	prevURL := steamSearchURL
+	prevClient := steamSearchHTTPClient
+	steamSearchURL = server.URL + "/?term=%s&l=english&cc=US"
+	steamSearchHTTPClient = server.Client()
+	t.Cleanup(func() {
+		steamSearchURL = prevURL
+		steamSearchHTTPClient = prevClient
+	})
+}
+
+func TestFetchSteamStoreSearchSuccess(t *testing.T) {
+	withSteamSearchServer(t, func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "Half-Life", r.URL.Query().Get("term"))
+		_ = json.NewEncoder(w).Encode(SteamStoreSearchResponse{
+			Total: 1,
+			Items: []SteamStoreSearchResult{
+				{AppID: 70, Name: "Half-Life", Tiny: "hl.jpg"},
+			},
+		})
+	})
+
+	results, err := fetchSteamStoreSearch(t.Context(), "Half-Life")
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, 70, results[0].AppID)
+	require.Equal(t, "Half-Life", results[0].Name)
+}
+
+func TestFetchSteamStoreSearchHTTPError(t *testing.T) {
+	withSteamSearchServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("oops"))
+	})
+
+	_, err := fetchSteamStoreSearch(t.Context(), "foo")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "status 500")
+}
+
+func TestFetchSteamStoreSearchInvalidJSON(t *testing.T) {
+	withSteamSearchServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("not json"))
+	})
+
+	_, err := fetchSteamStoreSearch(t.Context(), "foo")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "parse Steam search response")
+}
+
 func TestNormalizeSteamQuery(t *testing.T) {
 	tests := []struct {
 		name     string

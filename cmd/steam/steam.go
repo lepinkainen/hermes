@@ -14,6 +14,12 @@ import (
 	"github.com/lepinkainen/hermes/internal/errors"
 )
 
+const (
+	steamStoreAppDetailsURL    = "https://store.steampowered.com/api/appdetails"
+	steamOwnedGamesURL         = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/"
+	steamPlayerAchievementsURL = "https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/"
+)
+
 // parseRetryAfter extracts retry timing from Retry-After header
 // Returns 0 if header is missing or invalid
 func parseRetryAfter(headerValue string) time.Duration {
@@ -39,7 +45,7 @@ func parseRetryAfter(headerValue string) time.Duration {
 
 // getGameDetails fetches additional details for a game from Steam Store API.
 func getGameDetails(appID int) (*GameDetails, error) {
-	return getGameDetailsWithBaseURL(appID, "https://store.steampowered.com/api/appdetails")
+	return getGameDetailsWithBaseURL(appID, steamStoreAppDetailsURL)
 }
 
 // getGameDetailsWithBaseURL is a helper that accepts a custom base URL for testing
@@ -102,7 +108,7 @@ func getGameDetailsWithBaseURL(appID int, baseURL string) (*GameDetails, error) 
 
 // importSteamGames fetches games from a user's Steam library.
 func importSteamGames(steamID string, apiKey string) ([]Game, error) {
-	return importSteamGamesWithBaseURL(steamID, apiKey, "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/")
+	return importSteamGamesWithBaseURL(steamID, apiKey, steamOwnedGamesURL)
 }
 
 // importSteamGamesWithBaseURL is a helper that accepts a custom base URL for testing
@@ -167,13 +173,18 @@ var ImportSteamGamesFunc ImportSteamGamesFuncType = importSteamGames
 
 // GetPlayerAchievements fetches achievements for a specific game and user
 func GetPlayerAchievements(steamID string, apiKey string, appID int) ([]Achievement, error) {
+	return getPlayerAchievementsWithBaseURL(steamID, apiKey, appID, steamPlayerAchievementsURL)
+}
+
+// getPlayerAchievementsWithBaseURL is a helper that accepts a custom base URL for testing.
+func getPlayerAchievementsWithBaseURL(steamID string, apiKey string, appID int, baseURL string) ([]Achievement, error) {
 	params := url.Values{}
 	params.Add("key", apiKey)
 	params.Add("steamid", steamID)
 	params.Add("appid", fmt.Sprintf("%d", appID))
 	params.Add("l", "en") // Request English names/descriptions
 
-	fullURL := "https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?" + params.Encode()
+	fullURL := baseURL + "?" + params.Encode()
 
 	resp, err := http.Get(fullURL)
 	if err != nil {

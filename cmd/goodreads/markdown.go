@@ -118,7 +118,7 @@ func buildCoverContent(book Book, directory string) coverContent {
 	if book.CoverURL != "" {
 		coverURL = book.CoverURL
 	} else if book.CoverID > 0 {
-		coverURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", book.CoverID)
+		coverURL = fmt.Sprintf(openLibraryCoverURLFormat, book.CoverID)
 	}
 
 	if coverURL == "" {
