@@ -176,7 +176,8 @@ func writeMoviesToJSON(movies []Movie, jsonOutput string) error {
 		}
 	}
 
-	return writeJSONFile(movies, jsonOutput)
+	_, err := fileutil.WriteJSONFile(movies, jsonOutput, config.OverwriteFiles)
+	return err
 }
 
 // enrichMovieData fetches additional data from OMDB API

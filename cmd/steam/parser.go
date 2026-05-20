@@ -11,7 +11,9 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/cmdutil"
+	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/errors"
+	"github.com/lepinkainen/hermes/internal/fileutil"
 	"github.com/spf13/viper"
 )
 
@@ -221,7 +223,7 @@ func ParseSteam() error {
 
 	// Write to JSON if enabled
 	if writeJSON {
-		if err := writeGameToJson(processedGames, jsonOutput); err != nil {
+		if _, err := fileutil.WriteJSONFile(processedGames, jsonOutput, config.OverwriteFiles); err != nil {
 			slog.Error("Error writing games to JSON", "error", err)
 		}
 	}

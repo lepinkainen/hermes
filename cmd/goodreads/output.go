@@ -4,6 +4,8 @@ import (
 	"log/slog"
 
 	"github.com/lepinkainen/hermes/internal/cmdutil"
+	"github.com/lepinkainen/hermes/internal/config"
+	"github.com/lepinkainen/hermes/internal/fileutil"
 )
 
 func writeBooksToJSONIfEnabled(books []Book, writeJSON bool, jsonOutput string) {
@@ -11,7 +13,7 @@ func writeBooksToJSONIfEnabled(books []Book, writeJSON bool, jsonOutput string) 
 		return
 	}
 
-	if err := writeBookToJson(books, jsonOutput); err != nil {
+	if _, err := fileutil.WriteJSONFile(books, jsonOutput, config.OverwriteFiles); err != nil {
 		slog.Error("Error writing books to JSON", "error", err)
 	}
 }

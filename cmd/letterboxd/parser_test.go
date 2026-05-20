@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/lepinkainen/hermes/internal/config"
+	"github.com/lepinkainen/hermes/internal/fileutil"
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
@@ -299,7 +301,8 @@ func TestWriteJSONFile(t *testing.T) {
 	}
 
 	jsonPath := filepath.Join(tempDir, "movies.json")
-	err := writeJSONFile(movies, jsonPath)
+	config.OverwriteFiles = true
+	_, err := fileutil.WriteJSONFile(movies, jsonPath, config.OverwriteFiles)
 	require.NoError(t, err)
 
 	// Verify file was created

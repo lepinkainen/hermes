@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/lepinkainen/hermes/internal/cmdutil"
+	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/csvutil"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/errors"
@@ -86,7 +87,7 @@ func ParseImdb() error {
 
 	// Write to JSON if enabled
 	if writeJSON {
-		if err := writeMovieToJson(movies, jsonOutput); err != nil {
+		if _, err := fileutil.WriteJSONFile(movies, jsonOutput, config.OverwriteFiles); err != nil {
 			slog.Error("Error writing movies to JSON", "error", err)
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lepinkainen/hermes/internal/config"
+	"github.com/lepinkainen/hermes/internal/fileutil"
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -81,7 +82,7 @@ func TestWriteGameToJson(t *testing.T) {
 	// Write to JSON
 	jsonPath := filepath.Join(env.RootDir(), "steam_games.json")
 	config.OverwriteFiles = true // Set global config
-	err := writeGameToJson(games, jsonPath)
+	_, err := fileutil.WriteJSONFile(games, jsonPath, config.OverwriteFiles)
 	require.NoError(t, err)
 
 	// Verify file exists
@@ -121,7 +122,7 @@ func TestWriteGameToJson_EmptyList(t *testing.T) {
 	// Write empty list
 	jsonPath := filepath.Join(env.RootDir(), "empty_games.json")
 	config.OverwriteFiles = true
-	err := writeGameToJson([]GameDetails{}, jsonPath)
+	_, err := fileutil.WriteJSONFile([]GameDetails{}, jsonPath, config.OverwriteFiles)
 	require.NoError(t, err)
 
 	// Read and verify
@@ -148,7 +149,7 @@ func TestWriteGameToJson_OverwriteProtection(t *testing.T) {
 		},
 	}
 	config.OverwriteFiles = true
-	err := writeGameToJson(initialData, jsonPath)
+	_, err := fileutil.WriteJSONFile(initialData, jsonPath, config.OverwriteFiles)
 	require.NoError(t, err)
 
 	// Try to write again without overwrite
@@ -158,7 +159,7 @@ func TestWriteGameToJson_OverwriteProtection(t *testing.T) {
 		},
 	}
 	config.OverwriteFiles = false
-	err = writeGameToJson(newData, jsonPath)
+	_, err = fileutil.WriteJSONFile(newData, jsonPath, config.OverwriteFiles)
 	// WriteJSONFile returns nil error when file exists and overwrite is false (it just skips)
 	require.NoError(t, err)
 
