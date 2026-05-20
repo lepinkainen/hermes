@@ -13,6 +13,7 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/enrichment/book"
+	"github.com/lepinkainen/hermes/internal/parseutil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 )
 
@@ -84,7 +85,7 @@ func (e *FinnaEnricher) Enrich(ctx context.Context, isbn string) (*book.Enrichme
 		return nil, book.ErrInvalidISBN
 	}
 
-	normalizedISBN := normalizeISBN(isbn)
+	normalizedISBN := parseutil.NormalizeISBN(isbn)
 	cached, _, err := cache.GetOrFetchWithTTL("finna_cache", normalizedISBN, func() (*cachedFinnaResult, error) {
 		return e.fetchFromAPI(ctx, normalizedISBN)
 	}, cache.SelectNegativeCacheTTL(func(r *cachedFinnaResult) bool {
