@@ -270,9 +270,12 @@ func TestTagSet_AddRatingTag(t *testing.T) {
 		{"zero noop", 0, []string{}},
 		{"negative noop", -1.5, []string{}},
 		{"int-like", 4, []string{"rating/4"}},
-		{"round down", 3.4, []string{"rating/3"}},
-		{"round up", 3.5, []string{"rating/4"}},
-		{"high precision", 4.7, []string{"rating/5"}},
+		{"half value", 3.5, []string{"rating/3_5"}},
+		{"round up to half", 3.4, []string{"rating/3_5"}},
+		{"round down to half", 3.2, []string{"rating/3"}},
+		{"round up to whole", 4.8, []string{"rating/5"}},
+		{"low half", 0.5, []string{"rating/0_5"}},
+		{"round to half from quarter", 4.25, []string{"rating/4_5"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

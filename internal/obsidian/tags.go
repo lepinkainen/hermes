@@ -110,13 +110,20 @@ func (ts *TagSet) AddDecadeTag(year int) {
 	}
 }
 
-// AddRatingTag adds a "rating/N" tag with the rating rounded to the nearest integer.
+// AddRatingTag adds a rating tag rounded to the nearest half-step.
+// Whole values produce "rating/N"; half values produce "rating/N_5"
+// (period is not allowed in Obsidian tags).
 // No-op if rating <= 0.
 func (ts *TagSet) AddRatingTag(rating float64) {
 	if rating <= 0 {
 		return
 	}
-	ts.AddFormat("rating/%d", int(math.Round(rating)))
+	doubled := int(math.Round(rating * 2))
+	if doubled%2 == 0 {
+		ts.AddFormat("rating/%d", doubled/2)
+	} else {
+		ts.AddFormat("rating/%d_5", doubled/2)
+	}
 }
 
 // AddGenreTags adds "genre/X" tags for each genre in the slice.

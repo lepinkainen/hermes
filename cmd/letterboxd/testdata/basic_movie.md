@@ -9,7 +9,7 @@ letterboxd_rating: 4.5
 letterboxd_uri: https://letterboxd.com/user/film/test-movie/
 runtime: 120
 seen: true
-tags: [genre/Action, genre/Drama, letterboxd/movie, rating/5, year/2020s]
+tags: [genre/Action, genre/Drama, letterboxd/movie, rating/4_5, year/2020s]
 title: Test Movie
 type: movie
 year: 2021

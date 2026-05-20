@@ -25,7 +25,7 @@ subjects:
     - Fiction
     - Adventure
 subtitle: A Test Subtitle
-tags: [goodreads/book, rating/5, shelf/read, year/2020s]
+tags: [goodreads/book, rating/4_5, shelf/read, year/2020s]
 title: Test Book
 type: book
 year: 2020
