@@ -205,23 +205,16 @@ func enrichMovieData(movie *MovieSeen) error {
 				target.RuntimeMins = omdbMovie.RuntimeMins
 			}
 		},
-		OnOMDBError: func(err error) {
-			slog.Warn("Failed to enrich from OMDB", "title", movie.Title, "error", err)
-		},
-		OnOMDBRateLimit: func(error) {
-			omdb.MarkRateLimitReached()
-			slog.Warn("Skipping OMDB enrichment after rate limit", "title", movie.Title)
-		},
-		TMDBEnabled: tmdbEnabled,
+		OnOMDBError:     enrich.OMDBErrorHandler(movie.Title),
+		OnOMDBRateLimit: enrich.OMDBRateLimitHandler(movie.Title, omdb.MarkRateLimitReached),
+		TMDBEnabled:     tmdbEnabled,
 		FetchTMDB: func() (*enrichment.TMDBEnrichment, error) {
 			return enrichFromTMDB(movie)
 		},
 		ApplyTMDB: func(target *MovieSeen, tmdbEnrichment *enrichment.TMDBEnrichment) {
 			target.TMDBEnrichment = tmdbEnrichment
 		},
-		OnTMDBError: func(err error) {
-			slog.Warn("Failed to enrich from TMDB", "title", movie.Title, "error", err)
-		},
+		OnTMDBError: enrich.TMDBErrorHandler(movie.Title),
 	})
 
 	return err
