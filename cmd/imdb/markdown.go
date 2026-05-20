@@ -71,18 +71,9 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 	typeTag := mapTypeToTag(movie.TitleType)
 	tc.AddIf(typeTag != "UNKNOWN", typeTag)
 
-	// Add rating tag if available
-	if movie.MyRating > 0 {
-		tc.AddFormat("rating/%d", movie.MyRating)
-	}
-
-	// Add decade tag
-	tc.AddIf(movie.Year > 0, obsidian.DecadeTag(movie.Year))
-
-	// Add genres as tags with genre/ prefix
-	for _, genre := range movie.Genres {
-		tc.AddFormat("genre/%s", genre)
-	}
+	tc.AddRatingTag(float64(movie.MyRating))
+	tc.AddDecadeTag(movie.Year)
+	tc.AddGenreTags(movie.Genres)
 
 	// Add TMDB genre tags if available
 	if movie.TMDBEnrichment != nil {

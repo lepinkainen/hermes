@@ -2,6 +2,7 @@ package obsidian
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strings"
@@ -99,6 +100,32 @@ func (ts *TagSet) AddFormat(format string, args ...any) {
 	ts.Add(tag)
 }
 
+// AddDecadeTag adds a decade tag (e.g., "year/2020s") for the given year.
+// Uses arithmetic for years >= 1950, "year/pre-1950s" for earlier years.
+// No-op if year <= 0.
+func (ts *TagSet) AddDecadeTag(year int) {
+	tag := DecadeTag(year)
+	if tag != "" {
+		ts.Add(tag)
+	}
+}
+
+// AddRatingTag adds a "rating/N" tag with the rating rounded to the nearest integer.
+// No-op if rating <= 0.
+func (ts *TagSet) AddRatingTag(rating float64) {
+	if rating <= 0 {
+		return
+	}
+	ts.AddFormat("rating/%d", int(math.Round(rating)))
+}
+
+// AddGenreTags adds "genre/X" tags for each genre in the slice.
+func (ts *TagSet) AddGenreTags(genres []string) {
+	for _, genre := range genres {
+		ts.AddFormat("genre/%s", genre)
+	}
+}
+
 // GetSorted returns all tags as a sorted slice.
 func (ts *TagSet) GetSorted() []string {
 	result := make([]string, 0, len(ts.tags))
@@ -138,11 +165,15 @@ func MergeTags(existing, new []string) []string {
 	return result
 }
 
-// DecadeTag returns a decade tag for the given year using arithmetic (e.g., "year/2020s").
-// Works for any year without needing hardcoded decade ranges.
+// DecadeTag returns a decade tag for the given year (e.g., "year/2020s").
+// Returns "year/pre-1950s" for years before 1950, arithmetic decades otherwise.
+// Returns empty string for year <= 0.
 func DecadeTag(year int) string {
 	if year <= 0 {
 		return ""
+	}
+	if year < 1950 {
+		return "year/pre-1950s"
 	}
 	decade := (year / 10) * 10
 	return fmt.Sprintf("year/%ds", decade)

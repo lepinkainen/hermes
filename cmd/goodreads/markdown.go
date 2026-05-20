@@ -99,11 +99,8 @@ func buildBookFrontmatter(book Book) *obsidian.Frontmatter {
 	tc := obsidian.NewTagSet()
 	tc.Add("goodreads/book")
 
-	// Add rating tag
-	tc.AddIf(book.MyRating > 0, fmt.Sprintf("rating/%.0f", book.MyRating))
-
-	// Add decade tag if we have a year
-	tc.AddIf(book.YearPublished > 0, obsidian.DecadeTag(book.YearPublished))
+	tc.AddRatingTag(book.MyRating)
+	tc.AddDecadeTag(book.YearPublished)
 
 	// Add shelf tag
 	tc.AddIf(book.ExclusiveShelf != "", fmt.Sprintf("shelf/%s", book.ExclusiveShelf))

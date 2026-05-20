@@ -2,7 +2,6 @@ package letterboxd
 
 import (
 	"fmt"
-	"math"
 	"strings"
 
 	"github.com/lepinkainen/hermes/internal/config"
@@ -55,18 +54,9 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 	tc := obsidian.NewTagSet()
 	tc.Add("letterboxd/movie")
 
-	// Add rating tag if available (rounded to integer)
-	if movie.Rating > 0 {
-		tc.AddFormat("rating/%d", int(math.Round(movie.Rating)))
-	}
-
-	// Add decade tag
-	tc.AddIf(movie.Year > 0, obsidian.DecadeTag(movie.Year))
-
-	// Add genres as tags with genre/ prefix
-	for _, genre := range movie.Genres {
-		tc.AddFormat("genre/%s", genre)
-	}
+	tc.AddRatingTag(movie.Rating)
+	tc.AddDecadeTag(movie.Year)
+	tc.AddGenreTags(movie.Genres)
 
 	// Add TMDB genre tags if available
 	if movie.TMDBEnrichment != nil {

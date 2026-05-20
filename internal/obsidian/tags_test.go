@@ -211,6 +211,106 @@ func TestTagSet(t *testing.T) {
 	})
 }
 
+func TestDecadeTag(t *testing.T) {
+	tests := []struct {
+		name string
+		year int
+		want string
+	}{
+		{"zero", 0, ""},
+		{"negative", -100, ""},
+		{"pre-1950 boundary", 1949, "year/pre-1950s"},
+		{"early 1900s", 1923, "year/pre-1950s"},
+		{"1950 boundary", 1950, "year/1950s"},
+		{"1960s", 1965, "year/1960s"},
+		{"2020s", 2024, "year/2020s"},
+		{"2030s future", 2031, "year/2030s"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DecadeTag(tt.year)
+			if got != tt.want {
+				t.Errorf("DecadeTag(%d) = %q, want %q", tt.year, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTagSet_AddDecadeTag(t *testing.T) {
+	tests := []struct {
+		name string
+		year int
+		want []string
+	}{
+		{"zero noop", 0, []string{}},
+		{"negative noop", -5, []string{}},
+		{"pre-1950", 1923, []string{"year/pre-1950s"}},
+		{"1949 pre-1950", 1949, []string{"year/pre-1950s"}},
+		{"1950 boundary", 1950, []string{"year/1950s"}},
+		{"2024", 2024, []string{"year/2020s"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := NewTagSet()
+			ts.AddDecadeTag(tt.year)
+			got := ts.GetSorted()
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AddDecadeTag(%d) = %v, want %v", tt.year, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTagSet_AddRatingTag(t *testing.T) {
+	tests := []struct {
+		name   string
+		rating float64
+		want   []string
+	}{
+		{"zero noop", 0, []string{}},
+		{"negative noop", -1.5, []string{}},
+		{"int-like", 4, []string{"rating/4"}},
+		{"round down", 3.4, []string{"rating/3"}},
+		{"round up", 3.5, []string{"rating/4"}},
+		{"high precision", 4.7, []string{"rating/5"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := NewTagSet()
+			ts.AddRatingTag(tt.rating)
+			got := ts.GetSorted()
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AddRatingTag(%v) = %v, want %v", tt.rating, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTagSet_AddGenreTags(t *testing.T) {
+	tests := []struct {
+		name   string
+		genres []string
+		want   []string
+	}{
+		{"empty slice", []string{}, []string{}},
+		{"nil slice", nil, []string{}},
+		{"single", []string{"Action"}, []string{"genre/Action"}},
+		{"multiple", []string{"Action", "Comedy"}, []string{"genre/Action", "genre/Comedy"}},
+		{"with spaces normalized", []string{"Science Fiction"}, []string{"genre/Science-Fiction"}},
+		{"dedup", []string{"Action", "Action"}, []string{"genre/Action"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := NewTagSet()
+			ts.AddGenreTags(tt.genres)
+			got := ts.GetSorted()
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AddGenreTags(%v) = %v, want %v", tt.genres, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMergeTags(t *testing.T) {
 	tests := []struct {
 		name     string
