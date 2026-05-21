@@ -94,10 +94,27 @@ tasks:
   lint:
     desc: Run Go linters
     cmds:
+      - find . -name "*.go" -not -path "./llm-shared/*" -exec goimports -w {} +
       - golangci-lint run ./...
     sources:
       - ./**/*.go
     silent: true
+
+  vuln-go:
+    desc: Scan dependencies for known vulnerabilities (advisory)
+    cmds:
+      - govulncheck $(go list ./... | grep -v llm-shared)
+
+  deadcode-go:
+    desc: Report unreachable Go functions (advisory; interface-only methods are expected false positives)
+    cmds:
+      - deadcode -test $(go list ./... | grep -v llm-shared)
+
+  cognit-go:
+    desc: Report Go functions with cognitive complexity > 20 with per-branch diagnostics (advisory; tests ignored)
+    cmds:
+      - |
+        gocognit -ignore "_test|llm-shared|node_modules" -over 20 -d -json . | jq -r '.[] | "\(.Complexity) \(.PkgName) \(.FuncName) \(.Pos.Filename):\(.Pos.Line):\(.Pos.Column)\n" + ([.Diagnostics[] | "  +\(.Inc) (nest \(.Nesting // 0)) \(.Text) @ \(.Pos.Line):\(.Pos.Column)"] | join("\n"))'
 
   clean:
     desc: Clean build artifacts
