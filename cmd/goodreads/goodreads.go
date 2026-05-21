@@ -6,7 +6,11 @@ import (
 	"time"
 )
 
-var _ = enrichBookFromOpenLibrary
+// Retained as test fixtures; production uses enrichBookWithEnrichers.
+var (
+	_ = enrichBookFromOpenLibrary
+	_ = enrichBookFromGoogleBooks
+)
 
 func openLibrarySearchISBN(book *Book) (string, error) {
 	searchISBN := book.ISBN13
@@ -108,7 +112,7 @@ func enrichBookFromOpenLibrary(book *Book) error {
 
 	olBook, cacheHit, err := fetchOpenLibraryBook(searchISBN)
 	if err != nil {
-		return fmt.Errorf("failed to get book data: %v", err)
+		return fmt.Errorf("failed to get book data: %w", err)
 	}
 
 	applyOpenLibraryBookData(book, olBook)

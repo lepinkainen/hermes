@@ -304,12 +304,12 @@ func TestEnrichFromTMDB_CoverCacheHit(t *testing.T) {
 	attachmentsDir := filepath.Join(tempDir, "attachments")
 
 	// Create cache directory and pre-populate with cached cover
-	require.NoError(t, os.MkdirAll(cacheDir, 0755))
-	require.NoError(t, os.MkdirAll(attachmentsDir, 0755))
+	require.NoError(t, os.MkdirAll(cacheDir, 0o755))
+	require.NoError(t, os.MkdirAll(attachmentsDir, 0o755))
 
 	// Create a cached cover file (using TMDB ID-based filename)
 	cachedCoverPath := filepath.Join(cacheDir, "movie_12345.jpg")
-	require.NoError(t, os.WriteFile(cachedCoverPath, []byte("cached cover content"), 0644))
+	require.NoError(t, os.WriteFile(cachedCoverPath, []byte("cached cover content"), 0o644))
 
 	opts := TMDBEnrichmentOptions{
 		DownloadCover:   true,
@@ -357,8 +357,8 @@ func TestEnrichFromTMDB_CoverCacheMiss(t *testing.T) {
 		onDownload: func(ctx context.Context, imageURL, destPath string, maxWidth int) error {
 			downloadedTo = destPath
 			// Simulate downloading by creating the file
-			require.NoError(t, os.MkdirAll(filepath.Dir(destPath), 0755))
-			return os.WriteFile(destPath, []byte("downloaded cover content"), 0644)
+			require.NoError(t, os.MkdirAll(filepath.Dir(destPath), 0o755))
+			return os.WriteFile(destPath, []byte("downloaded cover content"), 0o644)
 		},
 	})
 	defer restoreClient()
@@ -371,8 +371,8 @@ func TestEnrichFromTMDB_CoverCacheMiss(t *testing.T) {
 	attachmentsDir := filepath.Join(tempDir, "attachments")
 
 	// Create directories but NO cached file
-	require.NoError(t, os.MkdirAll(cacheDir, 0755))
-	require.NoError(t, os.MkdirAll(attachmentsDir, 0755))
+	require.NoError(t, os.MkdirAll(cacheDir, 0o755))
+	require.NoError(t, os.MkdirAll(attachmentsDir, 0o755))
 
 	opts := TMDBEnrichmentOptions{
 		DownloadCover:   true,
@@ -422,7 +422,7 @@ func TestEnrichFromTMDB_NoCacheUsed(t *testing.T) {
 		},
 		onDownload: func(ctx context.Context, imageURL, destPath string, maxWidth int) error {
 			downloadedTo = destPath
-			return os.WriteFile(destPath, []byte("direct download"), 0644)
+			return os.WriteFile(destPath, []byte("direct download"), 0o644)
 		},
 	})
 	defer restoreClient()
@@ -432,7 +432,7 @@ func TestEnrichFromTMDB_NoCacheUsed(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	tempDir := env.RootDir()
 	attachmentsDir := filepath.Join(tempDir, "attachments")
-	require.NoError(t, os.MkdirAll(attachmentsDir, 0755))
+	require.NoError(t, os.MkdirAll(attachmentsDir, 0o755))
 
 	opts := TMDBEnrichmentOptions{
 		DownloadCover:   true,

@@ -36,6 +36,8 @@ func SanitizeFilename(name string) string {
 }
 
 // ensureDir creates a directory and all necessary parent directories.
+//
+//nolint:unused // exercised by fileutil_test.go
 func ensureDir(path string) error {
 	return os.MkdirAll(path, 0o755)
 }
@@ -69,7 +71,7 @@ func WriteFileWithOverwrite(filePath string, data []byte, perm os.FileMode, over
 
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return false, err
 	}
 
@@ -84,7 +86,7 @@ func WriteFileWithOverwrite(filePath string, data []byte, perm os.FileMode, over
 // WriteMarkdownFile writes markdown content to a file with logging.
 // It respects the overwrite flag and logs the result.
 func WriteMarkdownFile(filePath string, content string, overwrite bool) error {
-	written, err := WriteFileWithOverwrite(filePath, []byte(content), 0644, overwrite)
+	written, err := WriteFileWithOverwrite(filePath, []byte(content), 0o644, overwrite)
 	if err != nil {
 		return err
 	}
@@ -121,12 +123,12 @@ func WriteJSONFile(data any, filePath string, overwrite bool) (bool, error) {
 
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return false, fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Write the file
-	if err := os.WriteFile(filePath, jsonData, 0644); err != nil {
+	if err := os.WriteFile(filePath, jsonData, 0o644); err != nil {
 		return false, fmt.Errorf("failed to write JSON file: %w", err)
 	}
 

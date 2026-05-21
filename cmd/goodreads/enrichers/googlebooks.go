@@ -58,7 +58,7 @@ func (e *GoogleBooksEnricher) Ping(ctx context.Context) error {
 	url := fmt.Sprintf("%s/volumes?q=isbn:0140447938&maxResults=1", googleBooksBaseURL)
 
 	client := e.getHTTPClient()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("creating ping request: %w", err)
 	}
@@ -145,7 +145,7 @@ func (e *GoogleBooksEnricher) fetchFromAPI(ctx context.Context, isbn string) (*c
 		url = fmt.Sprintf("%s&key=%s", url, apiKey)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}

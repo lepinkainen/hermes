@@ -179,7 +179,7 @@ func PrepareDownloadDir(downloadDir, pattern string) (string, func(), error) {
 		return tempDir, cleanup, nil
 	}
 
-	if err := os.MkdirAll(downloadDir, 0755); err != nil {
+	if err := os.MkdirAll(downloadDir, 0o755); err != nil {
 		return "", nil, fmt.Errorf("failed to create download directory: %w", err)
 	}
 	return downloadDir, nil, nil

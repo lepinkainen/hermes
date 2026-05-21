@@ -33,7 +33,7 @@ tags:
 
 Movie body
 `
-	err := os.WriteFile(filePath, []byte(content), 0644)
+	err := os.WriteFile(filePath, []byte(content), 0o644)
 	require.NoError(t, err)
 
 	m := Movie{
@@ -63,7 +63,7 @@ imdb_id: tt0113277
 
 Movie body
 `
-	err := os.WriteFile(filePath, []byte(content), 0644)
+	err := os.WriteFile(filePath, []byte(content), 0o644)
 	require.NoError(t, err)
 
 	prevOutputDir := outputDir
@@ -328,7 +328,7 @@ func TestProcessCSVFile(t *testing.T) {
 2024-01-16,Inception,2010,https://letterboxd.com/user/film/inception/
 `
 	csvPath := filepath.Join(tempDir, "test.csv")
-	err := os.WriteFile(csvPath, []byte(csvContent), 0644)
+	err := os.WriteFile(csvPath, []byte(csvContent), 0o644)
 	require.NoError(t, err)
 
 	movies, err := processCSVFile(csvPath)
@@ -356,7 +356,7 @@ func TestProcessCSVFile_SkipInvalidRecords(t *testing.T) {
 2024-01-16,Inception,2010,https://letterboxd.com/user/film/inception
 `
 	csvPath := filepath.Join(tempDir, "mixed.csv")
-	err := os.WriteFile(csvPath, []byte(csvContent), 0644)
+	err := os.WriteFile(csvPath, []byte(csvContent), 0o644)
 	require.NoError(t, err)
 
 	// Test with skipInvalid = true (should skip bad records)
@@ -436,7 +436,7 @@ func TestUserRatingPreservedInDatabase(t *testing.T) {
 2024-01-17,Unrated Movie,2020,https://letterboxd.com/user/film/unrated,
 `
 	csvPath := filepath.Join(tempDir, "test_ratings.csv")
-	err := os.WriteFile(csvPath, []byte(csvContent), 0644)
+	err := os.WriteFile(csvPath, []byte(csvContent), 0o644)
 	require.NoError(t, err)
 
 	// Set up temp database

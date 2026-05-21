@@ -7,7 +7,9 @@ import (
 	"github.com/lepinkainen/hermes/internal/cache"
 )
 
-// getCachedGoogleBook fetches book data from Google Books with caching and negative caching support
+// getCachedGoogleBook fetches book data from Google Books with caching and negative caching support.
+//
+//nolint:unused // retained as test seam
 func getCachedGoogleBook(isbn string) (*GoogleBooksBook, bool, error) {
 	cached, fromCache, err := cache.GetOrFetchWithTTL("googlebooks_cache", isbn,
 		func() (*CachedGoogleBooksBook, error) {

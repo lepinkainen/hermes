@@ -115,9 +115,10 @@ func logGameProgress(processed, total int) {
 	}
 }
 
+// ParseSteam imports the configured Steam library and writes the requested outputs.
 func ParseSteam() error {
 	// Ensure output directory exists
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return fmt.Errorf("error creating output directory: %w", err)
 	}
 

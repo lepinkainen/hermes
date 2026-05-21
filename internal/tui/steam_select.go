@@ -140,9 +140,7 @@ func (m *steamModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *steamModel) View() string {
 	header := headerStyle.Render(fmt.Sprintf("Multiple Steam results for: %s", m.searchTitle))
 
-	var elements []string
-	elements = append(elements, header)
-	elements = append(elements, m.list.View())
+	elements := []string{header, m.list.View()}
 
 	buttons := lipgloss.JoinHorizontal(
 		lipgloss.Left,

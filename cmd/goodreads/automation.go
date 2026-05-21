@@ -21,6 +21,7 @@ const (
 	exportFileName       = "goodreads_library_export.csv"
 )
 
+// AutomationOptions configures the headless Goodreads export flow.
 type AutomationOptions struct {
 	Email       string
 	Password    string
@@ -29,6 +30,7 @@ type AutomationOptions struct {
 	Timeout     time.Duration
 }
 
+// AutomateGoodreadsExport drives a headless browser session that requests, downloads, and moves the Goodreads library export CSV.
 func AutomateGoodreadsExport(parentCtx context.Context, opts AutomationOptions) (string, error) {
 	if opts.Email == "" || opts.Password == "" {
 		return "", errors.New("goodreads automation requires both email and password")
@@ -84,7 +86,7 @@ func AutomateGoodreadsExport(parentCtx context.Context, opts AutomationOptions) 
 	slog.Info("Initiating download of export file")
 
 	// Try clicking the link instead of navigating directly
-	clickSelector := fmt.Sprintf(`//a[@href="%s"]`, strings.TrimPrefix(exportLink, "https://www.goodreads.com"))
+	clickSelector := fmt.Sprintf(`//a[@href=%q]`, strings.TrimPrefix(exportLink, "https://www.goodreads.com"))
 	els, err := page.ElementsX(clickSelector)
 	if err == nil && len(els) > 0 {
 		if clickErr := els[0].Click(proto.InputMouseButtonLeft, 1); clickErr != nil {
@@ -363,7 +365,7 @@ func moveDownloadedCSV(downloadedPath, requestedDir string) (string, error) {
 		targetDir = "exports"
 	}
 
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		return "", fmt.Errorf("failed to create target directory: %w", err)
 	}
 
@@ -375,7 +377,7 @@ func moveDownloadedCSV(downloadedPath, requestedDir string) (string, error) {
 
 	if err := os.Rename(downloadedPath, targetPath); err != nil {
 		if copyErr := automation.CopyFile(downloadedPath, targetPath); copyErr != nil {
-			return "", fmt.Errorf("failed to move downloaded export: %v (copy error: %w)", err, copyErr)
+			return "", fmt.Errorf("failed to move downloaded export: %w (copy error: %w)", err, copyErr)
 		}
 		_ = os.Remove(downloadedPath)
 	}

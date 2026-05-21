@@ -22,6 +22,7 @@ type IMDbLetterboxdCmd struct {
 	DBFile     string `help:"Path to main SQLite database file"`
 }
 
+// Run executes the IMDb-vs-Letterboxd diff command.
 func (c *IMDbLetterboxdCmd) Run() error {
 	mainDB := c.DBFile
 	if mainDB == "" {
@@ -74,7 +75,7 @@ func (c *IMDbLetterboxdCmd) Run() error {
 			return fmt.Errorf("failed to render HTML: %w", err)
 		}
 
-		if _, err := fileutil.WriteFileWithOverwrite(c.HTMLOutput, htmlContent, 0644, config.OverwriteFiles); err != nil {
+		if _, err := fileutil.WriteFileWithOverwrite(c.HTMLOutput, htmlContent, 0o644, config.OverwriteFiles); err != nil {
 			return fmt.Errorf("failed to write HTML file: %w", err)
 		}
 	}

@@ -143,7 +143,7 @@ func TestSteamStoreSearch_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, http.NoBody)
 	require.NoError(t, err)
 
 	client := &http.Client{}

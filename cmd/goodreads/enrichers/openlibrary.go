@@ -53,7 +53,7 @@ func (e *OpenLibraryEnricher) Priority() int {
 // Ping tests the connection to OpenLibrary.
 func (e *OpenLibraryEnricher) Ping(ctx context.Context) error {
 	client := e.getHTTPClient()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, openLibraryBaseURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, openLibraryBaseURL, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("creating ping request: %w", err)
 	}
@@ -141,7 +141,7 @@ func (e *OpenLibraryEnricher) fetchFromAPI(ctx context.Context, isbn string) (*c
 
 	// Fetch book data
 	url := fmt.Sprintf("%s/api/books?bibkeys=ISBN:%s&format=json&jscmd=data", openLibraryBaseURL, isbn)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -247,7 +247,7 @@ func (e *OpenLibraryEnricher) fetchEditionData(ctx context.Context, isbn string)
 	client := e.getHTTPClient()
 	url := fmt.Sprintf("%s/isbn/%s.json", openLibraryBaseURL, isbn)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

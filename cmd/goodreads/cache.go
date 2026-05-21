@@ -11,7 +11,7 @@ import (
 
 // getCachedBook is kept for backward compatibility and tests.
 //
-//nolint:unused
+//nolint:unused // retained as test fixture and migration target for cache callers
 func getCachedBook(isbn string) (*Book, *OpenLibraryBook, bool, error) {
 	// Use negative caching with TTL selector
 	cached, fromCache, err := cache.GetOrFetchWithTTL("openlibrary_cache", isbn, func() (*CachedOpenLibraryBook, error) {

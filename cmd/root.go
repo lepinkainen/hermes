@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"log/slog"
 	"os"
 
@@ -151,7 +152,8 @@ func initConfig() {
 	viper.AddConfigPath(".")
 
 	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+		var cfgNotFoundErr viper.ConfigFileNotFoundError
+		if errors.As(err, &cfgNotFoundErr) {
 			slog.Info("Config file not found, writing default config file...")
 			if err := viper.SafeWriteConfig(); err != nil {
 				slog.Error("Error writing config file", "error", err)

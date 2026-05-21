@@ -2,6 +2,7 @@ package imdb
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/parseutil"
 )
 
+// IMDbMoviesSchema is the SQL schema for the imdb_movies datasette table.
 const IMDbMoviesSchema = `CREATE TABLE IF NOT EXISTS imdb_movies (
 		position INTEGER,
 		imdb_id TEXT PRIMARY KEY,
@@ -55,13 +57,14 @@ func movieToMap(movie MovieSeen) map[string]any {
 	})
 }
 
+// ParseImdb imports the configured IMDb CSV and writes the requested outputs.
 func ParseImdb() error {
 	// Create output directories once before processing
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 	attachmentsDir := filepath.Join(outputDir, "attachments")
-	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
+	if err := os.MkdirAll(attachmentsDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create attachments directory: %w", err)
 	}
 
@@ -77,7 +80,8 @@ func ParseImdb() error {
 	// Write markdown files
 	slog.Info("Writing markdown")
 	if err := writeMoviesToMarkdown(movies, outputDir); err != nil {
-		if _, isRateLimit := err.(*errors.RateLimitError); isRateLimit {
+		var rateLimitErr *errors.RateLimitError
+		if stderrors.As(err, &rateLimitErr) {
 			slog.Error("Stopping import due to rate limit", "error", err)
 			return err
 		}
@@ -117,7 +121,7 @@ func parseMovieRecord(record []string) (MovieSeen, error) {
 	// Parse rating
 	rating, err := strconv.Atoi(record[1]) // Your Rating is second column
 	if err != nil {
-		return MovieSeen{}, fmt.Errorf("invalid rating: %v", err)
+		return MovieSeen{}, fmt.Errorf("invalid rating: %w", err)
 	}
 
 	// Parse IMDb rating

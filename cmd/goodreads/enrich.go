@@ -33,21 +33,19 @@ func getDefaultEnrichers() []bookpkg.Enricher {
 
 // enrichBookWithEnrichers uses the new enricher system to enrich a book.
 // It runs all configured enrichers and merges the results by priority.
-func enrichBookWithEnrichers(ctx context.Context, book *Book) error {
-	// Get ISBN to search with
+func enrichBookWithEnrichers(ctx context.Context, book *Book) {
 	searchISBN := book.ISBN13
 	if searchISBN == "" {
 		searchISBN = book.ISBN
 	}
 
 	if searchISBN == "" {
-		return nil // No ISBN available
+		return
 	}
 
 	enricherList := getDefaultEnrichers()
 	results := make([]bookpkg.EnricherResult, 0, len(enricherList))
 
-	// Run all enrichers and collect results
 	for _, e := range enricherList {
 		data, err := e.Enrich(ctx, searchISBN)
 		if err != nil {
@@ -67,19 +65,15 @@ func enrichBookWithEnrichers(ctx context.Context, book *Book) error {
 
 	if len(results) == 0 {
 		slog.Debug("No enrichment data found", "isbn", searchISBN)
-		return nil
+		return
 	}
 
-	// Merge results by priority
 	merged := defaultMerger.Merge(results)
 	if merged == nil {
-		return nil
+		return
 	}
 
-	// Apply merged data to book (only fill empty fields)
 	applyEnrichmentData(book, merged)
-
-	return nil
 }
 
 // applyEnrichmentData applies enrichment data to a book, only filling empty fields.

@@ -144,7 +144,7 @@ func (ts *TagSet) GetSorted() []string {
 }
 
 // MergeTags combines two tag slices, normalizes them, and returns a sorted, deduplicated result.
-func MergeTags(existing, new []string) []string {
+func MergeTags(existing, incoming []string) []string {
 	seen := make(map[string]bool)
 
 	// Add existing tags
@@ -156,7 +156,7 @@ func MergeTags(existing, new []string) []string {
 	}
 
 	// Add new tags
-	for _, tag := range new {
+	for _, tag := range incoming {
 		normalized := NormalizeTag(tag)
 		if normalized != "" {
 			seen[normalized] = true

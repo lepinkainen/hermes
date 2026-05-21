@@ -31,6 +31,7 @@ type EnhanceCmd struct {
 	OMDBNoEnrich        bool     `help:"Disable OMDB ratings enrichment" default:"false"`
 }
 
+// Run executes the enhance command.
 func (e *EnhanceCmd) Run() error {
 	inputDirs := e.InputDirs
 	if len(inputDirs) == 0 {
@@ -104,6 +105,7 @@ func (e *EnhanceCmd) Run() error {
 	return nil
 }
 
+// EnhanceNotesFunc is the package-level seam used by tests to swap the enrichment entry point.
 var EnhanceNotesFunc = EnhanceNotes
 
 // Options holds configuration for the enhance command.
@@ -159,13 +161,13 @@ func EnhanceNotes(opts Options) error {
 
 	// Prepare root-level attachments directory
 	attachmentsDir := filepath.Join(opts.InputDir, "attachments")
-	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
+	if err := os.MkdirAll(attachmentsDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create attachments directory: %w", err)
 	}
 
 	// Prepare cover cache directory if enabled
 	if opts.UseTMDBCoverCache {
-		if err := os.MkdirAll(opts.TMDBCoverCachePath, 0755); err != nil {
+		if err := os.MkdirAll(opts.TMDBCoverCachePath, 0o755); err != nil {
 			return fmt.Errorf("failed to create cover cache directory: %w", err)
 		}
 		slog.Info("Using TMDB cover cache", "path", opts.TMDBCoverCachePath)
@@ -199,139 +201,15 @@ func EnhanceNotes(opts Options) error {
 			continue
 		}
 
-		// Handle movie/TV enrichment with TMDB
-		// Get note directory for file existence checks
-		noteDir := filepath.Dir(file)
-
-		// Smart needs detection: determine what needs to be updated
-		needsCover := note.NeedsCover(noteDir)
-		needsContent := note.NeedsContent()
-		needsMetadata := note.TMDBID == 0 // Missing tmdb_id in frontmatter
-
-		// Only consider OMDB needed if: OMDB enabled + has IMDB ID + doesn't have OMDB data yet
-		// AND cache doesn't already show no ratings available (to avoid reprocessing loop)
-		needsOMDB := false
-		if opts.OMDBEnrich && note.IMDBID != "" && !note.HasOMDBData() {
-			cacheStatus := omdb.CheckCacheStatus(note.IMDBID)
-			switch cacheStatus {
-			case omdb.CacheStatusNotCached:
-				// Not cached - need to fetch
-				needsOMDB = true
-			case omdb.CacheStatusHasRatings:
-				// Cached with ratings - need to update note
-				needsOMDB = true
-			case omdb.CacheStatusNotFound:
-				// Movie not in OMDB (invalid/incorrect ID) - skip (re-check after 7 day TTL)
-				slog.Debug("Skipping OMDB (not in OMDB)", "imdb_id", note.IMDBID)
-			case omdb.CacheStatusNoRatings:
-				// Movie exists but no ratings - skip (re-check after 24h TTL)
-				slog.Debug("Skipping OMDB (no ratings yet)", "imdb_id", note.IMDBID)
-			}
-		}
-
-		// Skip if already has everything and not forcing/regenerating/overwriting/refreshing
-		// Note: metadata is always fetched to ensure all fields are current (uses cache for efficiency)
-		if !opts.Force && !opts.RefreshCache && !opts.RegenerateData && !config.OverwriteFiles && !needsCover && !needsContent && !needsMetadata && !needsOMDB {
-			// Build concise status message
-			status := "TMDB OK"
-			if note.HasOMDBData() {
-				status += ", OMDB OK"
-			}
-			slog.Info("Skipping file ("+status+")", "path", file, "tmdb_id", note.TMDBID)
-			skipCount++
-			continue
-		}
-
-		if opts.DryRun {
-			slog.Info("Would enhance", "title", note.Title, "year", note.Year, "file", file,
-				"needs_cover", needsCover, "needs_content", needsContent, "needs_metadata", needsMetadata)
+		success, skip := processMovieTVNote(ctx, file, note, opts, attachmentsDir)
+		switch {
+		case success:
 			successCount++
-			continue
-		}
-
-		// Prepare enrichment options based on what's needed
-
-		// Convert frontmatter to map for DetectMediaTypeFromTags
-		frontmatterMap := make(map[string]any)
-		for _, key := range note.Frontmatter.Keys() {
-			if val, ok := note.Frontmatter.Get(key); ok {
-				frontmatterMap[key] = val
-			}
-		}
-		expectedType := fm.DetectMediaTypeFromTags(frontmatterMap)
-		if expectedType == "" {
-			expectedType = note.Type
-		}
-		storedType := note.Frontmatter.GetString("tmdb_type")
-
-		enrichOpts := enrichment.TMDBEnrichmentOptions{
-			DownloadCover:     opts.TMDBDownloadCover && (needsCover || opts.RegenerateData),
-			GenerateContent:   needsContent || opts.RegenerateData,
-			ContentSections:   opts.TMDBContentSections,
-			AttachmentsDir:    attachmentsDir,
-			NoteDir:           noteDir,
-			Interactive:       opts.TMDBInteractive,
-			Force:             opts.Force,
-			RefreshCache:      opts.RefreshCache,
-			StoredMediaType:   storedType,
-			ExpectedMediaType: expectedType,
-			UseCoverCache:     opts.UseTMDBCoverCache,
-			CoverCachePath:    opts.TMDBCoverCachePath,
-		}
-
-		// Resolve Letterboxd URI using 3-tier strategy
-		letterboxdURI := resolveLetterboxdURI(note, enrichOpts.StoredMediaType, enrichOpts.ExpectedMediaType)
-		enrichOpts.LetterboxdURI = letterboxdURI
-
-		// Enrich with TMDB data (pass existing TMDB ID if present)
-		searchTitle := note.Title
-		searchYear := note.Year
-		if searchYear == 0 {
-			if parsedTitle, parsedYear, ok := parseTitleYearFromTitle(note.Title); ok {
-				searchTitle = parsedTitle
-				searchYear = parsedYear
-				slog.Debug("Parsed year from title", "title", note.Title, "parsed_title", searchTitle, "year", searchYear)
-			}
-		}
-		tmdbData, err := enrichment.EnrichFromTMDB(ctx, searchTitle, searchYear, note.IMDBID, note.TMDBID, enrichOpts)
-		if err != nil {
-			slog.Warn("Failed to enrich from TMDB", "title", note.Title, "error", err)
-			errorCount++
-			continue
-		}
-
-		if tmdbData == nil {
-			slog.Warn("No TMDB data found for file", "title", note.Title, "path", file)
+		case skip:
 			skipCount++
-			continue
-		}
-
-		// Enrich with OMDB ratings if enabled and IMDb ID available
-		// Use IMDB ID from TMDB enrichment if available, otherwise fall back to note's existing ID
-		var omdbRatings *omdb.RatingsEnrichment
-		imdbID := tmdbData.IMDBID
-		if imdbID == "" {
-			imdbID = note.IMDBID
-		}
-		if opts.OMDBEnrich && imdbID != "" {
-			omdbRatings, err = omdb.EnrichFromOMDB(ctx, imdbID)
-			if err != nil {
-				slog.Warn("OMDB enrichment failed", "imdb_id", imdbID, "error", err)
-				// Don't fail the whole process, just continue without OMDB data
-			}
-		} else if opts.OMDBEnrich && imdbID == "" {
-			slog.Debug("Skipping OMDB enrichment (no IMDb ID)", "title", note.Title)
-		}
-
-		// Update the note with TMDB data and OMDB ratings
-		if err := updateNoteWithTMDBData(file, note, tmdbData, omdbRatings, opts.RegenerateData); err != nil {
-			slog.Warn("Failed to update note", "path", file, "error", err)
+		default:
 			errorCount++
-			continue
 		}
-
-		slog.Info("Enhanced note", "title", note.Title, "tmdb_id", tmdbData.TMDBID)
-		successCount++
 	}
 
 	slog.Info("Enhancement complete",
@@ -341,6 +219,130 @@ func EnhanceNotes(opts Options) error {
 		"errors", errorCount)
 
 	return nil
+}
+
+// processMovieTVNote enriches a single movie/TV markdown note with TMDB (and optionally OMDB) data.
+// Returns (success, skip) — both false means the note errored.
+func processMovieTVNote(ctx context.Context, file string, note *Note, opts Options, attachmentsDir string) (bool, bool) {
+	noteDir := filepath.Dir(file)
+
+	needsCover := note.NeedsCover(noteDir)
+	needsContent := note.NeedsContent()
+	needsMetadata := note.TMDBID == 0
+	needsOMDB := movieTVNeedsOMDB(note, opts)
+
+	if !opts.Force && !opts.RefreshCache && !opts.RegenerateData && !config.OverwriteFiles && !needsCover && !needsContent && !needsMetadata && !needsOMDB {
+		status := "TMDB OK"
+		if note.HasOMDBData() {
+			status += ", OMDB OK"
+		}
+		slog.Info("Skipping file ("+status+")", "path", file, "tmdb_id", note.TMDBID)
+		return false, true
+	}
+
+	if opts.DryRun {
+		slog.Info("Would enhance", "title", note.Title, "year", note.Year, "file", file,
+			"needs_cover", needsCover, "needs_content", needsContent, "needs_metadata", needsMetadata)
+		return true, false
+	}
+
+	enrichOpts := buildTMDBEnrichOpts(note, opts, attachmentsDir, noteDir, needsCover, needsContent)
+	enrichOpts.LetterboxdURI = resolveLetterboxdURI(note, enrichOpts.StoredMediaType, enrichOpts.ExpectedMediaType)
+
+	searchTitle, searchYear := resolveSearchTitleYear(note)
+	tmdbData, err := enrichment.EnrichFromTMDB(ctx, searchTitle, searchYear, note.IMDBID, note.TMDBID, enrichOpts)
+	if err != nil {
+		slog.Warn("Failed to enrich from TMDB", "title", note.Title, "error", err)
+		return false, false
+	}
+	if tmdbData == nil {
+		slog.Warn("No TMDB data found for file", "title", note.Title, "path", file)
+		return false, true
+	}
+
+	omdbRatings := enrichOMDBForMovieTV(ctx, note, tmdbData, opts)
+
+	if err := updateNoteWithTMDBData(file, note, tmdbData, omdbRatings, opts.RegenerateData); err != nil {
+		slog.Warn("Failed to update note", "path", file, "error", err)
+		return false, false
+	}
+
+	slog.Info("Enhanced note", "title", note.Title, "tmdb_id", tmdbData.TMDBID)
+	return true, false
+}
+
+func movieTVNeedsOMDB(note *Note, opts Options) bool {
+	if !opts.OMDBEnrich || note.IMDBID == "" || note.HasOMDBData() {
+		return false
+	}
+	switch omdb.CheckCacheStatus(note.IMDBID) {
+	case omdb.CacheStatusNotCached, omdb.CacheStatusHasRatings:
+		return true
+	case omdb.CacheStatusNotFound:
+		slog.Debug("Skipping OMDB (not in OMDB)", "imdb_id", note.IMDBID)
+	case omdb.CacheStatusNoRatings:
+		slog.Debug("Skipping OMDB (no ratings yet)", "imdb_id", note.IMDBID)
+	}
+	return false
+}
+
+func buildTMDBEnrichOpts(note *Note, opts Options, attachmentsDir, noteDir string, needsCover, needsContent bool) enrichment.TMDBEnrichmentOptions {
+	frontmatterMap := make(map[string]any)
+	for _, key := range note.Frontmatter.Keys() {
+		if val, ok := note.Frontmatter.Get(key); ok {
+			frontmatterMap[key] = val
+		}
+	}
+	expectedType := fm.DetectMediaTypeFromTags(frontmatterMap)
+	if expectedType == "" {
+		expectedType = note.Type
+	}
+
+	return enrichment.TMDBEnrichmentOptions{
+		DownloadCover:     opts.TMDBDownloadCover && (needsCover || opts.RegenerateData),
+		GenerateContent:   needsContent || opts.RegenerateData,
+		ContentSections:   opts.TMDBContentSections,
+		AttachmentsDir:    attachmentsDir,
+		NoteDir:           noteDir,
+		Interactive:       opts.TMDBInteractive,
+		Force:             opts.Force,
+		RefreshCache:      opts.RefreshCache,
+		StoredMediaType:   note.Frontmatter.GetString("tmdb_type"),
+		ExpectedMediaType: expectedType,
+		UseCoverCache:     opts.UseTMDBCoverCache,
+		CoverCachePath:    opts.TMDBCoverCachePath,
+	}
+}
+
+func resolveSearchTitleYear(note *Note) (string, int) {
+	if note.Year != 0 {
+		return note.Title, note.Year
+	}
+	if parsedTitle, parsedYear, ok := parseTitleYearFromTitle(note.Title); ok {
+		slog.Debug("Parsed year from title", "title", note.Title, "parsed_title", parsedTitle, "year", parsedYear)
+		return parsedTitle, parsedYear
+	}
+	return note.Title, note.Year
+}
+
+func enrichOMDBForMovieTV(ctx context.Context, note *Note, tmdbData *enrichment.TMDBEnrichment, opts Options) *omdb.RatingsEnrichment {
+	imdbID := tmdbData.IMDBID
+	if imdbID == "" {
+		imdbID = note.IMDBID
+	}
+	if !opts.OMDBEnrich {
+		return nil
+	}
+	if imdbID == "" {
+		slog.Debug("Skipping OMDB enrichment (no IMDb ID)", "title", note.Title)
+		return nil
+	}
+	ratings, err := omdb.EnrichFromOMDB(ctx, imdbID)
+	if err != nil {
+		slog.Warn("OMDB enrichment failed", "imdb_id", imdbID, "error", err)
+		return nil
+	}
+	return ratings
 }
 
 // findMarkdownFiles finds all markdown files in the given directory.
@@ -393,7 +395,7 @@ func updateNoteWithTMDBData(filePath string, note *Note, tmdbData *enrichment.TM
 	newContent := note.BuildMarkdown(string(content), tmdbData, omdbRatings, overwrite)
 
 	// Write back to file
-	_, err = fileutil.WriteFileWithOverwrite(filePath, []byte(newContent), 0644, true)
+	_, err = fileutil.WriteFileWithOverwrite(filePath, []byte(newContent), 0o644, true)
 	if err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
@@ -509,7 +511,7 @@ func updateNoteWithSteamData(filePath string, note *Note, steamData *enrichment.
 	newContent := note.BuildMarkdownForSteam(string(content), steamData, overwrite)
 
 	// Write back to file
-	_, err = fileutil.WriteFileWithOverwrite(filePath, []byte(newContent), 0644, true)
+	_, err = fileutil.WriteFileWithOverwrite(filePath, []byte(newContent), 0o644, true)
 	if err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}

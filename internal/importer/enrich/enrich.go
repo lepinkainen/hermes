@@ -83,7 +83,7 @@ func Enrich[T any, O any](target *T, opts Options[T, O]) (*Result, error) {
 	}
 
 	if res.OMDBErr != nil && res.TMDBErr != nil {
-		return res, fmt.Errorf("movie enrichment failed; omdb: %w; tmdb: %v", res.OMDBErr, res.TMDBErr)
+		return res, fmt.Errorf("movie enrichment failed; omdb: %w; tmdb: %w", res.OMDBErr, res.TMDBErr)
 	}
 
 	return res, nil

@@ -62,7 +62,7 @@ func (e *ISBNdbEnricher) Ping(ctx context.Context) error {
 	url := fmt.Sprintf("%s/book/9780140447934", isbndbBaseURL)
 
 	client := e.getHTTPClient()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("creating ping request: %w", err)
 	}
@@ -152,7 +152,7 @@ func (e *ISBNdbEnricher) fetchFromAPI(ctx context.Context, isbn, apiKey string) 
 	client := e.getHTTPClient()
 	url := fmt.Sprintf("%s/book/%s", isbndbBaseURL, isbn)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}

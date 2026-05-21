@@ -105,7 +105,7 @@ func fetchSteamStoreSearch(ctx context.Context, query string) ([]tui.SteamSearch
 	encodedQuery := url.QueryEscape(query)
 	searchURL := fmt.Sprintf(steamSearchURL, encodedQuery)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

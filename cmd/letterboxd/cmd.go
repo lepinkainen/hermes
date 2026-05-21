@@ -12,6 +12,7 @@ import (
 
 const defaultAutomationTimeout = 3 * time.Minute
 
+// ParseLetterboxdFuncType is the signature for the Letterboxd parser entry point (test seam).
 type ParseLetterboxdFuncType func(
 	inputFile, outputDirParam string,
 	writeJSONFlag bool,
@@ -24,6 +25,8 @@ type ParseLetterboxdFuncType func(
 	useTMDBCoverCacheFlag bool,
 	tmdbCoverCachePathFlag string,
 ) error
+
+// DownloadLetterboxdCSVFuncType is the signature for the Letterboxd CSV download flow (test seam).
 type DownloadLetterboxdCSVFuncType func(ctx context.Context, opts AutomationOptions) (string, error)
 
 // Define package-level variables for flags
@@ -35,7 +38,7 @@ var (
 	outputDir  string
 	writeJSON  bool
 	jsonOutput string
-	overwrite  bool
+	overwrite  bool //nolint:unused // test seam (parser_test.go)
 	// TMDB enrichment options
 	tmdbEnabled         bool
 	tmdbDownloadCover   bool
@@ -77,6 +80,7 @@ type LetterboxdCmd struct {
 	DryRun             bool          `help:"Run automation without importing (testing)"`
 }
 
+// Run executes the Letterboxd import command.
 func (l *LetterboxdCmd) Run() error {
 	// Read from config if value not provided via flag
 	input := l.Input

@@ -17,10 +17,10 @@ import (
 
 var (
 	omdbBaseURL = "http://www.omdbapi.com"
-	omdbHTTPGet = func(url string) (*http.Response, error) {
-		return http.Get(url)
-	}
-	omdbHTTPDo = func(req *http.Request) (*http.Response, error) {
+	// omdbHTTPGet is retained as a test seam used by imdb/omdb_test.go.
+	//nolint:unused // test seam (imdb/omdb_test.go)
+	omdbHTTPGet = http.Get
+	omdbHTTPDo  = func(req *http.Request) (*http.Response, error) {
 		return http.DefaultClient.Do(req)
 	}
 	// getOMDBRateLimiter returns a singleton rate limiter for OMDB.
@@ -50,7 +50,7 @@ func fetchMovieDataWithContext(ctx context.Context, imdbID string) (*MovieSeen, 
 
 	url := fmt.Sprintf("%s/?i=%s&apikey=%s", omdbBaseURL, imdbID, apiKey)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

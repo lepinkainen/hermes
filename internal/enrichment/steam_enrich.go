@@ -21,6 +21,7 @@ func EnrichFromSteam(ctx context.Context, title string, existingSteamAppID int, 
 	}
 
 	// Fetch game details (using cached wrapper)
+	//nolint:contextcheck // steam.GetCachedGameDetails does not yet accept context; threaded via cache layer refactor TODO
 	details, _, err := steam.GetCachedGameDetails(appID)
 	if err != nil {
 		slog.Warn("Failed to fetch Steam game details", "appid", appID, "error", err)

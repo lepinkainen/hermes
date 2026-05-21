@@ -302,6 +302,28 @@ func findDownloadedZip(downloadDir string, startTime time.Time) (string, error) 
 	return "", errors.New("ZIP file not found yet")
 }
 
+// maxLetterboxdCSVSize caps decompressed ZIP entry size to guard against decompression bombs.
+const maxLetterboxdCSVSize = 100 * 1024 * 1024 // 100 MiB
+
+func extractZipFile(file *zip.File, targetPath string) error {
+	rc, err := file.Open()
+	if err != nil {
+		return fmt.Errorf("failed to open %s in ZIP: %w", file.Name, err)
+	}
+	defer func() { _ = rc.Close() }()
+
+	out, err := os.Create(targetPath)
+	if err != nil {
+		return fmt.Errorf("failed to create %s: %w", targetPath, err)
+	}
+	defer func() { _ = out.Close() }()
+
+	if _, err := io.Copy(out, io.LimitReader(rc, maxLetterboxdCSVSize)); err != nil {
+		return fmt.Errorf("failed to extract %s: %w", file.Name, err)
+	}
+	return nil
+}
+
 func extractLetterboxdCSVs(zipPath, targetDir string) (watchedPath, ratingsPath string, err error) {
 	slog.Info("Extracting CSVs from ZIP", "zip", zipPath)
 
@@ -313,28 +335,17 @@ func extractLetterboxdCSVs(zipPath, targetDir string) (watchedPath, ratingsPath 
 
 	for _, file := range reader.File {
 		var targetPath string
-		if strings.HasSuffix(file.Name, "watched.csv") {
+		switch {
+		case strings.HasSuffix(file.Name, "watched.csv"):
 			targetPath = filepath.Join(targetDir, "watched.csv")
-		} else if strings.HasSuffix(file.Name, "ratings.csv") {
+		case strings.HasSuffix(file.Name, "ratings.csv"):
 			targetPath = filepath.Join(targetDir, "ratings.csv")
-		} else {
+		default:
 			continue
 		}
 
-		rc, err := file.Open()
-		if err != nil {
-			return "", "", fmt.Errorf("failed to open %s in ZIP: %w", file.Name, err)
-		}
-		defer func() { _ = rc.Close() }()
-
-		out, err := os.Create(targetPath)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to create %s: %w", targetPath, err)
-		}
-		defer func() { _ = out.Close() }()
-
-		if _, err := io.Copy(out, rc); err != nil {
-			return "", "", fmt.Errorf("failed to extract %s: %w", file.Name, err)
+		if err := extractZipFile(file, targetPath); err != nil {
+			return "", "", err
 		}
 
 		if strings.HasSuffix(file.Name, "watched.csv") {
@@ -448,7 +459,7 @@ func moveDownloadedCSV(csvPath, zipPath, requestedDir string) (string, error) {
 		targetDir = "exports"
 	}
 
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		return "", fmt.Errorf("failed to create target directory: %w", err)
 	}
 
@@ -459,7 +470,7 @@ func moveDownloadedCSV(csvPath, zipPath, requestedDir string) (string, error) {
 	if csvPath != targetCSVPath {
 		if err := os.Rename(csvPath, targetCSVPath); err != nil {
 			if copyErr := automation.CopyFile(csvPath, targetCSVPath); copyErr != nil {
-				return "", fmt.Errorf("failed to move CSV: %v (copy error: %w)", err, copyErr)
+				return "", fmt.Errorf("failed to move CSV: %w (copy error: %w)", err, copyErr)
 			}
 			_ = os.Remove(csvPath)
 		}

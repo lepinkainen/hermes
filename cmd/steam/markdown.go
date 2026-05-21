@@ -2,6 +2,7 @@ package steam
 
 import (
 	"cmp"
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -58,7 +59,7 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	// Handle cover image
 	coverFilename := ""
 	if details.HeaderImage != "" {
-		coverResult, err := fileutil.DownloadCover(fileutil.CoverDownloadOptions{
+		coverResult, err := fileutil.DownloadCover(context.Background(), fileutil.CoverDownloadOptions{
 			URL:          details.HeaderImage,
 			OutputDir:    directory,
 			Filename:     fileutil.BuildCoverFilename(game.Name),
@@ -175,10 +176,10 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	}
 
 	// Add trailing newlines to match expected format
-	content := string(markdown) + "\n\n\n"
+	out := string(markdown) + "\n\n\n"
 
 	// Write content to file with logging
-	return fileutil.WriteMarkdownFile(filename, content, config.OverwriteFiles)
+	return fileutil.WriteMarkdownFile(filename, out, config.OverwriteFiles)
 }
 
 // buildAchievementsSection creates the achievements section with progress and checklist

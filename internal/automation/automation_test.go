@@ -66,7 +66,7 @@ func TestCopyFile(t *testing.T) {
 	dstPath := filepath.Join(tempDir, "destination.txt")
 
 	testContent := "hello world"
-	require.NoError(t, os.WriteFile(srcPath, []byte(testContent), 0644))
+	require.NoError(t, os.WriteFile(srcPath, []byte(testContent), 0o644))
 
 	err := automation.CopyFile(srcPath, dstPath)
 	require.NoError(t, err)

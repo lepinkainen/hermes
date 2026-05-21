@@ -10,7 +10,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/fileutil"
 )
 
-func ensureSteamCoverAssets(_ context.Context, opts SteamEnrichmentOptions, title string, headerImageURL string) (string, string) {
+func ensureSteamCoverAssets(ctx context.Context, opts SteamEnrichmentOptions, title string, headerImageURL string) (string, string) {
 	if headerImageURL == "" {
 		slog.Debug("No Steam header image URL provided", "title", title)
 		return "", ""
@@ -26,7 +26,7 @@ func ensureSteamCoverAssets(_ context.Context, opts SteamEnrichmentOptions, titl
 	}
 
 	// Use the existing DownloadCover function
-	result, err := fileutil.DownloadCover(fileutil.CoverDownloadOptions{
+	result, err := fileutil.DownloadCover(ctx, fileutil.CoverDownloadOptions{
 		URL:          headerImageURL,
 		OutputDir:    filepath.Dir(opts.AttachmentsDir), // Parent of attachments
 		Filename:     coverFilename,

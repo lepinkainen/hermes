@@ -62,7 +62,7 @@ func fetchBookDataWithContext(ctx context.Context, isbn string) (*Book, *OpenLib
 	// Use jscmd=data for more comprehensive data
 	url := fmt.Sprintf("%s/api/books?bibkeys=ISBN:%s&format=json&jscmd=data", openLibraryBaseURL, isbn)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -130,7 +130,7 @@ func fetchEditionDataWithContext(ctx context.Context, isbn string) (*OpenLibrary
 	// Use the books endpoint for edition-specific data
 	url := fmt.Sprintf("%s/isbn/%s.json", openLibraryBaseURL, isbn)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

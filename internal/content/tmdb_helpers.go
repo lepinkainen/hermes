@@ -213,23 +213,25 @@ func getTopActors(details map[string]any) []string {
 
 	var actors []string
 	for _, entry := range cast {
-		if obj, ok := entry.(map[string]any); ok {
-			order, _ := intVal(obj, "order")
-			if order >= 5 {
-				continue
-			}
+		obj, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		order, _ := intVal(obj, "order")
+		if order >= 5 {
+			continue
+		}
 
-			name := stringVal(obj, "name")
-			character := stringVal(obj, "character")
-			id, _ := intVal(obj, "id")
+		name := stringVal(obj, "name")
+		character := stringVal(obj, "character")
+		id, _ := intVal(obj, "id")
 
-			if name != "" && id > 0 {
-				link := buildTMDBPersonLink(name, id)
-				if character != "" {
-					actors = append(actors, fmt.Sprintf("%s as %s", link, character))
-				} else {
-					actors = append(actors, link)
-				}
+		if name != "" && id > 0 {
+			link := buildTMDBPersonLink(name, id)
+			if character != "" {
+				actors = append(actors, fmt.Sprintf("%s as %s", link, character))
+			} else {
+				actors = append(actors, link)
 			}
 		}
 	}

@@ -163,6 +163,5 @@ func extractLetterboxdPath(uri string) string {
 		return filmPath
 	}
 
-	// Fallback: return as-is
 	return display
 }

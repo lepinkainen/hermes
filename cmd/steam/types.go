@@ -21,26 +21,31 @@ type SteamResponse struct {
 	} `json:"response"`
 }
 
+// Screenshot represents one screenshot URL from the Steam Store API.
 type Screenshot struct {
 	ID      int    `json:"id"`
 	PathURL string `json:"path_full"`
 }
 
+// Category represents one Steam Store category (e.g., "Multi-player").
 type Category struct {
 	ID          int    `json:"id"`
 	Description string `json:"description"`
 }
 
+// Genre represents one Steam Store genre.
 type Genre struct {
 	ID          string `json:"id"`
 	Description string `json:"description"`
 }
 
+// MetacriticData carries Metacritic score and review URL from Steam.
 type MetacriticData struct {
 	Score int    `json:"score"`
 	URL   string `json:"url"`
 }
 
+// Achievement represents one Steam achievement, including unlock state.
 type Achievement struct {
 	APIName     string  `json:"apiname"`
 	Achieved    int     `json:"achieved"` // 0 = locked, 1 = unlocked
@@ -50,6 +55,7 @@ type Achievement struct {
 	Percent     float64 `json:"percent,omitempty"` // Global unlock percentage
 }
 
+// GameDetails is the merged Steam Store appdetails payload for one game.
 type GameDetails struct {
 	Game
 	Description string       `json:"detailed_description"`

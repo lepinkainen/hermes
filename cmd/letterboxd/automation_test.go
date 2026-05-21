@@ -84,13 +84,13 @@ func TestMergeWatchedAndRatings(t *testing.T) {
 		"2025-01-01,Movie1,2025,https://boxd.it/abc\n" +
 		"2025-01-02,Movie2,2025,https://boxd.it/def\n" +
 		"2025-01-03,Movie3,2025,https://boxd.it/ghi\n"
-	require.NoError(t, os.WriteFile(watchedPath, []byte(watchedContent), 0644))
+	require.NoError(t, os.WriteFile(watchedPath, []byte(watchedContent), 0o644))
 
 	ratingsPath := env.Path("ratings.csv")
 	ratingsContent := "Date,Name,Year,URI,Rating\n" +
 		"2025-01-01,Movie1,2025,https://boxd.it/abc,5\n" +
 		"2025-01-03,Movie3,2025,https://boxd.it/ghi,3.5\n"
-	require.NoError(t, os.WriteFile(ratingsPath, []byte(ratingsContent), 0644))
+	require.NoError(t, os.WriteFile(ratingsPath, []byte(ratingsContent), 0o644))
 
 	outputPath := env.Path("merged.csv")
 	err := mergeWatchedAndRatings(watchedPath, ratingsPath, outputPath)
@@ -123,7 +123,7 @@ func TestMergeWatchedAndRatingsWithoutRatingsFile(t *testing.T) {
 	// Create only watched.csv
 	watchedPath := env.Path("watched.csv")
 	watchedContent := "Date,Name,Year,URI\n2025-01-01,Movie1,2025,https://boxd.it/abc\n"
-	require.NoError(t, os.WriteFile(watchedPath, []byte(watchedContent), 0644))
+	require.NoError(t, os.WriteFile(watchedPath, []byte(watchedContent), 0o644))
 
 	outputPath := env.Path("merged.csv")
 	err := mergeWatchedAndRatings(watchedPath, "", outputPath)
@@ -147,14 +147,14 @@ func TestFindDownloadedZipSkipsPartialFiles(t *testing.T) {
 	startTime := time.Now().Add(-1 * time.Hour) // Start time in the past
 
 	// Create partial download
-	require.NoError(t, os.WriteFile(env.Path("letterboxd-export.zip.crdownload"), []byte("partial"), 0644))
+	require.NoError(t, os.WriteFile(env.Path("letterboxd-export.zip.crdownload"), []byte("partial"), 0o644))
 
 	_, err := findDownloadedZip(env.RootDir(), startTime)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "ZIP file not found")
 
 	// Create complete download
-	require.NoError(t, os.WriteFile(env.Path("letterboxd-user-2025.zip"), []byte("complete"), 0644))
+	require.NoError(t, os.WriteFile(env.Path("letterboxd-user-2025.zip"), []byte("complete"), 0o644))
 
 	path, err := findDownloadedZip(env.RootDir(), startTime)
 	require.NoError(t, err)
@@ -168,14 +168,14 @@ func TestFindDownloadedZipIgnoresNonLetterboxdFiles(t *testing.T) {
 	startTime := time.Now().Add(-1 * time.Hour) // Start time in the past
 
 	// Create non-letterboxd zip files
-	require.NoError(t, os.WriteFile(env.Path("other-export.zip"), []byte("data"), 0644))
-	require.NoError(t, os.WriteFile(env.Path("random.zip"), []byte("data"), 0644))
+	require.NoError(t, os.WriteFile(env.Path("other-export.zip"), []byte("data"), 0o644))
+	require.NoError(t, os.WriteFile(env.Path("random.zip"), []byte("data"), 0o644))
 
 	_, err := findDownloadedZip(env.RootDir(), startTime)
 	require.Error(t, err)
 
 	// Add a valid letterboxd ZIP
-	require.NoError(t, os.WriteFile(env.Path("letterboxd-test-2025-01-01.zip"), []byte("data"), 0644))
+	require.NoError(t, os.WriteFile(env.Path("letterboxd-test-2025-01-01.zip"), []byte("data"), 0o644))
 
 	path, err := findDownloadedZip(env.RootDir(), startTime)
 	require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestFindDownloadedZipRespectsStartTime(t *testing.T) {
 
 	// Create old ZIP file
 	oldZipPath := env.Path("letterboxd-old-2024-12-31.zip")
-	require.NoError(t, os.WriteFile(oldZipPath, []byte("old"), 0644))
+	require.NoError(t, os.WriteFile(oldZipPath, []byte("old"), 0o644))
 
 	// Set file mod time to yesterday
 	yesterday := time.Now().Add(-24 * time.Hour)
@@ -203,7 +203,7 @@ func TestFindDownloadedZipRespectsStartTime(t *testing.T) {
 
 	// Create new ZIP file after start time
 	newZipPath := env.Path("letterboxd-new-2025-01-27.zip")
-	require.NoError(t, os.WriteFile(newZipPath, []byte("new"), 0644))
+	require.NoError(t, os.WriteFile(newZipPath, []byte("new"), 0o644))
 
 	// Explicitly set modification time to ensure it's after startTime
 	futureTime := startTime.Add(1 * time.Second)
@@ -221,12 +221,12 @@ func TestMergeWatchedAndRatingsCorruptedRatingsFile(t *testing.T) {
 	// Create valid watched.csv
 	watchedPath := env.Path("watched.csv")
 	watchedContent := "Date,Name,Year,URI\n2025-01-01,Movie1,2025,https://boxd.it/abc\n"
-	require.NoError(t, os.WriteFile(watchedPath, []byte(watchedContent), 0644))
+	require.NoError(t, os.WriteFile(watchedPath, []byte(watchedContent), 0o644))
 
 	// Create corrupted ratings.csv (invalid CSV format)
 	ratingsPath := env.Path("ratings.csv")
 	ratingsContent := "Date,Name,Year,URI,Rating\n\"unclosed quote,Movie1,2025,https://boxd.it/abc,5\n"
-	require.NoError(t, os.WriteFile(ratingsPath, []byte(ratingsContent), 0644))
+	require.NoError(t, os.WriteFile(ratingsPath, []byte(ratingsContent), 0o644))
 
 	outputPath := env.Path("merged.csv")
 	err := mergeWatchedAndRatings(watchedPath, ratingsPath, outputPath)
@@ -359,10 +359,10 @@ func TestMergeWatchedAndRatings_EdgeCases(t *testing.T) {
 			env := testutil.NewTestEnv(t)
 
 			watchedPath := env.Path("watched.csv")
-			require.NoError(t, os.WriteFile(watchedPath, []byte(tt.watchedContent), 0644))
+			require.NoError(t, os.WriteFile(watchedPath, []byte(tt.watchedContent), 0o644))
 
 			ratingsPath := env.Path("ratings.csv")
-			require.NoError(t, os.WriteFile(ratingsPath, []byte(tt.ratingsContent), 0644))
+			require.NoError(t, os.WriteFile(ratingsPath, []byte(tt.ratingsContent), 0o644))
 
 			outputPath := env.Path("merged.csv")
 			err := mergeWatchedAndRatings(watchedPath, ratingsPath, outputPath)

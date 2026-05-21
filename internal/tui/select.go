@@ -135,7 +135,7 @@ func (d tmdbDelegate) Render(w io.Writer, m list.Model, idx int, item list.Item)
 	year := result.Year()
 	rating := result.VoteAverage
 	overview := result.Overview
-	if len(overview) > 0 {
+	if overview != "" {
 		overview = truncate(overview, m.Width()-4)
 	}
 

@@ -51,6 +51,7 @@ type MovieWatchlist struct {
 	DateRated     string   `json:"dateRated"`
 }
 
+// OMDbMovie mirrors the OMDB API response payload.
 type OMDbMovie struct {
 	Title      string   `json:"Title"`
 	Year       string   `json:"Year"`
@@ -73,6 +74,7 @@ type OMDbMovie struct {
 	Type       string   `json:"Type"`
 }
 
+// Rating is one entry in OMDbMovie.Ratings.
 type Rating struct {
 	Source string `json:"Source"`
 	Value  string `json:"Value"`

@@ -248,7 +248,7 @@ func TestCountBooksInCSV(t *testing.T) {
 `
 
 	csvPath := filepath.Join(tempDir, "books.csv")
-	err := os.WriteFile(csvPath, []byte(csvContent), 0644)
+	err := os.WriteFile(csvPath, []byte(csvContent), 0o644)
 	require.NoError(t, err)
 
 	count, err := countBooksInCSV(csvPath)
@@ -270,7 +270,7 @@ func TestCountBooksInCSV_EmptyFile(t *testing.T) {
 `
 
 	csvPath := filepath.Join(tempDir, "empty.csv")
-	err := os.WriteFile(csvPath, []byte(csvContent), 0644)
+	err := os.WriteFile(csvPath, []byte(csvContent), 0o644)
 	require.NoError(t, err)
 
 	count, err := countBooksInCSV(csvPath)

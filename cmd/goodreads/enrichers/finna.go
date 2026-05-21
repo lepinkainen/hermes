@@ -62,7 +62,7 @@ func (e *FinnaEnricher) Priority() int { return finnaPriority }
 func (e *FinnaEnricher) Ping(ctx context.Context) error {
 	client := e.getHTTPClient()
 	pingURL := finnaBaseURL + "/api/v1/search?lookfor=test&type=AllFields&limit=0"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pingURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pingURL, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("creating ping request: %w", err)
 	}
@@ -178,7 +178,7 @@ func (e *FinnaEnricher) fetchFromAPI(ctx context.Context, isbn string) (*cachedF
 	}
 	searchURL := finnaBaseURL + "/api/v1/search?" + q.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating search request: %w", err)
 	}

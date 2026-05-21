@@ -44,7 +44,7 @@ func (c *Client) doJSONRequest(ctx context.Context, endpoint string, target any)
 		}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, http.NoBody)
 	if err != nil {
 		return err
 	}

@@ -20,6 +20,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/omdb"
 )
 
+// LetterboxdMoviesSchema is the SQL schema for the letterboxd_movies datasette table.
 const LetterboxdMoviesSchema = `CREATE TABLE IF NOT EXISTS letterboxd_movies (
 		date TEXT,
 		name TEXT,
@@ -53,11 +54,11 @@ func ParseLetterboxd() error {
 	slog.Info("Starting Letterboxd parser", "overwrite", config.OverwriteFiles)
 
 	// Create output directories once before processing
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 	attachmentsDir := filepath.Join(outputDir, "attachments")
-	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
+	if err := os.MkdirAll(attachmentsDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create attachments directory: %w", err)
 	}
 

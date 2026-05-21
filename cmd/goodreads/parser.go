@@ -14,6 +14,7 @@ func bookToMap(book Book) map[string]any {
 	})
 }
 
+// ParseGoodreads imports the configured Goodreads CSV and writes the requested outputs.
 func ParseGoodreads(params ParseParams) error {
 	totalBooks, err := countBooksInCSV(params.CSVPath)
 	if err != nil {

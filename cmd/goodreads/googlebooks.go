@@ -14,8 +14,9 @@ import (
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 )
 
-// Package-level variables for Google Books API client
-// These can be overridden in tests for dependency injection
+// Package-level variables for Google Books API client.
+//
+//nolint:unused // retained as test seams; production uses enrichers.GoogleBooksEnricher
 var (
 	googleBooksHTTPClient    *http.Client
 	googleBooksClientOnce    sync.Once
@@ -27,7 +28,9 @@ var (
 	googleBooksBaseURL = "https://www.googleapis.com/books/v1"
 )
 
-// getGoogleBooksHTTPClient returns a singleton HTTP client for Google Books API
+// getGoogleBooksHTTPClient returns a singleton HTTP client for Google Books API.
+//
+//nolint:unused // retained as test seam; production uses enrichers.GoogleBooksEnricher
 func getGoogleBooksHTTPClient() *http.Client {
 	googleBooksClientOnce.Do(func() {
 		googleBooksHTTPClient = googleBooksHTTPClientNew()
@@ -35,7 +38,9 @@ func getGoogleBooksHTTPClient() *http.Client {
 	return googleBooksHTTPClient
 }
 
-// getGoogleBooksRateLimiter returns a singleton rate limiter for Google Books (1 req/sec)
+// getGoogleBooksRateLimiter returns a singleton rate limiter for Google Books (1 req/sec).
+//
+//nolint:unused // retained as test seam
 func getGoogleBooksRateLimiter() *ratelimit.Limiter {
 	googleBooksLimiterOnce.Do(func() {
 		googleBooksRateLimiter = ratelimit.New("GoogleBooks", 1)
@@ -43,12 +48,16 @@ func getGoogleBooksRateLimiter() *ratelimit.Limiter {
 	return googleBooksRateLimiter
 }
 
-// fetchBookDataFromGoogleBooks fetches book data from Google Books API by ISBN
+// fetchBookDataFromGoogleBooks fetches book data from Google Books API by ISBN.
+//
+//nolint:unused // retained as test seam
 func fetchBookDataFromGoogleBooks(isbn string) (*GoogleBooksBook, error) {
 	return fetchBookDataFromGoogleBooksWithContext(context.Background(), isbn)
 }
 
-// fetchBookDataFromGoogleBooksWithContext fetches book data from Google Books API by ISBN with context support
+// fetchBookDataFromGoogleBooksWithContext fetches book data from Google Books API by ISBN with context support.
+//
+//nolint:unused // retained as test seam
 func fetchBookDataFromGoogleBooksWithContext(ctx context.Context, isbn string) (*GoogleBooksBook, error) {
 	if isbn == "" {
 		return nil, fmt.Errorf("ISBN is required")
@@ -76,7 +85,7 @@ func fetchBookDataFromGoogleBooksWithContext(ctx context.Context, isbn string) (
 
 	client := getGoogleBooksHTTPClient()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

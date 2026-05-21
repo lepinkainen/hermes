@@ -1,6 +1,7 @@
 package steam
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -50,9 +51,13 @@ func getGameDetails(appID int) (*GameDetails, error) {
 
 // getGameDetailsWithBaseURL is a helper that accepts a custom base URL for testing
 func getGameDetailsWithBaseURL(appID int, baseURL string) (*GameDetails, error) {
-	url := fmt.Sprintf("%s?appids=%d", baseURL, appID)
+	endpoint := fmt.Sprintf("%s?appids=%d", baseURL, appID)
 
-	resp, err := http.Get(url)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, endpoint, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch game details: %w", err)
 	}
@@ -125,7 +130,11 @@ func importSteamGamesWithBaseURL(steamID string, apiKey string, baseURL string) 
 	fullURL := baseURL + "?" + params.Encode()
 
 	// Make the HTTP request
-	resp, err := http.Get(fullURL)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, fullURL, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Steam games: %w", err)
 	}
@@ -186,7 +195,11 @@ func getPlayerAchievementsWithBaseURL(steamID string, apiKey string, appID int, 
 
 	fullURL := baseURL + "?" + params.Encode()
 
-	resp, err := http.Get(fullURL)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, fullURL, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch achievements: %w", err)
 	}

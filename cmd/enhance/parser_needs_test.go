@@ -12,13 +12,13 @@ func TestNeedsCover(t *testing.T) {
 	// Create a temporary directory for testing file existence
 	tempDir := t.TempDir()
 	attachmentsDir := filepath.Join(tempDir, "attachments")
-	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
+	if err := os.MkdirAll(attachmentsDir, 0o755); err != nil {
 		t.Fatalf("Failed to create test attachments dir: %v", err)
 	}
 
 	// Create a test cover file
 	existingCover := filepath.Join(attachmentsDir, "existing-cover.jpg")
-	if err := os.WriteFile(existingCover, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(existingCover, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create test cover file: %v", err)
 	}
 

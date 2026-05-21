@@ -45,9 +45,7 @@ type Rating struct {
 // HTTP seams — package vars so tests can redirect to an httptest.Server.
 var (
 	omdbBaseURL = "http://www.omdbapi.com"
-	omdbHTTPGet = func(url string) (*http.Response, error) {
-		return http.Get(url)
-	}
+	omdbHTTPGet = http.Get
 )
 
 // fetchMovieData retrieves movie data from the OMDB API by title and year

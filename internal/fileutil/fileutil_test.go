@@ -86,7 +86,7 @@ func TestFileExists(t *testing.T) {
 
 	// Create a temporary file
 	tempFile := filepath.Join(tempDir, "test-file.txt")
-	err := os.WriteFile(tempFile, []byte("test"), 0644)
+	err := os.WriteFile(tempFile, []byte("test"), 0o644)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -168,7 +168,7 @@ func TestWriteFileWithOverwrite(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup existing file if needed
 			if tc.setupExisting {
-				err := os.WriteFile(tc.filePath, tc.existingData, 0644)
+				err := os.WriteFile(tc.filePath, tc.existingData, 0o644)
 				require.NoError(t, err)
 			}
 
@@ -210,7 +210,7 @@ func TestWriteMarkdownFile_ExistingWithOverwrite(t *testing.T) {
 	newContent := "# New Content"
 
 	// Create existing file
-	err := os.WriteFile(filePath, []byte(oldContent), 0644)
+	err := os.WriteFile(filePath, []byte(oldContent), 0o644)
 	require.NoError(t, err)
 
 	// Write with overwrite = true
@@ -232,7 +232,7 @@ func TestWriteMarkdownFile_ExistingWithoutOverwrite(t *testing.T) {
 	newContent := "# New Content"
 
 	// Create existing file
-	err := os.WriteFile(filePath, []byte(oldContent), 0644)
+	err := os.WriteFile(filePath, []byte(oldContent), 0o644)
 	require.NoError(t, err)
 
 	// Write with overwrite = false
@@ -304,7 +304,7 @@ func TestWriteMarkdownFile_DelegationBehavior(t *testing.T) {
 
 			var err error
 			if tc.setupExisting {
-				err = os.WriteFile(filePath, []byte(oldContent), 0644)
+				err = os.WriteFile(filePath, []byte(oldContent), 0o644)
 				require.NoError(t, err)
 			}
 
@@ -526,7 +526,7 @@ func TestCopyFile_DestinationDirectoryDoesNotExist(t *testing.T) {
 	dstPath := filepath.Join(tempDir, "nonexistent", "dest.txt")
 
 	// Create source file
-	err := os.WriteFile(srcPath, []byte("test"), 0644)
+	err := os.WriteFile(srcPath, []byte("test"), 0o644)
 	require.NoError(t, err)
 
 	// Copy should fail because destination directory doesn't exist
@@ -542,11 +542,11 @@ func TestCopyFile_OverwriteExisting(t *testing.T) {
 	dstPath := filepath.Join(tempDir, "dest.txt")
 
 	// Create source file
-	err := os.WriteFile(srcPath, []byte("new content"), 0644)
+	err := os.WriteFile(srcPath, []byte("new content"), 0o644)
 	require.NoError(t, err)
 
 	// Create existing destination file
-	err = os.WriteFile(dstPath, []byte("old content"), 0644)
+	err = os.WriteFile(dstPath, []byte("old content"), 0o644)
 	require.NoError(t, err)
 
 	// Copy should overwrite

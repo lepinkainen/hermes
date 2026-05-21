@@ -3,6 +3,7 @@ package goodreads
 import (
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -26,7 +27,7 @@ func loadBooksFromCSV(filePath string, totalBooks int, outputDir string) ([]Book
 	}
 
 	// Create output directory once before processing
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create output directory %s: %w", outputDir, err)
 	}
 
@@ -35,7 +36,7 @@ func loadBooksFromCSV(filePath string, totalBooks int, outputDir string) ([]Book
 
 	for {
 		record, err := reader.Read()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -51,9 +52,7 @@ func loadBooksFromCSV(filePath string, totalBooks int, outputDir string) ([]Book
 
 		if book.ISBN != "" || book.ISBN13 != "" {
 			// Use the enricher system to fetch and merge data from all sources
-			if err := enrichBookWithEnrichers(context.Background(), book); err != nil {
-				slog.Warn("Could not enrich book data", "title", book.Title, "error", err)
-			}
+			enrichBookWithEnrichers(context.Background(), book)
 		}
 
 		if err := writeBookToMarkdown(*book, outputDir); err != nil {

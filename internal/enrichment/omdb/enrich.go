@@ -79,6 +79,7 @@ func CheckCacheStatus(imdbID string) CacheStatus {
 // HasCachedRatings checks if OMDB cache has a response with actual ratings.
 // Returns (hasCachedResponse, hasActualRatings).
 // This is used to avoid reprocessing files where OMDB has no ratings for the title.
+//
 // Deprecated: Use CheckCacheStatus for more detailed status information.
 func HasCachedRatings(imdbID string) (bool, bool) {
 	status := CheckCacheStatus(imdbID)

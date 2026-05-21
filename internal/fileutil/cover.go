@@ -1,6 +1,7 @@
 package fileutil
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -49,14 +50,14 @@ type CoverDownloadResult struct {
 
 // DownloadCover downloads a cover image to the local attachments directory.
 // It skips downloading if the file already exists and UpdateCovers is false.
-func DownloadCover(opts CoverDownloadOptions) (*CoverDownloadResult, error) {
+func DownloadCover(ctx context.Context, opts CoverDownloadOptions) (*CoverDownloadResult, error) {
 	if opts.URL == "" {
 		return nil, nil
 	}
 
 	// Create attachments directory
 	attachmentsDir := filepath.Join(opts.OutputDir, "attachments")
-	if err := os.MkdirAll(attachmentsDir, 0755); err != nil {
+	if err := os.MkdirAll(attachmentsDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create attachments directory: %w", err)
 	}
 
@@ -76,7 +77,11 @@ func DownloadCover(opts CoverDownloadOptions) (*CoverDownloadResult, error) {
 	}
 
 	// Download the image
-	resp, err := coverHTTPClient.Get(opts.URL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, opts.URL, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build cover request: %w", err)
+	}
+	resp, err := coverHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download cover: %w", err)
 	}
@@ -131,7 +136,7 @@ type AddCoverOptions struct {
 
 // AddCoverToMarkdown adds a cover image to a markdown document.
 // It prefers TMDB cover (higher resolution) and falls back to downloading from FallbackURL.
-func AddCoverToMarkdown(mb *MarkdownBuilder, opts AddCoverOptions) {
+func AddCoverToMarkdown(ctx context.Context, mb *MarkdownBuilder, opts AddCoverOptions) {
 	// First check if TMDB cover is available (downloaded during enrichment)
 	if opts.TMDBCoverPath != "" {
 		mb.AddField("cover", opts.TMDBCoverPath)
@@ -145,7 +150,7 @@ func AddCoverToMarkdown(mb *MarkdownBuilder, opts AddCoverOptions) {
 	}
 
 	coverFilename := BuildCoverFilename(opts.Title)
-	result, err := DownloadCover(CoverDownloadOptions{
+	result, err := DownloadCover(ctx, CoverDownloadOptions{
 		URL:          opts.FallbackURL,
 		OutputDir:    opts.Directory,
 		Filename:     coverFilename,

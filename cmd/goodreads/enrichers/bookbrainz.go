@@ -56,7 +56,7 @@ func (e *BookBrainzEnricher) Priority() int {
 // Ping tests the connection to BookBrainz.
 func (e *BookBrainzEnricher) Ping(ctx context.Context) error {
 	client := e.getHTTPClient()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, bookBrainzBaseURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, bookBrainzBaseURL, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("creating ping request: %w", err)
 	}
@@ -168,7 +168,7 @@ func (e *BookBrainzEnricher) fetchFromAPI(ctx context.Context, isbn string) (*ca
 	client := e.getHTTPClient()
 	searchURL := fmt.Sprintf("%s/search/search?q=%s&type=edition", bookBrainzBaseURL, url.QueryEscape(isbn))
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating search request: %w", err)
 	}
@@ -214,7 +214,7 @@ func (e *BookBrainzEnricher) fetchEditionDetails(ctx context.Context, client *ht
 	}
 
 	detailsURL := fmt.Sprintf("%s/edition/%s", bookBrainzAPIBaseURL, url.PathEscape(bbid))
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, detailsURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, detailsURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating edition request: %w", err)
 	}

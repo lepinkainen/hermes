@@ -41,7 +41,7 @@ type CacheDB struct {
 var (
 	globalCache      *CacheDB
 	globalCacheOnce  sync.Once
-	globalCacheMutex sync.Mutex
+	globalCacheMutex sync.Mutex //nolint:unused // test seam (cache_test.go)
 
 	configTTL     time.Duration
 	configTTLOnce sync.Once

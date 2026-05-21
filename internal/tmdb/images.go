@@ -74,7 +74,7 @@ func (c *Client) DownloadAndResizeImage(ctx context.Context, imageURL, savePath 
 	if maxWidth <= 0 {
 		maxWidth = defaultMaxWidth
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, imageURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, imageURL, http.NoBody)
 	if err != nil {
 		return err
 	}

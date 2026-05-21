@@ -1,6 +1,7 @@
 package letterboxd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -89,7 +90,7 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 			Filename:     fileutil.BuildCoverFilename(movie.Name),
 			UpdateCovers: config.UpdateCovers,
 		}
-		result, err := fileutil.DownloadCover(coverOpts)
+		result, err := fileutil.DownloadCover(context.Background(), coverOpts)
 		if err == nil && result != nil {
 			coverFilename = result.Filename
 			fm.Set("cover", result.RelativePath)

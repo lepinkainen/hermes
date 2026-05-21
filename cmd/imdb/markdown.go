@@ -1,6 +1,7 @@
 package imdb
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -107,7 +108,7 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 			Filename:     fileutil.BuildCoverFilename(movie.Title),
 			UpdateCovers: config.UpdateCovers,
 		}
-		result, err := fileutil.DownloadCover(coverOpts)
+		result, err := fileutil.DownloadCover(context.Background(), coverOpts)
 		if err == nil && result != nil {
 			coverFilename = result.Filename
 			fm.Set("cover", result.RelativePath)
@@ -224,6 +225,7 @@ func mapTypeToTag(titleType string) string {
 	}
 }
 
+// Validate returns an error if the movie is missing required fields.
 func (m *MovieSeen) Validate() error {
 	if m.ImdbId == "" {
 		return fmt.Errorf("missing required field: ImdbId")

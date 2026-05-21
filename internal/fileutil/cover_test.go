@@ -1,6 +1,7 @@
 package fileutil
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -44,7 +45,7 @@ func TestBuildCoverFilename(t *testing.T) {
 }
 
 func TestDownloadCover_EmptyURL(t *testing.T) {
-	result, err := DownloadCover(CoverDownloadOptions{
+	result, err := DownloadCover(context.Background(), CoverDownloadOptions{
 		URL:       "",
 		OutputDir: "/tmp",
 		Filename:  "test.jpg",
@@ -65,7 +66,7 @@ func TestDownloadCover_Success(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	tempDir := env.RootDir()
 
-	result, err := DownloadCover(CoverDownloadOptions{
+	result, err := DownloadCover(context.Background(), CoverDownloadOptions{
 		URL:          server.URL,
 		OutputDir:    tempDir,
 		Filename:     "test-cover.jpg",
@@ -96,14 +97,14 @@ func TestDownloadCover_SkipsExisting(t *testing.T) {
 	tempDir := env.RootDir()
 
 	attachmentsDir := filepath.Join(tempDir, "attachments")
-	err := os.MkdirAll(attachmentsDir, 0755)
+	err := os.MkdirAll(attachmentsDir, 0o755)
 	require.NoError(t, err)
 
 	existingFile := filepath.Join(attachmentsDir, "existing-cover.jpg")
-	err = os.WriteFile(existingFile, []byte("old image data"), 0644)
+	err = os.WriteFile(existingFile, []byte("old image data"), 0o644)
 	require.NoError(t, err)
 
-	result, err := DownloadCover(CoverDownloadOptions{
+	result, err := DownloadCover(context.Background(), CoverDownloadOptions{
 		URL:          server.URL,
 		OutputDir:    tempDir,
 		Filename:     "existing-cover.jpg",
@@ -133,14 +134,14 @@ func TestDownloadCover_OverwritesExisting(t *testing.T) {
 	tempDir := env.RootDir()
 
 	attachmentsDir := filepath.Join(tempDir, "attachments")
-	err := os.MkdirAll(attachmentsDir, 0755)
+	err := os.MkdirAll(attachmentsDir, 0o755)
 	require.NoError(t, err)
 
 	existingFile := filepath.Join(attachmentsDir, "existing-cover.jpg")
-	err = os.WriteFile(existingFile, []byte("old image data"), 0644)
+	err = os.WriteFile(existingFile, []byte("old image data"), 0o644)
 	require.NoError(t, err)
 
-	result, err := DownloadCover(CoverDownloadOptions{
+	result, err := DownloadCover(context.Background(), CoverDownloadOptions{
 		URL:          server.URL,
 		OutputDir:    tempDir,
 		Filename:     "existing-cover.jpg",
@@ -168,7 +169,7 @@ func TestDownloadCover_HTTPError(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	tempDir := env.RootDir()
 
-	result, err := DownloadCover(CoverDownloadOptions{
+	result, err := DownloadCover(context.Background(), CoverDownloadOptions{
 		URL:       server.URL,
 		OutputDir: tempDir,
 		Filename:  "test-cover.jpg",
@@ -183,7 +184,7 @@ func TestAddCoverToMarkdown_TMDBCoverPreferred(t *testing.T) {
 	mb := NewMarkdownBuilder()
 	mb.AddTitle("Test Movie")
 
-	AddCoverToMarkdown(mb, AddCoverOptions{
+	AddCoverToMarkdown(context.Background(), mb, AddCoverOptions{
 		TMDBCoverPath:     "attachments/tmdb-cover.jpg",
 		TMDBCoverFilename: "tmdb-cover.jpg",
 		FallbackURL:       "https://example.com/fallback.jpg",
@@ -215,7 +216,7 @@ func TestAddCoverToMarkdown_FallbackDownloadSuccess(t *testing.T) {
 	mb := NewMarkdownBuilder()
 	mb.AddTitle("Test Movie")
 
-	AddCoverToMarkdown(mb, AddCoverOptions{
+	AddCoverToMarkdown(context.Background(), mb, AddCoverOptions{
 		FallbackURL: server.URL,
 		Title:       "Test Movie",
 		Directory:   tempDir,
@@ -247,7 +248,7 @@ func TestAddCoverToMarkdown_FallbackDownloadFailure(t *testing.T) {
 	mb := NewMarkdownBuilder()
 	mb.AddTitle("Test Movie")
 
-	AddCoverToMarkdown(mb, AddCoverOptions{
+	AddCoverToMarkdown(context.Background(), mb, AddCoverOptions{
 		FallbackURL: server.URL,
 		Title:       "Test Movie",
 		Directory:   tempDir,
@@ -265,7 +266,7 @@ func TestAddCoverToMarkdown_NoCover(t *testing.T) {
 	mb := NewMarkdownBuilder()
 	mb.AddTitle("Test Movie")
 
-	AddCoverToMarkdown(mb, AddCoverOptions{
+	AddCoverToMarkdown(context.Background(), mb, AddCoverOptions{
 		Title: "Test Movie",
 	})
 
@@ -292,16 +293,16 @@ func TestAddCoverToMarkdown_UpdateCoversFlag(t *testing.T) {
 	tempDir := env.RootDir()
 
 	attachmentsDir := filepath.Join(tempDir, "attachments")
-	err := os.MkdirAll(attachmentsDir, 0755)
+	err := os.MkdirAll(attachmentsDir, 0o755)
 	require.NoError(t, err)
 
 	existingFile := filepath.Join(attachmentsDir, "Test Movie - cover.jpg")
-	err = os.WriteFile(existingFile, []byte("old image data"), 0644)
+	err = os.WriteFile(existingFile, []byte("old image data"), 0o644)
 	require.NoError(t, err)
 
 	// First call without UpdateCovers
 	mb1 := NewMarkdownBuilder()
-	AddCoverToMarkdown(mb1, AddCoverOptions{
+	AddCoverToMarkdown(context.Background(), mb1, AddCoverOptions{
 		FallbackURL:  server.URL,
 		Title:        "Test Movie",
 		Directory:    tempDir,
@@ -312,7 +313,7 @@ func TestAddCoverToMarkdown_UpdateCoversFlag(t *testing.T) {
 
 	// Second call with UpdateCovers
 	mb2 := NewMarkdownBuilder()
-	AddCoverToMarkdown(mb2, AddCoverOptions{
+	AddCoverToMarkdown(context.Background(), mb2, AddCoverOptions{
 		FallbackURL:  server.URL,
 		Title:        "Test Movie",
 		Directory:    tempDir,
@@ -345,7 +346,7 @@ func TestAddCoverToMarkdown_WidthVariations(t *testing.T) {
 			mb := NewMarkdownBuilder()
 			mb.AddTitle("Test Movie")
 
-			AddCoverToMarkdown(mb, AddCoverOptions{
+			AddCoverToMarkdown(context.Background(), mb, AddCoverOptions{
 				TMDBCoverPath:     "attachments/tmdb-cover.jpg",
 				TMDBCoverFilename: "tmdb-cover.jpg",
 				Width:             tc.width,

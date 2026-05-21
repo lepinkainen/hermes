@@ -238,7 +238,7 @@ tt0111161,5,2024-01-16,"The Shawshank Redemption","The Shawshank Redemption",htt
 `
 
 	csvPath := filepath.Join(tempDir, "ratings.csv")
-	err := os.WriteFile(csvPath, []byte(csvContent), 0644)
+	err := os.WriteFile(csvPath, []byte(csvContent), 0o644)
 	require.NoError(t, err)
 
 	movies, err := processCSVFile(csvPath)
@@ -269,7 +269,7 @@ imdb_id: tt0133093
 
 Movie body
 `
-	err := os.WriteFile(filePath, []byte(content), 0644)
+	err := os.WriteFile(filePath, []byte(content), 0o644)
 	require.NoError(t, err)
 
 	movie := &MovieSeen{
@@ -313,7 +313,7 @@ tmdb_type: movie
 
 Movie body
 `
-	err := os.WriteFile(filePath, []byte(content), 0644)
+	err := os.WriteFile(filePath, []byte(content), 0o644)
 	require.NoError(t, err)
 
 	movie := &MovieSeen{
@@ -352,7 +352,7 @@ tmdb_type: movie
 
 Movie body
 `
-	err := os.WriteFile(filePath, []byte(content), 0644)
+	err := os.WriteFile(filePath, []byte(content), 0o644)
 	require.NoError(t, err)
 
 	movie := &MovieSeen{

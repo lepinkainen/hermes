@@ -12,6 +12,7 @@ import (
 
 const defaultAutomationTimeout = 3 * time.Minute
 
+// ParseParams aggregates the inputs to the Goodreads parsing flow.
 type ParseParams struct {
 	CSVPath           string
 	OutputDir         string
@@ -22,10 +23,16 @@ type ParseParams struct {
 	AutomationOptions AutomationOptions
 }
 
+// ParseGoodreadsFuncType is the signature for the Goodreads parser entry point (test seam).
 type ParseGoodreadsFuncType func(params ParseParams) error
+
+// DownloadGoodreadsCSVFuncType is the signature for the Goodreads CSV download flow (test seam).
 type DownloadGoodreadsCSVFuncType func(ctx context.Context, opts AutomationOptions) (string, error)
 
+// DefaultParseGoodreadsFunc is the production Goodreads parser used unless overridden in tests.
 var DefaultParseGoodreadsFunc ParseGoodreadsFuncType = ParseGoodreads
+
+// DefaultDownloadGoodreadsCSVFunc is the production downloader used unless overridden in tests.
 var DefaultDownloadGoodreadsCSVFunc DownloadGoodreadsCSVFuncType = AutomateGoodreadsExport
 
 // ParseGoodreadsWithParams allows calling goodreads parsing with specific parameters
@@ -100,6 +107,7 @@ func (g *GoodreadsCmd) Init(parseFn ParseGoodreadsFuncType, downloadFn DownloadG
 	g.downloadFunc = downloadFn
 }
 
+// Run executes the Goodreads import command.
 func (g *GoodreadsCmd) Run() error {
 	slog.Info("GoodreadsCmd.Run() called", "g.Automated", g.Automated)
 	// Read from config if value not provided via flag

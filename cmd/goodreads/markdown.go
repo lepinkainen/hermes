@@ -1,6 +1,7 @@
 package goodreads
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -123,7 +124,7 @@ func buildCoverContent(book Book, directory string) coverContent {
 	}
 
 	coverFilenameBase := fileutil.BuildCoverFilename(book.Title)
-	result, err := fileutil.DownloadCover(fileutil.CoverDownloadOptions{
+	result, err := fileutil.DownloadCover(context.Background(), fileutil.CoverDownloadOptions{
 		URL:          coverURL,
 		OutputDir:    directory,
 		Filename:     coverFilenameBase,
@@ -237,9 +238,10 @@ func writeBookToMarkdown(book Book, directory string) error {
 		return fmt.Errorf("failed to build markdown: %w", err)
 	}
 
-	content := append(markdown, []byte("\n\n\n")...)
+	out := append([]byte{}, markdown...)
+	out = append(out, []byte("\n\n\n")...)
 
-	written, err := fileutil.WriteFileWithOverwrite(filePath, content, 0644, config.OverwriteFiles)
+	written, err := fileutil.WriteFileWithOverwrite(filePath, out, 0o644, config.OverwriteFiles)
 	if err != nil {
 		return err
 	}

@@ -17,6 +17,7 @@ type SteamCmd struct {
 	Achievements bool   `help:"Fetch player achievements for each game" default:"true"`
 }
 
+// Run executes the Steam import command.
 func (s *SteamCmd) Run() error {
 	// Read from config if values not provided via flags
 	steamID := s.SteamID

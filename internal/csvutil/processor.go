@@ -2,6 +2,7 @@ package csvutil
 
 import (
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -24,7 +25,7 @@ type ProcessorOptions struct {
 func ProcessCSV[T any](filename string, parser func([]string) (T, error), opts ProcessorOptions) ([]T, error) {
 	csvFile, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open CSV file: %v", err)
+		return nil, fmt.Errorf("failed to open CSV file: %w", err)
 	}
 	defer func() { _ = csvFile.Close() }()
 
@@ -40,14 +41,14 @@ func ProcessCSV[T any](filename string, parser func([]string) (T, error), opts P
 
 	// Skip header
 	if _, err := reader.Read(); err != nil {
-		return nil, fmt.Errorf("failed to read header: %v", err)
+		return nil, fmt.Errorf("failed to read header: %w", err)
 	}
 
 	var items []T
 
 	for {
 		record, err := reader.Read()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -61,7 +62,7 @@ func ProcessCSV[T any](filename string, parser func([]string) (T, error), opts P
 				slog.Warn("Skipping invalid record", "error", err)
 				continue
 			}
-			return nil, fmt.Errorf("invalid record: %v", err)
+			return nil, fmt.Errorf("invalid record: %w", err)
 		}
 
 		items = append(items, item)

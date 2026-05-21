@@ -52,14 +52,14 @@ func SetupOutputDir(cfg *BaseCommandConfig) error {
 	}
 
 	// Create directories if they don't exist
-	if err := os.MkdirAll(cfg.OutputDir, 0755); err != nil {
+	if err := os.MkdirAll(cfg.OutputDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
 	if cfg.WriteJSON {
 		// Create JSON directory if it doesn't exist
 		jsonDir := filepath.Dir(cfg.JSONOutput)
-		if err := os.MkdirAll(jsonDir, 0755); err != nil {
+		if err := os.MkdirAll(jsonDir, 0o755); err != nil {
 			return fmt.Errorf("failed to create JSON output directory: %w", err)
 		}
 	}

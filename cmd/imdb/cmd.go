@@ -21,6 +21,7 @@ type IMDBCmd struct {
 	TMDBContentSections []string `help:"Specific TMDB content sections to generate (empty = all)"`
 }
 
+// Run executes the IMDb import command.
 func (i *IMDBCmd) Run() error {
 	// Read from config if value not provided via flag
 	input := i.Input

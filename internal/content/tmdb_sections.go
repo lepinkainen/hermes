@@ -83,48 +83,9 @@ func buildInfo(details map[string]any, mediaType string, letterboxdURI string) s
 	}
 
 	if mediaType == "tv" {
-		seasons, _ := intVal(details, "number_of_seasons")
-		episodes, _ := intVal(details, "number_of_episodes")
-		fmt.Fprintf(&builder, "| **Seasons** | %d (%d episodes) |\n", seasons, episodes)
-
-		firstAir := stringVal(details, "first_air_date")
-		lastAir := stringVal(details, "last_air_date")
-		if firstAir != "" {
-			airText := firstAir
-			switch {
-			case lastAir != "" && lastAir != firstAir:
-				airText = fmt.Sprintf("%s → %s", firstAir, lastAir)
-			case inProduction:
-				airText = fmt.Sprintf("%s → Present", firstAir)
-			}
-			fmt.Fprintf(&builder, "| **Aired** | %s |\n", airText)
-		}
+		writeTVAirInfo(&builder, details, inProduction)
 	} else {
-		if runtime, ok := intVal(details, "runtime"); ok && runtime > 0 {
-			fmt.Fprintf(&builder, "| **Runtime** | %d min |\n", runtime)
-		}
-		release := stringVal(details, "release_date")
-		if release != "" {
-			fmt.Fprintf(&builder, "| **Released** | %s |\n", release)
-		}
-
-		// Add director(s) - movies only
-		directors := getDirectors(details)
-		if len(directors) > 0 {
-			fmt.Fprintf(&builder, "| **Director** | %s |\n", strings.Join(directors, ", "))
-		}
-
-		// Add writer(s) - movies only
-		writers := getWriters(details)
-		if len(writers) > 0 {
-			fmt.Fprintf(&builder, "| **Writer** | %s |\n", strings.Join(writers, ", "))
-		}
-
-		// Add top 5 cast - movies only
-		actors := getTopActors(details)
-		if len(actors) > 0 {
-			fmt.Fprintf(&builder, "| **Cast** | %s |\n", strings.Join(actors, ", "))
-		}
+		writeMovieCreditsInfo(&builder, details)
 	}
 
 	if rating, ok := floatVal(details, "vote_average"); ok && rating > 0 {
@@ -181,6 +142,44 @@ func buildInfo(details map[string]any, mediaType string, letterboxdURI string) s
 	return strings.TrimRight(builder.String(), "\n")
 }
 
+func writeTVAirInfo(builder *strings.Builder, details map[string]any, inProduction bool) {
+	seasons, _ := intVal(details, "number_of_seasons")
+	episodes, _ := intVal(details, "number_of_episodes")
+	fmt.Fprintf(builder, "| **Seasons** | %d (%d episodes) |\n", seasons, episodes)
+
+	firstAir := stringVal(details, "first_air_date")
+	if firstAir == "" {
+		return
+	}
+	lastAir := stringVal(details, "last_air_date")
+	airText := firstAir
+	switch {
+	case lastAir != "" && lastAir != firstAir:
+		airText = fmt.Sprintf("%s → %s", firstAir, lastAir)
+	case inProduction:
+		airText = fmt.Sprintf("%s → Present", firstAir)
+	}
+	fmt.Fprintf(builder, "| **Aired** | %s |\n", airText)
+}
+
+func writeMovieCreditsInfo(builder *strings.Builder, details map[string]any) {
+	if runtime, ok := intVal(details, "runtime"); ok && runtime > 0 {
+		fmt.Fprintf(builder, "| **Runtime** | %d min |\n", runtime)
+	}
+	if release := stringVal(details, "release_date"); release != "" {
+		fmt.Fprintf(builder, "| **Released** | %s |\n", release)
+	}
+	if directors := getDirectors(details); len(directors) > 0 {
+		fmt.Fprintf(builder, "| **Director** | %s |\n", strings.Join(directors, ", "))
+	}
+	if writers := getWriters(details); len(writers) > 0 {
+		fmt.Fprintf(builder, "| **Writer** | %s |\n", strings.Join(writers, ", "))
+	}
+	if actors := getTopActors(details); len(actors) > 0 {
+		fmt.Fprintf(builder, "| **Cast** | %s |\n", strings.Join(actors, ", "))
+	}
+}
+
 // extractLetterboxdDisplayText extracts a clean display text from a Letterboxd URI.
 // For short URLs like "https://boxd.it/2bg8", returns "boxd.it/2bg8"
 // For full URLs like "https://letterboxd.com/film/the-godfather/", returns "film/the-godfather"
@@ -210,7 +209,6 @@ func extractLetterboxdDisplayText(uri string) string {
 		return filmPath
 	}
 
-	// Fallback: return as-is
 	return display
 }
 

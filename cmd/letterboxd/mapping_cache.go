@@ -2,6 +2,7 @@ package letterboxd
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -41,7 +42,7 @@ func GetLetterboxdMapping(letterboxdURI string) (*LetterboxdMapping, error) {
 	var imdbID sql.NullString
 
 	err = cacheDB.QueryRow(query, letterboxdURI).Scan(&tmdbID, &tmdbType, &imdbID)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil // No cached mapping found
 	}
 	if err != nil {
@@ -133,7 +134,7 @@ func GetLetterboxdURIByTMDB(tmdbID int, tmdbType string) (string, error) {
 
 	var uri string
 	err = cacheDB.QueryRow(query, tmdbID, tmdbType).Scan(&uri)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil // No mapping found
 	}
 	if err != nil {

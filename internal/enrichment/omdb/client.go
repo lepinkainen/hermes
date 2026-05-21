@@ -70,7 +70,7 @@ func FetchByIMDBID(ctx context.Context, imdbID string) (*OMDBResponse, error) {
 
 	url := fmt.Sprintf("%s/?i=%s&apikey=%s", omdbBaseURL, imdbID, apiKey)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -141,7 +141,7 @@ func FetchByTitleYear(ctx context.Context, title string, year int) (*OMDBRespons
 
 	url := fmt.Sprintf("%s/?t=%s&y=%d&apikey=%s", omdbBaseURL, escapedTitle, year, apiKey)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

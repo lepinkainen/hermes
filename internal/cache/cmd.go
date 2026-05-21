@@ -12,6 +12,7 @@ type InvalidateCacheCmd struct {
 	Source string `arg:"" help:"Cache source to invalidate: tmdb, omdb, steam, letterboxd, openlibrary" required:""`
 }
 
+// Run executes the cache invalidate command.
 func (i *InvalidateCacheCmd) Run() error {
 	cacheDB := viper.GetString("cache.dbfile")
 
