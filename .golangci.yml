@@ -59,8 +59,6 @@ linters:
         linters:
           - noctx
   settings:
-    govet:
-      # shadow disabled: too noisy with standard `if err := f(); err != nil` idiom
     gocyclo:
       # raised from 15 due to existing oversized funcs; ratchet down as code is refactored
       min-complexity: 30
