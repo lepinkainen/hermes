@@ -158,7 +158,7 @@ The codebase has specialized wrappers around the core cache for domain-specific 
 - Operations requiring query normalization
 - Operations needing force refresh support
 
-### internal/omdb/cache.go
+### internal/enrichment/omdb/cache.go
 
 **Why it exists:**
 - OMDB rate limiting integration

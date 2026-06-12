@@ -89,10 +89,12 @@ Leverage this when writing new importers: it already handles rate limits, skip f
 
 Call these helpers before hitting external APIs—they let you reuse stored IDs and avoid duplicate lookups.
 
-## OMDB Helpers (`internal/omdb`)
+## OMDB Helpers (`internal/enrichment/omdb`)
 
+- `FetchByIMDBID` and `FetchByTitleYear` are the shared HTTP client for the OMDB API (rate-limited, with `SetTestClient` as a test seam); `GetAPIKey` resolves the config key fallbacks.
 - `GetCached(cacheKey, fetcher)` wraps OMDB API calls with the shared cache and rate-limit tracking (`MarkRateLimitReached`, `RequestsAllowed`, `ResetRateLimit`). It seeds TTL data in `omdb_cache`.
 - `SeedCacheByID` writes a secondary IMDb-ID entry so later lookups by ID hit the cache even if the first fetch used title/year.
+- `EnrichFromOMDB` and `CheckCacheStatus` drive ratings enrichment for the enhance command.
 
 New OMDB consumers should always go through `GetCached` so the global rate limit gate works.
 

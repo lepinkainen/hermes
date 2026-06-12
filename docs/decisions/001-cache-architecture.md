@@ -52,7 +52,7 @@ We decided to:
 
 **What we kept:**
 - `internal/tmdb/cache.go` - Query normalization, force refresh, 9 operations
-- `internal/omdb/cache.go` - Rate limiting, cache seeding
+- `internal/enrichment/omdb/cache.go` - Rate limiting, cache seeding (moved from `internal/omdb` in 2026-06)
 - `cmd/letterboxd/mapping_cache.go` - Bidirectional lookups via direct SQL
 - `cmd/goodreads/cache.go` - Negative caching example
 - `cmd/goodreads/googlebooks_cache.go` - Negative caching example
