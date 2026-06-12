@@ -2,54 +2,32 @@ package goodreads
 
 import (
 	"context"
-	"encoding/csv"
-	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/csvutil"
 	"github.com/lepinkainen/hermes/internal/parseutil"
 )
 
-func loadBooksFromCSV(filePath string, totalBooks int, outputDir string) ([]Book, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open CSV file: %w", err)
-	}
-	defer func() { _ = file.Close() }()
+// loadBooksFromCSV parses all book records from a Goodreads export CSV.
+// Invalid records are logged and skipped.
+func loadBooksFromCSV(filePath string) ([]*Book, error) {
+	return csvutil.ProcessCSV(filePath, parseBookRecord, csvutil.ProcessorOptions{SkipInvalid: true})
+}
 
-	reader := csv.NewReader(file)
-	if _, err := reader.Read(); err != nil {
-		return nil, fmt.Errorf("failed to read CSV header: %w", err)
-	}
-
+// enrichAndWriteBooks enriches each parsed book and writes its markdown note.
+// Returns the books that were successfully written.
+func enrichAndWriteBooks(parsed []*Book, outputDir string) ([]Book, error) {
 	// Create output directory once before processing
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create output directory %s: %w", outputDir, err)
 	}
 
-	var books []Book
-	processed := 0
-
-	for {
-		record, err := reader.Read()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			slog.Warn("Error reading record", "error", err)
-			continue
-		}
-
-		book, err := parseBookRecord(record)
-		if err != nil {
-			slog.Warn("Invalid book record", "error", err)
-			continue
-		}
-
+	books := make([]Book, 0, len(parsed))
+	for _, book := range parsed {
 		if book.ISBN != "" || book.ISBN13 != "" {
 			// Use the enricher system to fetch and merge data from all sources
 			enrichBookWithEnrichers(context.Background(), book)
@@ -61,8 +39,7 @@ func loadBooksFromCSV(filePath string, totalBooks int, outputDir string) ([]Book
 		}
 
 		books = append(books, *book)
-		processed++
-		logBookProgress(processed, totalBooks)
+		logBookProgress(len(books), len(parsed))
 	}
 
 	return books, nil

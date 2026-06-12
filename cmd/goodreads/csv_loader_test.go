@@ -1,7 +1,6 @@
 package goodreads
 
 import (
-	"encoding/csv"
 	"os"
 	"path/filepath"
 	"testing"
@@ -236,46 +235,48 @@ func TestSanitizeISBNValue(t *testing.T) {
 	}
 }
 
-func TestCountBooksInCSV(t *testing.T) {
+func TestLoadBooksFromCSV(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	tempDir := env.RootDir()
 
 	// Create test CSV file
-	csvContent := `Book Id,Title,Author,Additional Authors,ISBN,ISBN13,My Rating,Average Rating,Publisher,Binding,Number of Pages,Year Published,Original Publication Year,Date Read,Date Added,Bookshelves,Bookshelves with positions,Exclusive Shelf,My Review,Spoiler,Private Notes,Read Count,Owned Copies
-1,Book 1,Author 1,,,123456,0,4.5,,,200,2020,2020,,2024-01-01,,,read,,,,0,0
-2,Book 2,Author 2,,,234567,5,4.0,,,300,2021,2021,2024-01-15,2024-01-01,,,read,,,,1,1
-3,Book 3,Author 3,,,345678,0,3.5,,,150,2019,2019,,2024-01-01,,,to-read,,,,0,0
+	csvContent := `Book Id,Title,Author,Author l-f,Additional Authors,ISBN,ISBN13,My Rating,Average Rating,Publisher,Binding,Number of Pages,Year Published,Original Publication Year,Date Read,Date Added,Bookshelves,Bookshelves with positions,Exclusive Shelf,My Review,Spoiler,Private Notes,Read Count,Owned Copies
+1,Book 1,Author 1,,,123456,,0,4.5,,,200,2020,2020,,2024-01-01,,,read,,,,0,0
+2,Book 2,Author 2,,,234567,,5,4.0,,,300,2021,2021,2024-01-15,2024-01-01,,,read,,,,1,1
+3,Book 3,Author 3,,,345678,,0,3.5,,,150,2019,2019,,2024-01-01,,,to-read,,,,0,0
 `
 
 	csvPath := filepath.Join(tempDir, "books.csv")
 	err := os.WriteFile(csvPath, []byte(csvContent), 0o644)
 	require.NoError(t, err)
 
-	count, err := countBooksInCSV(csvPath)
+	books, err := loadBooksFromCSV(csvPath)
 	require.NoError(t, err)
-	assert.Equal(t, 3, count, "should count 3 books in CSV")
+	require.Len(t, books, 3, "should load 3 books from CSV")
+	assert.Equal(t, "Book 1", books[0].Title)
+	assert.Equal(t, "to-read", books[2].ExclusiveShelf)
 }
 
-func TestCountBooksInCSV_InvalidFile(t *testing.T) {
-	_, err := countBooksInCSV("/nonexistent/file.csv")
+func TestLoadBooksFromCSV_InvalidFile(t *testing.T) {
+	_, err := loadBooksFromCSV("/nonexistent/file.csv")
 	require.Error(t, err)
 }
 
-func TestCountBooksInCSV_EmptyFile(t *testing.T) {
+func TestLoadBooksFromCSV_EmptyFile(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	tempDir := env.RootDir()
 
 	// Create empty CSV file (only header)
-	csvContent := `Book Id,Title,Author,Additional Authors,ISBN,ISBN13,My Rating,Average Rating,Publisher,Binding,Number of Pages,Year Published,Original Publication Year,Date Read,Date Added,Bookshelves,Bookshelves with positions,Exclusive Shelf,My Review,Spoiler,Private Notes,Read Count,Owned Copies
+	csvContent := `Book Id,Title,Author,Author l-f,Additional Authors,ISBN,ISBN13,My Rating,Average Rating,Publisher,Binding,Number of Pages,Year Published,Original Publication Year,Date Read,Date Added,Bookshelves,Bookshelves with positions,Exclusive Shelf,My Review,Spoiler,Private Notes,Read Count,Owned Copies
 `
 
 	csvPath := filepath.Join(tempDir, "empty.csv")
 	err := os.WriteFile(csvPath, []byte(csvContent), 0o644)
 	require.NoError(t, err)
 
-	count, err := countBooksInCSV(csvPath)
+	books, err := loadBooksFromCSV(csvPath)
 	require.NoError(t, err)
-	assert.Equal(t, 0, count, "should count 0 books in empty CSV")
+	assert.Empty(t, books, "should load 0 books from empty CSV")
 }
 
 func TestBookToMap(t *testing.T) {
@@ -333,42 +334,11 @@ func TestBookToMap(t *testing.T) {
 func TestParseGoodreadsCSV_GoldenFile(t *testing.T) {
 	csvPath := filepath.Join("testdata", "goodreads_sample.csv")
 
-	// Verify the file exists
-	_, err := os.Stat(csvPath)
-	require.NoError(t, err, "golden file should exist")
-
-	// Count books in the CSV
-	count, err := countBooksInCSV(csvPath)
+	books, err := loadBooksFromCSV(csvPath)
 	require.NoError(t, err)
-	assert.Equal(t, 20, count, "golden file should have exactly 20 books")
-
-	// Open and parse the CSV
-	file, err := os.Open(csvPath)
-	require.NoError(t, err)
-	defer func() { _ = file.Close() }()
-
-	reader := csv.NewReader(file)
-
-	// Skip header
-	_, err = reader.Read()
-	require.NoError(t, err)
-
-	// Parse all records
-	books := []Book{}
-	for {
-		record, err := reader.Read()
-		if err != nil {
-			break
-		}
-
-		book, err := parseBookRecord(record)
-		require.NoError(t, err, "should successfully parse book record")
-		require.NotNil(t, book)
-		books = append(books, *book)
-	}
 
 	// Verify we got all 20 books
-	assert.Len(t, books, 20, "should parse all 20 books from golden file")
+	require.Len(t, books, 20, "should parse all 20 books from golden file")
 
 	// Verify first book (Salvager)
 	assert.Equal(t, 218224452, books[0].ID)
@@ -378,9 +348,9 @@ func TestParseGoodreadsCSV_GoldenFile(t *testing.T) {
 
 	// Verify a book with rating (Wool)
 	var woolBook *Book
-	for i := range books {
-		if books[i].ID == 12287209 {
-			woolBook = &books[i]
+	for _, book := range books {
+		if book.ID == 12287209 {
+			woolBook = book
 			break
 		}
 	}
