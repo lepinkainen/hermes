@@ -13,11 +13,11 @@ import (
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/csvutil"
 	"github.com/lepinkainen/hermes/internal/enrichment"
+	"github.com/lepinkainen/hermes/internal/enrichment/omdb"
 	"github.com/lepinkainen/hermes/internal/errors"
 	"github.com/lepinkainen/hermes/internal/fileutil"
 	"github.com/lepinkainen/hermes/internal/importer/enrich"
 	"github.com/lepinkainen/hermes/internal/importer/mediaids"
-	"github.com/lepinkainen/hermes/internal/omdb"
 	"github.com/lepinkainen/hermes/internal/parseutil"
 )
 

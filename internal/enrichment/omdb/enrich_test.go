@@ -2,12 +2,8 @@ package omdb
 
 import (
 	"encoding/json"
-	"path/filepath"
 	"testing"
 
-	"github.com/lepinkainen/hermes/internal/cache"
-	"github.com/lepinkainen/hermes/internal/testutil"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -180,38 +176,6 @@ func TestParseMetacritic(t *testing.T) {
 			}
 		})
 	}
-}
-
-// setupOMDBCache initializes a test cache environment for OMDB tests
-func setupOMDBCache(t *testing.T) *cache.CacheDB {
-	t.Helper()
-
-	// Reset any existing global cache to ensure isolation between tests
-	if err := cache.ResetGlobalCache(); err != nil {
-		t.Fatalf("Failed to reset global cache: %v", err)
-	}
-
-	viper.Reset()
-	t.Cleanup(func() {
-		_ = cache.ResetGlobalCache()
-		viper.Reset()
-	})
-
-	env := testutil.NewTestEnv(t)
-	tmpDir := env.RootDir()
-
-	viper.Set("cache.dbfile", filepath.Join(tmpDir, "omdb-cache.db"))
-	viper.Set("cache.ttl", "24h")
-
-	cacheDB, err := cache.GetGlobalCache()
-	if err != nil {
-		t.Fatalf("Failed to init cache: %v", err)
-	}
-	if err := cacheDB.ClearAll("omdb_cache"); err != nil {
-		t.Fatalf("Failed to reset omdb_cache table: %v", err)
-	}
-
-	return cacheDB
 }
 
 func TestCheckCacheStatus(t *testing.T) {
