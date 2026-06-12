@@ -61,10 +61,10 @@ Surface new terminal conditions through these types instead of inventing bespoke
 
 - Path helpers: `SanitizeFilename`, `GetMarkdownFilePath`, `RelativeTo`, `FileExists`.
 - Writers: `WriteFileWithOverwrite`, `WriteMarkdownFile`, `WriteJSONFile` honour `config.OverwriteFiles`.
-- Cover pipeline: `BuildCoverFilename`, `DownloadCover`, and `AddCoverToMarkdown` wrap download/reuse logic (including TMDB-preferred covers). Respect `CoverDownloadOptions.UpdateCovers` rather than deleting files manually.
-- Markdown composition: `MarkdownBuilder` + `TagCollector` add titles, arrays, dates, callouts, cover embeds, TMDB enrichment blocks (`AddTMDBEnrichmentFields`), and Obsidian-specific syntax.
+- Cover pipeline: `BuildCoverFilename` and `DownloadCover` wrap download/reuse logic (including TMDB-preferred covers). Respect `CoverDownloadOptions.UpdateCovers` rather than deleting files manually.
+- `FormatDuration` renders minute counts as `"2h 30m"` for frontmatter duration fields.
 
-Use the builder instead of string concatenation to keep notes consistent and to benefit from helpers like automatic tag dedupe and duration formatting.
+Markdown composition lives in `internal/obsidian` (`Frontmatter`, `TagSet`, `BuildNoteMarkdown`); use it instead of string concatenation to keep notes consistent and benefit from automatic tag dedupe.
 
 ## Frontmatter Parsing (`internal/frontmatter`)
 

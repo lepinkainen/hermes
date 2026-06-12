@@ -144,7 +144,7 @@ The `enhance` command enriches existing markdown notes with TMDB data without re
 **Common Utilities:**
 
 - `internal/cmdutil` - Command setup helpers
-- `internal/fileutil` - File operations, markdown/JSON utilities (MarkdownBuilder pattern)
+- `internal/fileutil` - File operations, markdown/JSON utilities
 - `internal/config` - Global configuration management
 - `internal/datastore` - SQLite/Datasette integration
 - `internal/cache` - API response caching
@@ -226,7 +226,7 @@ Use the appropriate caching strategy from `internal/cache`:
 
 - Default output directories (`markdown/`, `json/`) set in `cmd/root.go`, configurable via `config.yaml`
 - Commands allow specifying subdirectories for output via `-o` flag (e.g., `markdown/goodreads/`)
-- Use `internal/fileutil` for writing files (MarkdownBuilder for Markdown, WriteJSON for JSON)
+- Use `internal/fileutil` for writing files (WriteMarkdownFile for Markdown, WriteJSONFile for JSON); compose markdown notes with `internal/obsidian` (Frontmatter, TagSet, BuildNoteMarkdown)
 - Markdown files use YAML frontmatter (Obsidian-compatible)
 - Follow existing patterns for Markdown frontmatter and JSON structure for each data type
 - Respect `--overwrite` flag logic
