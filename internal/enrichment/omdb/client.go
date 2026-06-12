@@ -31,6 +31,18 @@ var (
 	}
 )
 
+// SetTestClient redirects the OMDB client at a test server and disables the
+// rate-limit wait. Returns a restore function. Test-only seam.
+func SetTestClient(baseURL string, do func(*http.Request) (*http.Response, error)) func() {
+	prevBase, prevDo, prevWait := omdbBaseURL, omdbHTTPDo, omdbRateWait
+	omdbBaseURL = baseURL
+	omdbHTTPDo = do
+	omdbRateWait = func(context.Context) error { return nil }
+	return func() {
+		omdbBaseURL, omdbHTTPDo, omdbRateWait = prevBase, prevDo, prevWait
+	}
+}
+
 // GetAPIKey retrieves the OMDB API key from config
 // It checks multiple config keys in order of preference
 func GetAPIKey() (string, error) {

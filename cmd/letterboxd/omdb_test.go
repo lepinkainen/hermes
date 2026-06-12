@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/lepinkainen/hermes/internal/enrichment/omdb"
 	internalerrors "github.com/lepinkainen/hermes/internal/errors"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -15,15 +16,7 @@ func withOMDBServer(t *testing.T, handler http.HandlerFunc) {
 	t.Helper()
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-
-	prevBase := omdbBaseURL
-	prevGet := omdbHTTPGet
-	omdbBaseURL = server.URL
-	omdbHTTPGet = server.Client().Get
-	t.Cleanup(func() {
-		omdbBaseURL = prevBase
-		omdbHTTPGet = prevGet
-	})
+	t.Cleanup(omdb.SetTestClient(server.URL, server.Client().Do))
 
 	viper.Reset()
 	viper.Set("omdb.api_key", "test")
@@ -82,12 +75,22 @@ func TestFetchMovieDataEmptyResponse(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid or empty response")
 }
 
+func TestFetchMovieDataNotFound(t *testing.T) {
+	withOMDBServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"Response":"False","Error":"Movie not found!"}`))
+	})
+
+	_, err := fetchMovieData("Nope", 1900)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found in OMDB")
+}
+
 func TestFetchMovieDataMissingAPIKey(t *testing.T) {
 	viper.Reset()
 	defer viper.Reset()
 	_, err := fetchMovieData("Heat", 1995)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "omdb.api_key or imdb.omdb_api_key")
+	assert.Contains(t, err.Error(), "OMDB API key not found")
 }
 
 func TestFetchMovieDataFallbackToIMDBKey(t *testing.T) {
@@ -96,15 +99,7 @@ func TestFetchMovieDataFallbackToIMDBKey(t *testing.T) {
 		_, _ = w.Write([]byte(`{"Title":"Heat","imdbID":"tt0113277"}`))
 	}))
 	defer server.Close()
-
-	prevBase := omdbBaseURL
-	prevGet := omdbHTTPGet
-	omdbBaseURL = server.URL
-	omdbHTTPGet = server.Client().Get
-	defer func() {
-		omdbBaseURL = prevBase
-		omdbHTTPGet = prevGet
-	}()
+	t.Cleanup(omdb.SetTestClient(server.URL, server.Client().Do))
 
 	viper.Reset()
 	defer viper.Reset()

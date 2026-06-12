@@ -5,65 +5,25 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/lepinkainen/hermes/internal/enrichment/omdb"
 	internalerrors "github.com/lepinkainen/hermes/internal/errors"
 	"github.com/spf13/viper"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetOMDBAPIKey(t *testing.T) {
-	testCases := []struct {
-		name          string
-		imdbKey       string
-		globalKey     string
-		wantKey       string
-		wantErrSubstr string
-	}{
-		{
-			name:      "prefers_imdb_scoped_key",
-			imdbKey:   "imdb-secret",
-			globalKey: "global-secret",
-			wantKey:   "imdb-secret",
-		},
-		{
-			name:      "falls_back_to_global_key",
-			globalKey: "global-secret",
-			wantKey:   "global-secret",
-		},
-		{
-			name:          "errors_when_missing",
-			wantErrSubstr: "omdb.api_key or imdb.omdb_api_key",
-		},
-	}
+func withOMDBServer(t *testing.T, handler http.HandlerFunc) {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	t.Cleanup(omdb.SetTestClient(server.URL, server.Client().Do))
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			viper.Reset()
-			if tc.imdbKey != "" {
-				viper.Set("imdb.omdb_api_key", tc.imdbKey)
-			}
-			if tc.globalKey != "" {
-				viper.Set("omdb.api_key", tc.globalKey)
-			}
-
-			got, err := getOMDBAPIKey()
-			if tc.wantErrSubstr != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.wantErrSubstr)
-				return
-			}
-
-			require.NoError(t, err)
-			assert.Equal(t, tc.wantKey, got)
-		})
-	}
+	viper.Reset()
+	viper.Set("omdb.api_key", "test")
+	t.Cleanup(viper.Reset)
 }
 
 func TestFetchMovieDataSuccess(t *testing.T) {
-	viper.Reset()
-	viper.Set("omdb.api_key", "test")
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	withOMDBServer(t, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{
 			"Title":"Heat",
 			"imdbID":"tt0113277",
@@ -77,17 +37,7 @@ func TestFetchMovieDataSuccess(t *testing.T) {
 			"Rated":"R",
 			"Awards":"Oscar"
 		}`))
-	}))
-	defer server.Close()
-
-	origBase := omdbBaseURL
-	origGet := omdbHTTPGet
-	defer func() {
-		omdbBaseURL = origBase
-		omdbHTTPGet = origGet
-	}()
-	omdbBaseURL = server.URL
-	omdbHTTPGet = server.Client().Get
+	})
 
 	movie, err := fetchMovieData("tt0113277")
 	require.NoError(t, err)
@@ -97,25 +47,22 @@ func TestFetchMovieDataSuccess(t *testing.T) {
 }
 
 func TestFetchMovieDataRateLimit(t *testing.T) {
-	viper.Reset()
-	viper.Set("omdb.api_key", "test")
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	withOMDBServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"Response":"False","Error":"Request limit reached!"}`))
-	}))
-	defer server.Close()
-
-	origBase := omdbBaseURL
-	origGet := omdbHTTPGet
-	defer func() {
-		omdbBaseURL = origBase
-		omdbHTTPGet = origGet
-	}()
-	omdbBaseURL = server.URL
-	omdbHTTPGet = server.Client().Get
+	})
 
 	_, err := fetchMovieData("tt0113277")
 	require.Error(t, err)
 	require.True(t, internalerrors.IsRateLimitError(err), "expected rate limit error")
+}
+
+func TestFetchMovieDataNotFound(t *testing.T) {
+	withOMDBServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"Response":"False","Error":"Incorrect IMDb ID. Movie not found!"}`))
+	})
+
+	_, err := fetchMovieData("tt0000000")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not found in OMDB")
 }
