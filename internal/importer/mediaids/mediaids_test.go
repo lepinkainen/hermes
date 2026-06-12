@@ -3,17 +3,18 @@ package mediaids
 import (
 	"testing"
 
+	"github.com/lepinkainen/hermes/internal/obsidian"
 	"github.com/lepinkainen/hermes/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFromFrontmatter(t *testing.T) {
-	got := FromFrontmatter(map[string]any{
-		"tmdb_id":       949.0,
-		"tmdb_type":     "movie",
-		"imdb_id":       "tt0113277",
-		"letterboxd_id": "2bg8",
-	})
+	fm := obsidian.NewFrontmatter()
+	fm.Set("tmdb_id", 949.0)
+	fm.Set("tmdb_type", "movie")
+	fm.Set("imdb_id", "tt0113277")
+	fm.Set("letterboxd_id", "2bg8")
+	got := FromFrontmatter(fm)
 
 	require.Equal(t, 949, got.TMDBID)
 	require.Equal(t, "movie", got.TMDBType)

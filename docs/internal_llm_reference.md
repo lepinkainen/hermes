@@ -66,11 +66,11 @@ Surface new terminal conditions through these types instead of inventing bespoke
 
 Markdown composition lives in `internal/obsidian` (`Frontmatter`, `TagSet`, `BuildNoteMarkdown`); use it instead of string concatenation to keep notes consistent and benefit from automatic tag dedupe.
 
-## Frontmatter Parsing (`internal/frontmatter`)
+## Frontmatter Parsing (`internal/obsidian`)
 
-- `ParseMarkdown([]byte)` splits YAML frontmatter from the body and returns `ParsedNote`.
-- `ParsedNote.GetInt` / `GetString`, along with `IntFromAny` and `StringFromAny`, cope with YAML’s mixed numeric types.
-- `DetectMediaType` inspects `tmdb_type` first, then falls back to tags (movie vs TV).
+- `ParseMarkdown([]byte)` splits YAML frontmatter from the body and returns a `Note` with typed `Frontmatter` access (`GetInt`, `GetString`, `GetBool`, `GetStringArray`).
+- `IntFromAny` and `StringFromAny` cope with YAML’s mixed numeric types.
+- `DetectMediaType` inspects `tmdb_type` first, then falls back to tags (movie vs TV vs game); `DetectMediaTypeFromTags` uses tags only.
 
 Any code that needs to inspect an existing note should go through this parser instead of ad-hoc regexes.
 

@@ -14,7 +14,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/enrichment/omdb"
 	"github.com/lepinkainen/hermes/internal/fileutil"
-	fm "github.com/lepinkainen/hermes/internal/frontmatter"
+	"github.com/lepinkainen/hermes/internal/obsidian"
 	"github.com/spf13/viper"
 )
 
@@ -287,13 +287,7 @@ func movieTVNeedsOMDB(note *Note, opts Options) bool {
 }
 
 func buildTMDBEnrichOpts(note *Note, opts Options, attachmentsDir, noteDir string, needsCover, needsContent bool) enrichment.TMDBEnrichmentOptions {
-	frontmatterMap := make(map[string]any)
-	for _, key := range note.Frontmatter.Keys() {
-		if val, ok := note.Frontmatter.Get(key); ok {
-			frontmatterMap[key] = val
-		}
-	}
-	expectedType := fm.DetectMediaTypeFromTags(frontmatterMap)
+	expectedType := obsidian.DetectMediaTypeFromTags(note.Frontmatter)
 	if expectedType == "" {
 		expectedType = note.Type
 	}

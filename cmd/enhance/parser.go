@@ -10,7 +10,6 @@ import (
 	"github.com/lepinkainen/hermes/internal/content"
 	"github.com/lepinkainen/hermes/internal/enrichment"
 	"github.com/lepinkainen/hermes/internal/enrichment/omdb"
-	fm "github.com/lepinkainen/hermes/internal/frontmatter"
 	"github.com/lepinkainen/hermes/internal/importer/mediaids"
 	"github.com/lepinkainen/hermes/internal/obsidian"
 )
@@ -70,18 +69,11 @@ func parseNote(fileContent string) (*Note, error) {
 	note.Title = note.Frontmatter.GetString("title")
 
 	// Get type from tmdb_type field or detect from tags
-	// Convert frontmatter to map for DetectMediaType
-	frontmatterMap := make(map[string]any)
-	for _, key := range note.Frontmatter.Keys() {
-		if val, ok := note.Frontmatter.Get(key); ok {
-			frontmatterMap[key] = val
-		}
-	}
-	note.Type = fm.DetectMediaType(frontmatterMap)
+	note.Type = obsidian.DetectMediaType(note.Frontmatter)
 
 	note.Year = note.Frontmatter.GetInt("year")
 
-	ids := mediaids.FromFrontmatter(frontmatterMap)
+	ids := mediaids.FromFrontmatter(note.Frontmatter)
 	note.IMDBID = ids.IMDBID
 	note.TMDBID = ids.TMDBID
 	note.LetterboxdID = ids.LetterboxdID

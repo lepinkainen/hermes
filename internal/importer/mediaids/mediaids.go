@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lepinkainen/hermes/internal/frontmatter"
+	"github.com/lepinkainen/hermes/internal/obsidian"
 )
 
 // MediaIDs collects external identifiers from a markdown note.
@@ -16,17 +16,22 @@ type MediaIDs struct {
 	LetterboxdID string
 }
 
-// FromFrontmatter extracts all supported IDs from a parsed frontmatter map.
-func FromFrontmatter(fm map[string]any) MediaIDs {
+// FromFrontmatter extracts all supported IDs from parsed frontmatter.
+func FromFrontmatter(fm *obsidian.Frontmatter) MediaIDs {
 	if fm == nil {
 		return MediaIDs{}
 	}
 
+	stringField := func(key string) string {
+		val, _ := fm.Get(key)
+		return obsidian.StringFromAny(val)
+	}
+
 	return MediaIDs{
-		TMDBID:       frontmatter.IntFromAny(fm["tmdb_id"]),
-		TMDBType:     frontmatter.StringFromAny(fm["tmdb_type"]),
-		IMDBID:       frontmatter.StringFromAny(fm["imdb_id"]),
-		LetterboxdID: frontmatter.StringFromAny(fm["letterboxd_id"]),
+		TMDBID:       fm.GetInt("tmdb_id"),
+		TMDBType:     stringField("tmdb_type"),
+		IMDBID:       stringField("imdb_id"),
+		LetterboxdID: stringField("letterboxd_id"),
 	}
 }
 
@@ -37,7 +42,7 @@ func FromFile(path string) (MediaIDs, error) {
 		return MediaIDs{}, err
 	}
 
-	note, err := frontmatter.ParseMarkdown(data)
+	note, err := obsidian.ParseMarkdown(data)
 	if err != nil {
 		return MediaIDs{}, err
 	}

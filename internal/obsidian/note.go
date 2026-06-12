@@ -151,16 +151,14 @@ func (f *Frontmatter) GetString(key string) string {
 	return ""
 }
 
-// GetInt retrieves an int value, returning 0 if not found or wrong type.
+// GetInt retrieves an int value, returning 0 if not found or not convertible.
+// YAML unmarshaling can produce int, int64, float64, or string; all are handled.
 func (f *Frontmatter) GetInt(key string) int {
 	val, ok := f.fields[key]
 	if !ok {
 		return 0
 	}
-	if i, ok := val.(int); ok {
-		return i
-	}
-	return 0
+	return IntFromAny(val)
 }
 
 // GetBool retrieves a bool value, returning false if not found or wrong type.
