@@ -38,6 +38,8 @@ hermes-*
 # dev stuff and databases
 hermes.db
 cache.db
+*.db-wal
+*.db-shm
 exports/
 imports/
 tmp/
