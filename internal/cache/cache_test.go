@@ -46,8 +46,8 @@ func setupTestCache(t *testing.T) (*CacheDB, string) {
 		CREATE TABLE IF NOT EXISTS test_cache (
 			cache_key TEXT PRIMARY KEY NOT NULL,
 			data TEXT NOT NULL,
-			cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-		);
+			cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+		) STRICT;
 	`
 	if err := cache.CreateTable(testSchema); err != nil {
 		t.Fatalf("Failed to create test table: %v", err)
@@ -82,7 +82,7 @@ func withGlobalCache(t *testing.T, cache *CacheDB) {
 func setCachedAt(t *testing.T, cache *CacheDB, tableName, key string, at time.Time) {
 	t.Helper()
 
-	if _, err := cache.db.Exec("UPDATE "+tableName+" SET cached_at = ? WHERE cache_key = ?", at.UTC(), key); err != nil {
+	if _, err := cache.db.Exec("UPDATE "+tableName+" SET cached_at = ? WHERE cache_key = ?", at.UTC().Format(sqliteTimestampLayout), key); err != nil {
 		t.Fatalf("Failed to update cached_at: %v", err)
 	}
 }
@@ -399,6 +399,104 @@ func TestCacheDB_CacheExists(t *testing.T) {
 	// Test non-existing entry
 	if cache.CacheExists("test_cache", nonExistingKey) {
 		t.Error("Expected cache not to exist for non-existing key")
+	}
+}
+
+func TestParseCachedAt(t *testing.T) {
+	fixed := time.Date(2026, 3, 15, 12, 30, 45, 0, time.UTC)
+
+	t.Run("time.Time input", func(t *testing.T) {
+		got, err := parseCachedAt(fixed)
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		if !got.Equal(fixed) {
+			t.Errorf("Expected %v, got %v", fixed, got)
+		}
+	})
+
+	t.Run("sqlite CURRENT_TIMESTAMP format string", func(t *testing.T) {
+		got, err := parseCachedAt("2026-03-15 12:30:45")
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		if !got.Equal(fixed) {
+			t.Errorf("Expected %v, got %v", fixed, got)
+		}
+	})
+
+	t.Run("invalid string", func(t *testing.T) {
+		_, err := parseCachedAt("not-a-timestamp")
+		if err == nil {
+			t.Fatal("Expected error for invalid timestamp string, got nil")
+		}
+	})
+
+	t.Run("unsupported type", func(t *testing.T) {
+		_, err := parseCachedAt(42)
+		if err == nil {
+			t.Fatal("Expected error for unsupported type, got nil")
+		}
+	})
+}
+
+// TestCacheDB_LegacySchemaRoundTrip exercises a pre-STRICT cache table (a
+// DATETIME column instead of the STRICT-mandated TEXT) through the real
+// driver. modernc.org/sqlite auto-converts DATETIME columns to time.Time on
+// scan, which drives parseCachedAt's time.Time branch - the string branch
+// used by every other test in this file never touches that path.
+func TestCacheDB_LegacySchemaRoundTrip(t *testing.T) {
+	cache, dbPath := setupTestCache(t)
+	defer func() { _ = cache.Close() }()
+	defer func() { _ = os.Remove(dbPath) }()
+
+	const legacyTable = "test_legacy_cache"
+	ValidCacheTableNames[legacyTable] = true
+	t.Cleanup(func() {
+		delete(ValidCacheTableNames, legacyTable)
+	})
+
+	legacySchema := `
+		CREATE TABLE IF NOT EXISTS ` + legacyTable + ` (
+			cache_key TEXT PRIMARY KEY NOT NULL,
+			data TEXT NOT NULL,
+			cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);
+	`
+	if err := cache.CreateTable(legacySchema); err != nil {
+		t.Fatalf("Failed to create legacy test table: %v", err)
+	}
+
+	testKey := "legacy-key"
+	testData := `{"id":1,"name":"Legacy"}`
+
+	if err := cache.Set(legacyTable, testKey, testData, 0); err != nil {
+		t.Fatalf("Failed to set cache: %v", err)
+	}
+
+	data, fromCache, err := cache.Get(legacyTable, testKey, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to get cache: %v", err)
+	}
+	if !fromCache {
+		t.Error("Expected cache hit for legacy DATETIME schema")
+	}
+	if data != testData {
+		t.Errorf("Expected %s, got %s", testData, data)
+	}
+
+	// Age the entry past TTL and confirm it now reads as a miss.
+	setCachedAt(t, cache, legacyTable, testKey, time.Now().Add(-2*time.Hour))
+
+	data, fromCache, err = cache.Get(legacyTable, testKey, time.Hour)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if fromCache {
+		t.Error("Expected cache miss for expired legacy entry")
+	}
+	if data != "" {
+		t.Errorf("Expected empty string for expired cache, got %s", data)
 	}
 }
 

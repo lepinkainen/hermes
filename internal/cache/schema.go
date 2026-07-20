@@ -8,8 +8,8 @@ const OMDBCacheSchema = `
 CREATE TABLE IF NOT EXISTS omdb_cache (
 	cache_key TEXT PRIMARY KEY NOT NULL,
 	data TEXT NOT NULL,
-	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_omdb_cached_at ON omdb_cache(cached_at);
 `
@@ -19,8 +19,8 @@ const OpenLibraryCacheSchema = `
 CREATE TABLE IF NOT EXISTS openlibrary_cache (
 	cache_key TEXT PRIMARY KEY NOT NULL,
 	data TEXT NOT NULL,
-	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_openlibrary_cached_at ON openlibrary_cache(cached_at);
 `
@@ -30,8 +30,8 @@ const SteamCacheSchema = `
 CREATE TABLE IF NOT EXISTS steam_cache (
 	cache_key TEXT PRIMARY KEY NOT NULL,
 	data TEXT NOT NULL,
-	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_steam_cached_at ON steam_cache(cached_at);
 `
@@ -41,8 +41,8 @@ const SteamAchievementsCacheSchema = `
 CREATE TABLE IF NOT EXISTS steam_achievements_cache (
 	cache_key TEXT PRIMARY KEY NOT NULL,
 	data TEXT NOT NULL,
-	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_steam_achievements_cached_at ON steam_achievements_cache(cached_at);
 `
@@ -52,8 +52,8 @@ const SteamOwnedGamesCacheSchema = `
 CREATE TABLE IF NOT EXISTS steam_owned_games_cache (
 	cache_key TEXT PRIMARY KEY NOT NULL,
 	data TEXT NOT NULL,
-	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_steam_owned_games_cached_at ON steam_owned_games_cache(cached_at);
 `
@@ -63,8 +63,8 @@ const SteamSearchCacheSchema = `
 CREATE TABLE IF NOT EXISTS steam_search_cache (
 	cache_key TEXT PRIMARY KEY NOT NULL,
 	data TEXT NOT NULL,
-	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_steam_search_cached_at ON steam_search_cache(cached_at);
 `
@@ -74,8 +74,8 @@ const LetterboxdCacheSchema = `
 CREATE TABLE IF NOT EXISTS letterboxd_cache (
 	cache_key TEXT PRIMARY KEY NOT NULL,
 	data TEXT NOT NULL,
-	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_letterboxd_cached_at ON letterboxd_cache(cached_at);
 `
@@ -85,8 +85,8 @@ const TMDBCacheSchema = `
 CREATE TABLE IF NOT EXISTS tmdb_cache (
 	cache_key TEXT PRIMARY KEY NOT NULL,
 	data TEXT NOT NULL,
-	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_tmdb_cached_at ON tmdb_cache(cached_at);
 `
@@ -96,8 +96,8 @@ const GoogleBooksCacheSchema = `
 CREATE TABLE IF NOT EXISTS googlebooks_cache (
 	cache_key TEXT PRIMARY KEY NOT NULL,
 	data TEXT NOT NULL,
-	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_googlebooks_cached_at ON googlebooks_cache(cached_at);
 `
@@ -107,8 +107,8 @@ const BookBrainzCacheSchema = `
 CREATE TABLE IF NOT EXISTS bookbrainz_cache (
 	cache_key TEXT PRIMARY KEY NOT NULL,
 	data TEXT NOT NULL,
-	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_bookbrainz_cached_at ON bookbrainz_cache(cached_at);
 `
@@ -121,8 +121,8 @@ CREATE TABLE IF NOT EXISTS letterboxd_mapping_cache (
 	tmdb_id INTEGER,
 	tmdb_type TEXT,
 	imdb_id TEXT,
-	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_letterboxd_mapping_cached_at ON letterboxd_mapping_cache(cached_at);
 `
@@ -132,8 +132,8 @@ const ISBNdbCacheSchema = `
 CREATE TABLE IF NOT EXISTS isbndb_cache (
 	cache_key TEXT PRIMARY KEY NOT NULL,
 	data TEXT NOT NULL,
-	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_isbndb_cached_at ON isbndb_cache(cached_at);
 `
@@ -143,8 +143,8 @@ const FinnaCacheSchema = `
 CREATE TABLE IF NOT EXISTS finna_cache (
 	cache_key TEXT PRIMARY KEY NOT NULL,
 	data TEXT NOT NULL,
-	cached_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_finna_cached_at ON finna_cache(cached_at);
 `

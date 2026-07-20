@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lepinkainen/hermes/internal/sqliteutil"
 	"github.com/spf13/viper"
 	_ "modernc.org/sqlite"
 )
@@ -18,6 +19,15 @@ const (
 	DefaultCacheTTL = 720 * time.Hour
 	// NegativeCacheTTL is the TTL for "not found" responses (7 days)
 	NegativeCacheTTL = 168 * time.Hour
+
+	// sqliteTimestampLayout matches the format produced by SQLite's
+	// CURRENT_TIMESTAMP ("YYYY-MM-DD HH:MM:SS", always UTC).
+	sqliteTimestampLayout = "2006-01-02 15:04:05"
+
+	// parseFailureEscalationThreshold is the number of per-key cached_at parse
+	// failures for a single table after which we stop logging a Warn per key
+	// and instead log a single Error noting the table is effectively uncached.
+	parseFailureEscalationThreshold = 10
 )
 
 // cacheEntryV1 wraps cached data with TTL metadata
@@ -36,6 +46,13 @@ type CacheDB struct {
 	db   *sql.DB
 	mu   sync.RWMutex
 	path string
+
+	// parseFailMu guards parseFailures, tracking per-table cached_at parse
+	// failures so we can escalate from a per-key Warn to a single Error once
+	// a table's data looks widely corrupt. Separate from mu since Get (the
+	// caller) only takes mu.RLock().
+	parseFailMu   sync.Mutex
+	parseFailures map[string]int
 }
 
 var (
@@ -109,7 +126,7 @@ func GetGlobalCache() (*CacheDB, error) {
 
 // NewCacheDB creates a new CacheDB instance and opens the database connection
 func NewCacheDB(dbPath string) (*CacheDB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := sql.Open("sqlite", sqliteutil.DSN(dbPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open cache database: %w", err)
 	}
@@ -124,8 +141,9 @@ func NewCacheDB(dbPath string) (*CacheDB, error) {
 	}
 
 	return &CacheDB{
-		db:   db,
-		path: dbPath,
+		db:            db,
+		path:          dbPath,
+		parseFailures: make(map[string]int),
 	}, nil
 }
 
@@ -359,6 +377,52 @@ func getOrFetchWithTTLSelector[T any](tableName, cacheKey string, fetchFunc Fetc
 	return data, false, nil
 }
 
+// parseCachedAt normalizes the value scanned from a cached_at column into a
+// time.Time. Under STRICT tables the column is declared TEXT (STRICT tables
+// reject DATETIME), so modernc.org/sqlite returns a string/[]byte rather than
+// auto-converting to time.Time. Legacy (pre-STRICT) databases still declare
+// the column DATETIME, in which case the driver hands back a time.Time
+// directly - support both so old, un-migrated cache.db files keep working.
+func parseCachedAt(v any) (time.Time, error) {
+	switch val := v.(type) {
+	case time.Time:
+		return val.UTC(), nil
+	case string:
+		return parseCachedAtString(val)
+	case []byte:
+		return parseCachedAtString(string(val))
+	default:
+		return time.Time{}, fmt.Errorf("unsupported cached_at type %T", v)
+	}
+}
+
+func parseCachedAtString(s string) (time.Time, error) {
+	if t, err := time.ParseInLocation(sqliteTimestampLayout, s, time.UTC); err == nil {
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("unrecognized cached_at format: %q", s)
+}
+
+// recordParseFailure logs a cached_at parse failure for tableName/key. Below
+// parseFailureEscalationThreshold failures it logs a per-key Warn like
+// before; at the threshold it logs one Error explaining the table's
+// cached_at data is widely corrupt and that deleting cache.db will fix it,
+// then stays quiet for subsequent failures on that table.
+func (c *CacheDB) recordParseFailure(tableName, key string, parseErr error) {
+	c.parseFailMu.Lock()
+	c.parseFailures[tableName]++
+	count := c.parseFailures[tableName]
+	c.parseFailMu.Unlock()
+
+	switch {
+	case count == parseFailureEscalationThreshold:
+		slog.Error("Cache table has widely corrupt cached_at data; caching is effectively disabled for it, delete cache.db to fix",
+			"table", tableName, "failures", count)
+	case count < parseFailureEscalationThreshold:
+		slog.Warn("Failed to parse cached_at, treating as cache miss", "table", tableName, "key", key, "error", parseErr)
+	}
+}
+
 // Get retrieves a cached value from the specified table
 // Returns the cached data, whether it was from cache, and any error
 // The ttl parameter is used as fallback for old cache entries without TTL metadata
@@ -377,13 +441,22 @@ func (c *CacheDB) Get(tableName, key string, fallbackTTL time.Duration) (string,
 	`, tableName)
 
 	var data string
-	var cachedAt time.Time
-	err := c.db.QueryRow(query, key).Scan(&data, &cachedAt)
-	if err == sql.ErrNoRows {
+	var cachedAtRaw any
+	err := c.db.QueryRow(query, key).Scan(&data, &cachedAtRaw)
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", false, nil
 	}
 	if err != nil {
 		return "", false, fmt.Errorf("failed to query cache: %w", err)
+	}
+
+	cachedAt, err := parseCachedAt(cachedAtRaw)
+	if err != nil {
+		// Under a STRICT (TEXT) cached_at column we always get a parseable string,
+		// so a failure here means genuinely corrupt data - treat as a cache miss
+		// rather than crashing the caller.
+		c.recordParseFailure(tableName, key, err)
+		return "", false, nil
 	}
 
 	// Try to unmarshal as wrapped entry (new format with custom TTL)
@@ -440,10 +513,10 @@ func (c *CacheDB) Set(tableName, key, data string, ttl time.Duration) error {
 
 	query := fmt.Sprintf(`
 		INSERT OR REPLACE INTO %s (cache_key, data, cached_at)
-		VALUES (?, ?, CURRENT_TIMESTAMP)
+		VALUES (?, ?, ?)
 	`, tableName)
 
-	_, err := c.db.Exec(query, key, dataToStore)
+	_, err := c.db.Exec(query, key, dataToStore, time.Now().UTC().Format(sqliteTimestampLayout))
 	if err != nil {
 		return fmt.Errorf("failed to set cache: %w", err)
 	}
@@ -466,7 +539,11 @@ func (c *CacheDB) ClearExpired(tableName string, ttl time.Duration) error {
 		WHERE cached_at < ?
 	`, tableName)
 
-	result, err := c.db.Exec(query, cutoff)
+	// cached_at is stored as TEXT (STRICT tables can't declare DATETIME), using
+	// SQLite's CURRENT_TIMESTAMP format ("YYYY-MM-DD HH:MM:SS", UTC). Binding a
+	// time.Time here would compare against a driver-formatted string that doesn't
+	// match, so format the cutoff the same way for a correct lexicographic comparison.
+	result, err := c.db.Exec(query, cutoff.Format(sqliteTimestampLayout))
 	if err != nil {
 		return fmt.Errorf("failed to clear expired cache: %w", err)
 	}
