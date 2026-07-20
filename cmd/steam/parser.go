@@ -14,6 +14,7 @@ import (
 	"github.com/lepinkainen/hermes/internal/config"
 	"github.com/lepinkainen/hermes/internal/errors"
 	"github.com/lepinkainen/hermes/internal/fileutil"
+	"github.com/lepinkainen/hermes/internal/sqliteutil"
 	"github.com/spf13/viper"
 )
 
@@ -23,7 +24,7 @@ const steamGamesSchema = `CREATE TABLE IF NOT EXISTS steam_games (
 		playtime_forever INTEGER,
 		playtime_2weeks INTEGER,
 		last_played TEXT,
-		details_fetched BOOLEAN,
+		details_fetched INTEGER,
 		detailed_description TEXT,
 		short_description TEXT,
 		header_image TEXT,
@@ -31,7 +32,7 @@ const steamGamesSchema = `CREATE TABLE IF NOT EXISTS steam_games (
 		developers TEXT,
 		publishers TEXT,
 		release_date TEXT,
-		coming_soon BOOLEAN,
+		coming_soon INTEGER,
 		categories TEXT,
 		genres TEXT,
 		metacritic_score INTEGER,
@@ -39,7 +40,7 @@ const steamGamesSchema = `CREATE TABLE IF NOT EXISTS steam_games (
 		achievements_total INTEGER,
 		achievements_unlocked INTEGER,
 		achievements_data TEXT
-	)`
+	) STRICT`
 
 // Convert GameDetails to map[string]any for database insertion
 func gameDetailsToMap(details GameDetails) map[string]any {
@@ -208,7 +209,7 @@ func ParseSteam() error {
 	// Run migration before writing to datastore
 	if viper.GetBool("datasette.enabled") {
 		dbPath := viper.GetString("datasette.dbfile")
-		db, err := sql.Open("sqlite", dbPath)
+		db, err := sql.Open("sqlite", sqliteutil.DSN(dbPath))
 		if err == nil {
 			// Run migration to add achievement columns if they don't exist
 			if migErr := MigrateAchievementColumns(db); migErr != nil {

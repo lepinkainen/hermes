@@ -45,7 +45,7 @@ const IMDbMoviesSchema = `CREATE TABLE IF NOT EXISTS imdb_movies (
 		content_rated TEXT,
 		awards TEXT,
 		poster_url TEXT
-	)`
+	) STRICT`
 
 // Convert MovieSeen to map[string]any for database insertion
 func movieToMap(movie MovieSeen) map[string]any {

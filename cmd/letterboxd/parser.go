@@ -36,7 +36,7 @@ const LetterboxdMoviesSchema = `CREATE TABLE IF NOT EXISTS letterboxd_movies (
 		community_rating REAL,
 		poster_url TEXT,
 		description TEXT
-	)`
+	) STRICT`
 
 // Convert Movie to map[string]any for database insertion
 func movieToMap(movie Movie) map[string]any {

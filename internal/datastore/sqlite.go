@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lepinkainen/hermes/internal/sqliteutil"
 	_ "modernc.org/sqlite"
 )
 
@@ -23,7 +24,7 @@ func NewSQLiteStore(dbPath string) *SQLiteStore {
 
 // Connect opens a connection to the SQLite database
 func (s *SQLiteStore) Connect() error {
-	db, err := sql.Open("sqlite", s.dbPath)
+	db, err := sql.Open("sqlite", sqliteutil.DSN(s.dbPath))
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}

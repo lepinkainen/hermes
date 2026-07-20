@@ -47,7 +47,7 @@ const goodreadsBooksSchema = `CREATE TABLE IF NOT EXISTS goodreads_books (
 		cover_url TEXT,
 		subject_people TEXT,
 		subtitle TEXT
-	)`
+	) STRICT`
 
 func writeBooksToDatasetteIfEnabled(books []Book) error {
 	return cmdutil.WriteToDatastore(books, goodreadsBooksSchema, "goodreads_books", "Goodreads books", bookToMap)
