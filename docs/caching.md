@@ -79,7 +79,7 @@ This is useful when:
 
 ## Troubleshooting
 
-- Stale results: use `hermes cache invalidate <source>` to clear a specific cache, or delete `cache.db` to clear all caches; tables recreate automatically.
+- Stale results: use `hermes cache invalidate <source>` to clear a specific cache, or delete `cache.db` (and its `cache.db-wal`/`cache.db-shm` sidecar files, e.g. `rm cache.db*`) to clear all caches; tables recreate automatically.
 - Need a one-off refresh: use flags that trigger the provider's force/re-enrich behaviour (e.g., `--force` for enhance) to bypass cached TMDB data.
 - Wrong cache location: set `CACHE_DBFILE=/custom/path/cache.db` or pass `--cache-db-file` to point Hermes at the right database.
 

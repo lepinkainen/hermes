@@ -416,8 +416,8 @@ sqlite3 cache.db "SELECT cache_key, cached_at FROM steam_cache
 # Clear specific source
 hermes cache invalidate tmdb
 
-# Clear all (delete entire database)
-rm cache.db
+# Clear all (delete entire database, including WAL/SHM sidecar files)
+rm cache.db cache.db-wal cache.db-shm
 ```
 
 ---
