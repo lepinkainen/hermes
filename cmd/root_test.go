@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/alecthomas/kong"
@@ -447,4 +448,26 @@ func TestCommandStructure(t *testing.T) {
 
 	// Verify Cache command exists
 	assert.NotNil(t, cli.Cache)
+}
+
+func TestVersionStringUsesInjectedBuildInfo(t *testing.T) {
+	origVersion, origCommit, origDate := version, gitCommit, buildDate
+	t.Cleanup(func() { SetVersionInfo(origVersion, origCommit, origDate) })
+
+	SetVersionInfo("1.2.3", "abc1234", "2026-08-06T00:00:00Z")
+
+	got := VersionString()
+	assert.Contains(t, got, "hermes 1.2.3")
+	assert.Contains(t, got, "abc1234")
+	assert.Contains(t, got, "2026-08-06T00:00:00Z")
+	assert.Contains(t, got, runtime.Version())
+}
+
+func TestVersionStringDefaultsWhenNotInjected(t *testing.T) {
+	origVersion, origCommit, origDate := version, gitCommit, buildDate
+	t.Cleanup(func() { SetVersionInfo(origVersion, origCommit, origDate) })
+
+	SetVersionInfo("dev", "unknown", "unknown")
+
+	assert.Equal(t, "hermes dev (commit unknown, built unknown, "+runtime.Version()+")", VersionString())
 }

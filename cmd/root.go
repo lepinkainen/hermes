@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
+	"runtime"
 
 	"github.com/alecthomas/kong"
 	"github.com/lepinkainen/hermes/cmd/diff"
@@ -41,7 +43,24 @@ type CLI struct {
 	Cache   CacheCmd           `cmd:"" help:"Manage cache database"`
 	Diff    diff.DiffCmd       `cmd:"" help:"Diff imported data between sources"`
 
-	// Version command could be added here in the future
+	Version kong.VersionFlag `help:"Print version information and exit"`
+}
+
+// Build information, populated by SetVersionInfo from main's -ldflags values.
+var (
+	version   = "dev"
+	gitCommit = "unknown"
+	buildDate = "unknown"
+)
+
+// SetVersionInfo records the build information injected into main at link time.
+func SetVersionInfo(v, commit, date string) {
+	version, gitCommit, buildDate = v, commit, date
+}
+
+// VersionString renders the build information shown by --version.
+func VersionString() string {
+	return fmt.Sprintf("hermes %s (commit %s, built %s, %s)", version, gitCommit, buildDate, runtime.Version())
 }
 
 // ImportCmd represents the import command and its subcommands
@@ -71,6 +90,7 @@ func Execute() {
 		kong.Name("hermes"),
 		kong.Description("A tool to import data from various sources into a unified format."),
 		kong.UsageOnError(),
+		kong.Vars{"version": VersionString()},
 	)
 
 	// Update global config based on parsed flags
@@ -155,8 +175,8 @@ func initConfig() {
 		var cfgNotFoundErr viper.ConfigFileNotFoundError
 		if errors.As(err, &cfgNotFoundErr) {
 			slog.Info("Config file not found, writing default config file...")
-			if err := viper.SafeWriteConfig(); err != nil {
-				slog.Error("Error writing config file", "error", err)
+			if writeErr := viper.SafeWriteConfig(); writeErr != nil {
+				slog.Error("Error writing config file", "error", writeErr)
 			}
 			os.Exit(0)
 		} else {
