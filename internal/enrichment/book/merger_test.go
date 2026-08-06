@@ -6,10 +6,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func strPtr(value string) *string { return &value }
-
-func intPtr(value int) *int { return &value }
-
 func TestPriorityMerger_MergeEmptyResults(t *testing.T) {
 	merger := NewPriorityMerger()
 
@@ -24,26 +20,26 @@ func TestPriorityMerger_MergePriorityOrderWins(t *testing.T) {
 		{
 			Priority: 20,
 			Data: &EnrichmentData{
-				Title:         strPtr("Low Priority Title"),
-				Description:   strPtr("Low Priority Description"),
-				Publisher:     strPtr("Low Priority Publisher"),
-				NumberOfPages: intPtr(111),
-				CoverURL:      strPtr("https://example.com/low.jpg"),
-				PublishDate:   strPtr("1999"),
-				Language:      strPtr("fi"),
+				Title:         new("Low Priority Title"),
+				Description:   new("Low Priority Description"),
+				Publisher:     new("Low Priority Publisher"),
+				NumberOfPages: new(111),
+				CoverURL:      new("https://example.com/low.jpg"),
+				PublishDate:   new("1999"),
+				Language:      new("fi"),
 				Authors:       []string{"Low Author"},
 			},
 		},
 		{
 			Priority: 10,
 			Data: &EnrichmentData{
-				Title:         strPtr("High Priority Title"),
-				Description:   strPtr("High Priority Description"),
-				Publisher:     strPtr("High Priority Publisher"),
-				NumberOfPages: intPtr(222),
-				CoverURL:      strPtr("https://example.com/high.jpg"),
-				PublishDate:   strPtr("2001"),
-				Language:      strPtr("en"),
+				Title:         new("High Priority Title"),
+				Description:   new("High Priority Description"),
+				Publisher:     new("High Priority Publisher"),
+				NumberOfPages: new(222),
+				CoverURL:      new("https://example.com/high.jpg"),
+				PublishDate:   new("2001"),
+				Language:      new("en"),
 				Authors:       []string{"High Author"},
 			},
 		},
@@ -68,27 +64,27 @@ func TestPriorityMerger_MergeSkipsEmptyHighPriorityValues(t *testing.T) {
 		{
 			Priority: 1,
 			Data: &EnrichmentData{
-				Title:         strPtr(""),
-				Subtitle:      strPtr(""),
-				Description:   strPtr(""),
-				Publisher:     strPtr(""),
-				NumberOfPages: intPtr(0),
-				CoverURL:      strPtr(""),
-				PublishDate:   strPtr(""),
-				Language:      strPtr(""),
+				Title:         new(""),
+				Subtitle:      new(""),
+				Description:   new(""),
+				Publisher:     new(""),
+				NumberOfPages: new(0),
+				CoverURL:      new(""),
+				PublishDate:   new(""),
+				Language:      new(""),
 			},
 		},
 		{
 			Priority: 2,
 			Data: &EnrichmentData{
-				Title:         strPtr("Fallback Title"),
-				Subtitle:      strPtr("Fallback Subtitle"),
-				Description:   strPtr("Fallback Description"),
-				Publisher:     strPtr("Fallback Publisher"),
-				NumberOfPages: intPtr(333),
-				CoverURL:      strPtr("https://example.com/fallback.jpg"),
-				PublishDate:   strPtr("2020"),
-				Language:      strPtr("en"),
+				Title:         new("Fallback Title"),
+				Subtitle:      new("Fallback Subtitle"),
+				Description:   new("Fallback Description"),
+				Publisher:     new("Fallback Publisher"),
+				NumberOfPages: new(333),
+				CoverURL:      new("https://example.com/fallback.jpg"),
+				PublishDate:   new("2020"),
+				Language:      new("en"),
 			},
 		},
 	}
@@ -150,7 +146,7 @@ func TestPriorityMerger_MergeIgnoresNilData(t *testing.T) {
 	merger := NewPriorityMerger()
 	results := []EnricherResult{
 		{Priority: 1, Data: nil},
-		{Priority: 2, Data: &EnrichmentData{Title: strPtr("Available Title")}},
+		{Priority: 2, Data: &EnrichmentData{Title: new("Available Title")}},
 	}
 
 	result := merger.Merge(results)
