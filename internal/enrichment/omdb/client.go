@@ -74,8 +74,8 @@ func FetchByIMDBID(ctx context.Context, imdbID string) (*OMDBResponse, error) {
 		return nil, err
 	}
 
-	if err := omdbRateWait(ctx); err != nil {
-		return nil, fmt.Errorf("rate limit wait failed: %w", err)
+	if waitErr := omdbRateWait(ctx); waitErr != nil {
+		return nil, fmt.Errorf("rate limit wait failed: %w", waitErr)
 	}
 
 	slog.Debug("Fetching OMDB data by IMDb ID", "imdb_id", imdbID)
@@ -142,8 +142,8 @@ func FetchByTitleYear(ctx context.Context, title string, year int) (*OMDBRespons
 		return nil, err
 	}
 
-	if err := omdbRateWait(ctx); err != nil {
-		return nil, fmt.Errorf("rate limit wait failed: %w", err)
+	if waitErr := omdbRateWait(ctx); waitErr != nil {
+		return nil, fmt.Errorf("rate limit wait failed: %w", waitErr)
 	}
 
 	slog.Debug("Fetching OMDB data by title and year", "title", title, "year", year)

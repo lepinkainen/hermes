@@ -59,6 +59,9 @@ linters:
         linters:
           - noctx
   settings:
+    govet:
+      enable:
+        - shadow
     gocyclo:
       # raised from 15 due to existing oversized funcs; ratchet down as code is refactored
       min-complexity: 30
