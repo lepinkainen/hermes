@@ -18,13 +18,17 @@ import (
 type Note struct {
 	// Frontmatter fields (typed for convenience)
 	Title        string
-	Type         string // "movie", "tv", or "game"
+	Type         string // "movie", "tv", "game", or "book"
 	Year         int
 	IMDBID       string
 	TMDBID       int
 	LetterboxdID string
 	SteamAppID   int
+	RAWGID       int
 	Seen         bool
+	ISBN         string
+	ISBN13       string
+	GoodreadsID  string
 
 	// Structured frontmatter and content using obsidian package
 	Frontmatter *obsidian.Frontmatter
@@ -80,6 +84,11 @@ func parseNote(fileContent string) (*Note, error) {
 
 	note.Seen = note.Frontmatter.GetBool("seen")
 	note.SteamAppID = note.Frontmatter.GetInt("steam_appid")
+	note.RAWGID = note.Frontmatter.GetInt("rawg_id")
+
+	note.ISBN = note.Frontmatter.GetString("isbn")
+	note.ISBN13 = note.Frontmatter.GetString("isbn13")
+	note.GoodreadsID = note.Frontmatter.GetString("goodreads_id")
 
 	return note, nil
 }
@@ -116,6 +125,17 @@ func (n *Note) NeedsContent() bool {
 // IsGame returns true if this note is detected as a game note.
 func (n *Note) IsGame() bool {
 	return n.Type == "game"
+}
+
+// IsBook returns true if this note is detected as a book note.
+func (n *Note) IsBook() bool {
+	return n.Type == "book"
+}
+
+// NeedsGoodreadsContent checks if the note needs Goodreads-style book content
+// sections. Returns true if the content markers are missing from the body.
+func (n *Note) NeedsGoodreadsContent() bool {
+	return !content.HasGoodreadsContentMarkers(n.Body)
 }
 
 // HasSteamData checks if the note already has Steam data in both frontmatter and body.
@@ -201,8 +221,9 @@ func (n *Note) AddSteamData(steamData *enrichment.SteamEnrichment) {
 	n.SteamAppID = steamData.SteamAppID
 
 	if len(steamData.GenreTags) > 0 {
-		// Merge with existing tags using obsidian utility
-		existingTags := n.Frontmatter.GetStringArray("tags")
+		// Replace tool-managed genre/* tags rather than union-merging, so
+		// stale genres from a prior match don't accumulate on regenerate.
+		existingTags := stripGenreTags(n.Frontmatter.GetStringArray("tags"))
 		mergedTags := obsidian.MergeTags(existingTags, steamData.GenreTags)
 		n.Frontmatter.Set("tags", mergedTags)
 	}
@@ -225,6 +246,120 @@ func (n *Note) AddSteamData(steamData *enrichment.SteamEnrichment) {
 
 	if steamData.MetacriticScore > 0 {
 		n.Frontmatter.Set("metacritic_score", steamData.MetacriticScore)
+	}
+}
+
+// AddGameData adds RAWG game enrichment data to the note's frontmatter.
+// This is the fallback path used when Steam has no listing for a title
+// (console/handheld exclusives); it writes rawg_id instead of steam_appid.
+func (n *Note) AddGameData(gameData *enrichment.GameEnrichment) {
+	if gameData == nil {
+		return
+	}
+
+	// RAWG-sourced note: this title isn't on Steam, so drop any stale
+	// steam_appid a prior (mis)match may have written — otherwise a bogus
+	// Steam id lingers next to the correct rawg_id.
+	n.Frontmatter.Delete("steam_appid")
+	n.SteamAppID = 0
+
+	n.Frontmatter.Set("rawg_id", gameData.RAWGID)
+	n.RAWGID = gameData.RAWGID
+
+	if len(gameData.GenreTags) > 0 {
+		// Replace tool-managed genre/* tags with the authoritative source's
+		// genres; union-merging would let stale genres from a prior wrong
+		// match accumulate. Non-genre tags are preserved.
+		existingTags := stripGenreTags(n.Frontmatter.GetStringArray("tags"))
+		mergedTags := obsidian.MergeTags(existingTags, gameData.GenreTags)
+		n.Frontmatter.Set("tags", mergedTags)
+	}
+
+	if gameData.CoverPath != "" {
+		n.Frontmatter.Set("cover", gameData.CoverPath)
+	}
+
+	if len(gameData.Developers) > 0 {
+		n.Frontmatter.Set("developers", gameData.Developers)
+	}
+
+	if len(gameData.Publishers) > 0 {
+		n.Frontmatter.Set("publishers", gameData.Publishers)
+	}
+
+	if gameData.ReleaseDate != "" {
+		n.Frontmatter.Set("release_date", gameData.ReleaseDate)
+	}
+
+	if gameData.MetacriticScore > 0 {
+		n.Frontmatter.Set("metacritic_score", gameData.MetacriticScore)
+	}
+}
+
+// stripGenreTags drops tool-managed "genre/*" tags, preserving all others.
+// Genre tags are owned by the enrichment source, so on (re)enrichment they
+// are replaced wholesale rather than union-merged (which would let stale
+// genres from a prior, possibly wrong, match linger).
+func stripGenreTags(tags []string) []string {
+	kept := make([]string, 0, len(tags))
+	for _, t := range tags {
+		if strings.HasPrefix(t, "genre/") {
+			continue
+		}
+		kept = append(kept, t)
+	}
+	return kept
+}
+
+// AddBookData adds book enrichment data to the note's frontmatter.
+// Unlike AddTMDBData/AddSteamData, fields are only filled in when currently
+// empty/missing: Goodreads-exported data is treated as authoritative, and
+// enrichment only fills gaps left by the original import.
+func (n *Note) AddBookData(d *enrichment.BookEnrichment) {
+	if d == nil {
+		return
+	}
+
+	if n.Frontmatter.GetString("isbn") == "" && d.ISBN != "" {
+		n.Frontmatter.Set("isbn", d.ISBN)
+		n.ISBN = d.ISBN
+	}
+
+	if n.Frontmatter.GetString("isbn13") == "" && d.ISBN13 != "" {
+		n.Frontmatter.Set("isbn13", d.ISBN13)
+		n.ISBN13 = d.ISBN13
+	}
+
+	if n.Frontmatter.GetString("cover") == "" && d.CoverPath != "" {
+		n.Frontmatter.Set("cover", d.CoverPath)
+	}
+
+	if n.Frontmatter.GetInt("pages") == 0 && d.Pages > 0 {
+		n.Frontmatter.Set("pages", d.Pages)
+	}
+
+	if n.Frontmatter.GetString("publisher") == "" && d.Publisher != "" {
+		n.Frontmatter.Set("publisher", d.Publisher)
+	}
+
+	if n.Frontmatter.GetString("description") == "" && d.Description != "" {
+		n.Frontmatter.Set("description", d.Description)
+	}
+
+	if n.Frontmatter.GetString("subtitle") == "" && d.Subtitle != "" {
+		n.Frontmatter.Set("subtitle", d.Subtitle)
+	}
+
+	if len(n.Frontmatter.GetStringArray("authors")) == 0 && len(d.Authors) > 0 {
+		n.Frontmatter.Set("authors", d.Authors)
+	}
+
+	if len(n.Frontmatter.GetStringArray("subjects")) == 0 && len(d.Subjects) > 0 {
+		n.Frontmatter.Set("subjects", d.Subjects)
+	}
+
+	if len(n.Frontmatter.GetStringArray("subject_people")) == 0 && len(d.SubjectPeople) > 0 {
+		n.Frontmatter.Set("subject_people", d.SubjectPeople)
 	}
 }
 
@@ -339,6 +474,133 @@ func (n *Note) BuildMarkdownForSteam(originalContent string, steamData *enrichme
 	}
 
 	return string(result)
+}
+
+// BuildMarkdownForGame builds the complete markdown content with updated
+// frontmatter and RAWG game content. It reuses the Steam content markers
+// (content.WrapWithSteamMarkers/ReplaceSteamContent) so NeedsSteamContent's
+// skip logic works uniformly regardless of whether a game note was
+// enriched from Steam or RAWG.
+func (n *Note) BuildMarkdownForGame(originalContent string, gameData *enrichment.GameEnrichment, overwrite bool) string {
+	body := n.Body
+	if gameData != nil && gameData.ContentMarkdown != "" {
+		if content.HasSteamContentMarkers(body) {
+			// Replace existing content between markers
+			if overwrite {
+				body = content.ReplaceSteamContent(body, gameData.ContentMarkdown)
+			}
+		} else {
+			// No markers exist - append wrapped content
+			wrappedContent := content.WrapWithSteamMarkers(gameData.ContentMarkdown)
+			body = strings.TrimRight(body, "\n")
+			if body != "" {
+				body += "\n\n"
+			}
+			body += wrappedContent
+		}
+	}
+
+	// Build using obsidian package
+	obsNote := &obsidian.Note{
+		Frontmatter: n.Frontmatter,
+		Body:        body,
+	}
+
+	result, err := obsNote.Build()
+	if err != nil {
+		// Fallback to original if building fails
+		return originalContent
+	}
+
+	return string(result)
+}
+
+// BuildMarkdownForBook builds the complete markdown content with updated
+// frontmatter and Goodreads-style book content.
+func (n *Note) BuildMarkdownForBook(originalContent string, d *enrichment.BookEnrichment, regenerate bool) string {
+	// Handle book content with marker-based replacement
+	body := n.Body
+	if d != nil && d.ContentMarkdown != "" {
+		if content.HasGoodreadsContentMarkers(body) {
+			// Replace existing content between markers
+			if regenerate {
+				body = content.ReplaceGoodreadsContent(body, d.ContentMarkdown)
+			}
+		} else {
+			// No markers exist - append wrapped content
+			wrappedContent := content.WrapWithGoodreadsMarkers(d.ContentMarkdown)
+			body = strings.TrimRight(body, "\n")
+			if body != "" {
+				body += "\n\n"
+			}
+			body += wrappedContent
+		}
+	}
+
+	// Build using obsidian package
+	obsNote := &obsidian.Note{
+		Frontmatter: n.Frontmatter,
+		Body:        body,
+	}
+
+	result, err := obsNote.Build()
+	if err != nil {
+		// Fallback to original if building fails
+		return originalContent
+	}
+
+	return string(result)
+}
+
+// buildGoodreadsBaseDetails builds a GoodreadsBookDetails from the note's
+// existing frontmatter, to be used as BookEnrichmentOptions.BaseDetails.
+// Enrichment only fills fields left empty here.
+func (n *Note) buildGoodreadsBaseDetails() *content.GoodreadsBookDetails {
+	fm := n.Frontmatter
+	return &content.GoodreadsBookDetails{
+		Title:                   n.Title,
+		Subtitle:                fm.GetString("subtitle"),
+		Authors:                 fm.GetStringArray("authors"),
+		Publisher:               fm.GetString("publisher"),
+		Pages:                   fm.GetInt("pages"),
+		YearPublished:           n.Year,
+		OriginalPublicationYear: fm.GetInt("original_year"),
+		MyRating:                floatFromFrontmatter(fm, "my_rating"),
+		AverageRating:           floatFromFrontmatter(fm, "average_rating"),
+		ISBN:                    n.ISBN,
+		ISBN13:                  n.ISBN13,
+		Binding:                 fm.GetString("binding"),
+		GoodreadsID:             n.GoodreadsID,
+		Description:             fm.GetString("description"),
+		Subjects:                fm.GetStringArray("subjects"),
+		SubjectPeople:           fm.GetStringArray("subject_people"),
+	}
+}
+
+// floatFromFrontmatter reads a numeric frontmatter field as a float64.
+// YAML unmarshaling can produce int, int64, float64, or string for numeric
+// fields (e.g. my_rating may be an int like "5" or a float like "4.5");
+// all are handled. Returns 0 if the field is missing or not convertible.
+func floatFromFrontmatter(fm *obsidian.Frontmatter, key string) float64 {
+	val, ok := fm.Get(key)
+	if !ok {
+		return 0
+	}
+	switch v := val.(type) {
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case string:
+		if f, err := strconv.ParseFloat(strings.TrimSpace(v), 64); err == nil {
+			return f
+		}
+	}
+	return 0
 }
 
 // readFile is a helper to read file content.

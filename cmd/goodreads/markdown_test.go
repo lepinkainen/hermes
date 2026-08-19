@@ -133,11 +133,52 @@ func TestWriteBookToMarkdown(t *testing.T) {
 			require.NoError(t, err)
 
 			// Read the generated file
-			generatedFilePath := filepath.Join(env.RootDir(), fileutil.SanitizeFilename(tc.book.Title)+".md")
+			generatedFilePath := filepath.Join(env.RootDir(), bookNoteFilename(&tc.book)+".md")
 			generated := env.ReadFile(generatedFilePath[len(env.RootDir())+1:])
 
 			// Compare with golden file (handles UPDATE_GOLDEN automatically)
 			golden.AssertGolden(tc.wantFile, generated)
+		})
+	}
+}
+
+func TestBookNoteFilename(t *testing.T) {
+	testCases := []struct {
+		name string
+		book Book
+		want string
+	}{
+		{
+			name: "single author",
+			book: Book{Title: "Test Book", Authors: []string{"Author One"}},
+			want: "Author One - Test Book",
+		},
+		{
+			name: "multiple authors uses first only",
+			book: Book{Title: "Test Book", Authors: []string{"Author One", "Author Two"}},
+			want: "Author One - Test Book",
+		},
+		{
+			name: "no authors falls back to title only",
+			book: Book{Title: "Test Book", Authors: nil},
+			want: "Test Book",
+		},
+		{
+			name: "empty first author falls back to title only",
+			book: Book{Title: "Test Book", Authors: []string{""}},
+			want: "Test Book",
+		},
+		{
+			name: "sanitizes characters invalid on filesystems",
+			book: Book{Title: "A Title: Subtitle", Authors: []string{"Author/Name"}},
+			want: "Author-Name - A Title - Subtitle",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := bookNoteFilename(&tc.book)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

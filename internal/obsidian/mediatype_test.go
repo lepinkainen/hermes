@@ -47,6 +47,41 @@ func TestDetectMediaType(t *testing.T) {
 			want: "movie",
 		},
 		{
+			name: "type field book",
+			fm:   fmFrom(map[string]any{"type": "book"}),
+			want: "book",
+		},
+		{
+			name: "tmdb_type takes precedence over type book",
+			fm:   fmFrom(map[string]any{"tmdb_type": "movie", "type": "book"}),
+			want: "movie",
+		},
+		{
+			name: "detect from goodreads/book tag",
+			fm:   fmFrom(map[string]any{"tags": []any{"goodreads/book"}}),
+			want: "book",
+		},
+		{
+			name: "detect from book tag",
+			fm:   fmFrom(map[string]any{"tags": []any{"book", "fiction"}}),
+			want: "book",
+		},
+		{
+			name: "detect from book/fiction tag",
+			fm:   fmFrom(map[string]any{"tags": []any{"book/fiction"}}),
+			want: "book",
+		},
+		{
+			name: "detect from books tag",
+			fm:   fmFrom(map[string]any{"tags": []any{"books"}}),
+			want: "book",
+		},
+		{
+			name: "detect from books/scifi tag",
+			fm:   fmFrom(map[string]any{"tags": []any{"books/scifi"}}),
+			want: "book",
+		},
+		{
 			name: "tv/ prefix beats movie/",
 			fm:   fmFrom(map[string]any{"tags": []any{"movie/Crime", "tv/Action-and-Adventure"}}),
 			want: "tv",

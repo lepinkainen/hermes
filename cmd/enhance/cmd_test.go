@@ -469,6 +469,7 @@ func TestEnhanceCmd_Run_OptionsMapping(t *testing.T) {
 	assert.False(t, capturedOpts.DryRun)
 	assert.True(t, capturedOpts.TMDBDownloadCover)
 	assert.True(t, capturedOpts.TMDBInteractive)
+	assert.True(t, capturedOpts.BookInteractive)
 }
 
 func TestEnhanceCmd_Run_UsesConfigValues(t *testing.T) {
@@ -483,6 +484,7 @@ func TestEnhanceCmd_Run_UsesConfigValues(t *testing.T) {
 	viper.Set("enhance.tmdb_no_interactive", true)
 	viper.Set("enhance.tmdb_content_sections", []string{"cast", "crew"})
 	viper.Set("enhance.omdb_no_enrich", true)
+	viper.Set("enhance.book_no_interactive", true)
 
 	var captured []Options
 	mockFunc := func(opts Options) error {
@@ -508,6 +510,7 @@ func TestEnhanceCmd_Run_UsesConfigValues(t *testing.T) {
 	assert.False(t, captured[0].TMDBInteractive)
 	assert.Equal(t, []string{"cast", "crew"}, captured[0].TMDBContentSections)
 	assert.False(t, captured[0].OMDBEnrich)
+	assert.False(t, captured[0].BookInteractive)
 }
 
 func TestEnhanceCmd_Run_FlagValuesOverrideConfig(t *testing.T) {
@@ -522,6 +525,7 @@ func TestEnhanceCmd_Run_FlagValuesOverrideConfig(t *testing.T) {
 	viper.Set("enhance.tmdb_no_interactive", false)
 	viper.Set("enhance.tmdb_content_sections", []string{"config-section"})
 	viper.Set("enhance.omdb_no_enrich", false)
+	viper.Set("enhance.book_no_interactive", false)
 
 	var capturedOpts Options
 	mockFunc := func(opts Options) error {
@@ -543,6 +547,7 @@ func TestEnhanceCmd_Run_FlagValuesOverrideConfig(t *testing.T) {
 		TMDBNoInteractive:   true,
 		TMDBContentSections: []string{"flag-section"},
 		OMDBNoEnrich:        true,
+		BookNoInteractive:   true,
 	}).Run()
 	require.NoError(t, err)
 
@@ -555,6 +560,7 @@ func TestEnhanceCmd_Run_FlagValuesOverrideConfig(t *testing.T) {
 	assert.False(t, capturedOpts.TMDBInteractive)
 	assert.Equal(t, []string{"flag-section"}, capturedOpts.TMDBContentSections)
 	assert.False(t, capturedOpts.OMDBEnrich)
+	assert.False(t, capturedOpts.BookInteractive)
 }
 
 func TestEnhanceCmd_Run_MultipleDirectories(t *testing.T) {

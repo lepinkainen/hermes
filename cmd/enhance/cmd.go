@@ -2,12 +2,15 @@
 package enhance
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/lepinkainen/hermes/cmd/letterboxd"
 	"github.com/lepinkainen/hermes/internal/config"
@@ -17,6 +20,13 @@ import (
 	"github.com/lepinkainen/hermes/internal/obsidian"
 	"github.com/spf13/viper"
 )
+
+// enrichBookFunc is a seam so tests can stub out the book enrichment pipeline.
+var enrichBookFunc = enrichment.EnrichFromBook
+
+// tmdbKeyWarnOnce ensures the "TMDB API key not configured" warning is only
+// logged once per process, even when many movie/TV notes are skipped.
+var tmdbKeyWarnOnce sync.Once
 
 // EnhanceCmd represents the enhance command
 type EnhanceCmd struct {
@@ -29,6 +39,7 @@ type EnhanceCmd struct {
 	TMDBNoInteractive   bool     `help:"Disable interactive TUI for TMDB selection (auto-select first result)" default:"false"`
 	TMDBContentSections []string `help:"Specific TMDB content sections to generate (empty = all)"`
 	OMDBNoEnrich        bool     `help:"Disable OMDB ratings enrichment" default:"false"`
+	BookNoInteractive   bool     `help:"Disable interactive book selection for notes without ISBN" default:"false"`
 }
 
 // Run executes the enhance command.
@@ -81,6 +92,11 @@ func (e *EnhanceCmd) Run() error {
 		omdbNoEnrich = viper.GetBool("enhance.omdb_no_enrich")
 	}
 
+	bookNoInteractive := e.BookNoInteractive
+	if !bookNoInteractive && viper.IsSet("enhance.book_no_interactive") {
+		bookNoInteractive = viper.GetBool("enhance.book_no_interactive")
+	}
+
 	for _, inputDir := range inputDirs {
 		opts := Options{
 			InputDir:            inputDir,
@@ -94,7 +110,8 @@ func (e *EnhanceCmd) Run() error {
 			TMDBContentSections: tmdbContentSections,
 			UseTMDBCoverCache:   viper.GetBool("tmdb.cover_cache.enabled"),
 			TMDBCoverCachePath:  viper.GetString("tmdb.cover_cache.path"),
-			OMDBEnrich:          !omdbNoEnrich, // Invert: default is enabled
+			OMDBEnrich:          !omdbNoEnrich,      // Invert: default is enabled
+			BookInteractive:     !bookNoInteractive, // Invert: default is interactive
 		}
 
 		if err := EnhanceNotesFunc(opts); err != nil {
@@ -134,15 +151,14 @@ type Options struct {
 	TMDBCoverCachePath string
 	// OMDBEnrich enables OMDB ratings enrichment (default: true)
 	OMDBEnrich bool
+	// BookInteractive enables TUI for multiple OpenLibrary matches when
+	// resolving an ISBN for books without one
+	BookInteractive bool
 }
 
 // EnhanceNotes processes markdown files and enriches them with TMDB data.
 func EnhanceNotes(opts Options) error {
 	ctx := context.Background()
-
-	if config.TMDBAPIKey == "" {
-		return fmt.Errorf("TMDB API key not configured (set in config.yaml or TMDB_API_KEY environment variable)")
-	}
 
 	slog.Info("Starting enhance process", "dir", opts.InputDir, "recursive", opts.Recursive)
 
@@ -188,6 +204,20 @@ func EnhanceNotes(opts Options) error {
 		}
 
 		// Route to appropriate enrichment based on media type
+		if note.IsBook() {
+			// Handle book enrichment
+			success, skip := processBookNote(ctx, file, note, opts, attachmentsDir)
+			switch {
+			case success:
+				successCount++
+			case skip:
+				skipCount++
+			default:
+				errorCount++
+			}
+			continue
+		}
+
 		if note.IsGame() {
 			// Handle game enrichment with Steam
 			success, skip := processGameNote(ctx, file, note, opts, attachmentsDir)
@@ -224,6 +254,13 @@ func EnhanceNotes(opts Options) error {
 // processMovieTVNote enriches a single movie/TV markdown note with TMDB (and optionally OMDB) data.
 // Returns (success, skip) — both false means the note errored.
 func processMovieTVNote(ctx context.Context, file string, note *Note, opts Options, attachmentsDir string) (bool, bool) {
+	if config.TMDBAPIKey == "" {
+		tmdbKeyWarnOnce.Do(func() {
+			slog.Warn("TMDB API key not configured, skipping movie/TV notes")
+		})
+		return false, true
+	}
+
 	noteDir := filepath.Dir(file)
 
 	needsCover := note.NeedsCover(noteDir)
@@ -475,19 +512,61 @@ func processGameNote(ctx context.Context, file string, note *Note, opts Options,
 		return false, false // error
 	}
 
-	if steamData == nil {
-		slog.Warn("No Steam data found for game", "title", note.Title, "path", file)
+	if steamData != nil {
+		// Update the note with Steam data
+		if err := updateNoteWithSteamData(file, note, steamData, opts.RegenerateData); err != nil {
+			slog.Warn("Failed to update game note", "path", file, "error", err)
+			return false, false // error
+		}
+
+		slog.Info("Enhanced game note", "title", note.Title, "steam_appid", steamData.SteamAppID)
+		return true, false // success
+	}
+
+	// Steam has no listing for this title (common for console/handheld
+	// exclusives, e.g. Uncharted, Shadow of the Colossus) — fall back to RAWG.
+	gameData, err := enrichment.EnrichFromRAWG(ctx, note.Title, steamOpts)
+	if err != nil {
+		slog.Warn("Failed to enrich game from RAWG", "title", note.Title, "error", err)
+		return false, false // error
+	}
+
+	if gameData == nil {
+		slog.Warn("No game data found (Steam or RAWG)", "title", note.Title, "path", file)
 		return false, true // skip
 	}
 
-	// Update the note with Steam data
-	if err := updateNoteWithSteamData(file, note, steamData, opts.RegenerateData); err != nil {
+	// Update the note with RAWG data
+	if err := updateNoteWithGameData(file, note, gameData, opts.RegenerateData); err != nil {
 		slog.Warn("Failed to update game note", "path", file, "error", err)
 		return false, false // error
 	}
 
-	slog.Info("Enhanced game note", "title", note.Title, "steam_appid", steamData.SteamAppID)
+	slog.Info("Enhanced game note", "title", note.Title, "rawg_id", gameData.RAWGID)
 	return true, false // success
+}
+
+// updateNoteWithGameData updates the note file with RAWG enrichment data.
+func updateNoteWithGameData(filePath string, note *Note, gameData *enrichment.GameEnrichment, overwrite bool) error {
+	// Read the original file
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Update frontmatter with RAWG data
+	note.AddGameData(gameData)
+
+	// Build the new file content
+	newContent := note.BuildMarkdownForGame(string(content), gameData, overwrite)
+
+	// Write back to file
+	_, err = fileutil.WriteFileWithOverwrite(filePath, []byte(newContent), 0o644, true)
+	if err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
 }
 
 // updateNoteWithSteamData updates the note file with Steam enrichment data.
@@ -511,4 +590,145 @@ func updateNoteWithSteamData(filePath string, note *Note, steamData *enrichment.
 	}
 
 	return nil
+}
+
+// processBookNote handles enrichment for book notes using the book
+// enrichers stack (OpenLibrary, Google Books, BookBrainz, etc.).
+// Returns (success, skip) booleans.
+func processBookNote(ctx context.Context, file string, note *Note, opts Options, attachmentsDir string) (bool, bool) {
+	noteDir := filepath.Dir(file)
+
+	needsCover := note.NeedsCover(noteDir)
+	needsContent := note.NeedsGoodreadsContent()
+
+	// Skip if already has everything and not forcing/regenerating/overwriting/refreshing
+	if !opts.Force && !opts.RefreshCache && !opts.RegenerateData && !config.OverwriteFiles && !needsCover && !needsContent {
+		slog.Debug("Skipping file (Book OK)", "path", file, "isbn", note.ISBN, "isbn13", note.ISBN13)
+		return false, true // skip
+	}
+
+	if opts.DryRun {
+		slog.Info("Would enhance book note", "title", note.Title, "file", file,
+			"needs_cover", needsCover, "needs_content", needsContent)
+		return true, false // success
+	}
+
+	bookOpts := enrichment.BookEnrichmentOptions{
+		DownloadCover:   opts.TMDBDownloadCover && (needsCover || opts.RegenerateData),
+		GenerateContent: needsContent || opts.RegenerateData,
+		AttachmentsDir:  attachmentsDir,
+		NoteDir:         noteDir,
+		Interactive:     opts.BookInteractive,
+		Force:           opts.Force,
+		BaseDetails:     note.buildGoodreadsBaseDetails(),
+		Authors:         note.Frontmatter.GetStringArray("authors"),
+	}
+
+	// Enrich with book data
+	bookData, err := enrichBookFunc(ctx, note.Title, note.ISBN, note.ISBN13, bookOpts)
+	if err != nil {
+		slog.Warn("Failed to enrich book", "title", note.Title, "error", err)
+		return false, false // error
+	}
+
+	if bookData == nil {
+		slog.Warn("No book data found", "title", note.Title, "path", file)
+		return false, true // skip
+	}
+
+	// Update the note with book data
+	if err := updateNoteWithBookData(file, note, bookData, opts.RegenerateData); err != nil {
+		slog.Warn("Failed to update book note", "path", file, "error", err)
+		return false, false // error
+	}
+
+	slog.Info("Enhanced book note", "title", note.Title)
+
+	renameBookNoteIfNeeded(file, noteDir, note, bookData, opts)
+
+	return true, false // success
+}
+
+// updateNoteWithBookData updates the note file with book enrichment data.
+func updateNoteWithBookData(filePath string, note *Note, bookData *enrichment.BookEnrichment, overwrite bool) error {
+	// Read the original file
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Update frontmatter with book data
+	note.AddBookData(bookData)
+
+	// Build the new file content
+	newContent := note.BuildMarkdownForBook(string(content), bookData, overwrite)
+
+	// Write back to file
+	_, err = fileutil.WriteFileWithOverwrite(filePath, []byte(newContent), 0o644, true)
+	if err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
+
+// renameBookNoteIfNeeded renames a book note file to the "<author> -
+// <title>.md" convention once the first author is known. It is a no-op when
+// no author is available or the file is already correctly named. When the
+// target path already exists, it warns and skips in non-interactive mode,
+// or prompts for confirmation in interactive mode.
+func renameBookNoteIfNeeded(file, noteDir string, note *Note, bookData *enrichment.BookEnrichment, opts Options) {
+	authors := note.Frontmatter.GetStringArray("authors")
+	if len(authors) == 0 && bookData != nil {
+		authors = bookData.Authors
+	}
+	if len(authors) == 0 || authors[0] == "" {
+		return
+	}
+
+	// If the title already starts with "author - ", use it as-is to avoid duplication.
+	prefix := authors[0] + " - "
+	var targetBaseName string
+	if len(note.Title) > len(prefix) && strings.EqualFold(note.Title[:len(prefix)], prefix) {
+		targetBaseName = note.Title
+	} else {
+		targetBaseName = authors[0] + " - " + note.Title
+	}
+
+	targetName := fileutil.SanitizeFilename(targetBaseName) + ".md"
+	target := filepath.Join(noteDir, targetName)
+	if target == file {
+		return
+	}
+
+	if fileutil.FileExists(target) {
+		if !opts.BookInteractive {
+			slog.Warn("Skipping rename: target file already exists", "path", file, "target", target)
+			return
+		}
+		if !confirmOverwrite(target) {
+			slog.Info("Skipping rename (user declined overwrite)", "path", file, "target", target)
+			return
+		}
+	}
+
+	if err := os.Rename(file, target); err != nil {
+		slog.Warn("Failed to rename book note", "path", file, "target", target, "error", err)
+		return
+	}
+
+	slog.Info("Renamed book note", "old", file, "new", target)
+}
+
+// confirmOverwrite prompts on stdin for a yes/no confirmation before
+// overwriting an existing file. Returns false on any input error.
+func confirmOverwrite(target string) bool {
+	fmt.Printf("File %q already exists. Overwrite? [y/N]: ", target)
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return false
+	}
+	line = strings.TrimSpace(strings.ToLower(line))
+	return line == "y" || line == "yes"
 }

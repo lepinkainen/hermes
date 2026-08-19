@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -227,8 +228,18 @@ func buildBookBody(book Book, directory string, fm *obsidian.Frontmatter) string
 	return strings.TrimSpace(body.String())
 }
 
+// bookNoteFilename builds the note filename for a book using the
+// "<author> - <title>" convention (sanitized for the filesystem). Falls back
+// to the bare, sanitized title when the book has no authors.
+func bookNoteFilename(book *Book) string {
+	if len(book.Authors) == 0 || book.Authors[0] == "" {
+		return fileutil.SanitizeFilename(book.Title)
+	}
+	return fileutil.SanitizeFilename(book.Authors[0] + " - " + book.Title)
+}
+
 func writeBookToMarkdown(book Book, directory string) error {
-	filePath := fileutil.GetMarkdownFilePath(book.Title, directory)
+	filePath := filepath.Join(directory, bookNoteFilename(&book)+".md")
 
 	fm := buildBookFrontmatter(book)
 	body := buildBookBody(book, directory, fm)

@@ -149,6 +149,39 @@ CREATE TABLE IF NOT EXISTS finna_cache (
 CREATE INDEX IF NOT EXISTS idx_finna_cached_at ON finna_cache(cached_at);
 `
 
+// OpenLibrarySearchCacheSchema defines the schema for OpenLibrary title/author search cache
+const OpenLibrarySearchCacheSchema = `
+CREATE TABLE IF NOT EXISTS openlibrary_search_cache (
+	cache_key TEXT PRIMARY KEY NOT NULL,
+	data TEXT NOT NULL,
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_openlibrary_search_cached_at ON openlibrary_search_cache(cached_at);
+`
+
+// RAWGSearchCacheSchema defines the schema for RAWG (rawg.io) game search results cache
+const RAWGSearchCacheSchema = `
+CREATE TABLE IF NOT EXISTS rawg_search_cache (
+	cache_key TEXT PRIMARY KEY NOT NULL,
+	data TEXT NOT NULL,
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_rawg_search_cached_at ON rawg_search_cache(cached_at);
+`
+
+// RAWGCacheSchema defines the schema for RAWG (rawg.io) game details cache
+const RAWGCacheSchema = `
+CREATE TABLE IF NOT EXISTS rawg_cache (
+	cache_key TEXT PRIMARY KEY NOT NULL,
+	data TEXT NOT NULL,
+	cached_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_rawg_cached_at ON rawg_cache(cached_at);
+`
+
 // AllCacheSchemas contains all cache table schemas for easy initialization
 var AllCacheSchemas = []string{
 	OMDBCacheSchema,
@@ -164,6 +197,9 @@ var AllCacheSchemas = []string{
 	LetterboxdMappingCacheSchema,
 	ISBNdbCacheSchema,
 	FinnaCacheSchema,
+	OpenLibrarySearchCacheSchema,
+	RAWGSearchCacheSchema,
+	RAWGCacheSchema,
 }
 
 // ValidCacheTableNames is the whitelist of allowed cache table names
@@ -182,4 +218,7 @@ var ValidCacheTableNames = map[string]bool{
 	"letterboxd_mapping_cache": true,
 	"isbndb_cache":             true,
 	"finna_cache":              true,
+	"openlibrary_search_cache": true,
+	"rawg_search_cache":        true,
+	"rawg_cache":               true,
 }
