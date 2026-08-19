@@ -110,8 +110,8 @@ func copyFile(src, dst string) error {
 	}
 	defer func() { _ = srcFile.Close() }()
 
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return fmt.Errorf("failed to create destination directory: %w", err)
+	if mkdirErr := os.MkdirAll(filepath.Dir(dst), 0o755); mkdirErr != nil {
+		return fmt.Errorf("failed to create destination directory: %w", mkdirErr)
 	}
 
 	dstFile, err := os.Create(dst)

@@ -66,16 +66,16 @@ func AutomateGoodreadsExport(parentCtx context.Context, opts AutomationOptions) 
 		return "", fmt.Errorf("failed to open login page: %w", err)
 	}
 
-	if err := automation.ConfigurePageDownloadDirectory(page, downloadDir); err != nil {
-		return "", err
+	if cfgErr := automation.ConfigurePageDownloadDirectory(page, downloadDir); cfgErr != nil {
+		return "", cfgErr
 	}
 
-	if err := performGoodreadsLogin(ctx, page, opts); err != nil {
-		return "", err
+	if loginErr := performGoodreadsLogin(ctx, page, opts); loginErr != nil {
+		return "", loginErr
 	}
 
-	if err := triggerGoodreadsExport(ctx, page); err != nil {
-		return "", err
+	if exportErr := triggerGoodreadsExport(ctx, page); exportErr != nil {
+		return "", exportErr
 	}
 
 	exportLink, err := waitForExportLink(ctx, page)
@@ -127,8 +127,8 @@ func performGoodreadsLogin(ctx context.Context, page *rod.Page, opts AutomationO
 	if err != nil {
 		return fmt.Errorf("email login button not visible: %w", err)
 	}
-	if err := emailBtn.Click(proto.InputMouseButtonLeft, 1); err != nil {
-		return fmt.Errorf("failed to click email login button: %w", err)
+	if clickErr := emailBtn.Click(proto.InputMouseButtonLeft, 1); clickErr != nil {
+		return fmt.Errorf("failed to click email login button: %w", clickErr)
 	}
 
 	// Wait for navigation to complete (may redirect to Amazon sign-in page)
@@ -145,8 +145,8 @@ func performGoodreadsLogin(ctx context.Context, page *rod.Page, opts AutomationO
 	if err != nil {
 		return err
 	}
-	if err := emailEl.Input(opts.Email); err != nil {
-		return fmt.Errorf("failed to fill email: %w", err)
+	if inputErr := emailEl.Input(opts.Email); inputErr != nil {
+		return fmt.Errorf("failed to fill email: %w", inputErr)
 	}
 
 	_, passwordEl, err := automation.WaitForSelectorWithContext(ctx, page, []string{
@@ -156,8 +156,8 @@ func performGoodreadsLogin(ctx context.Context, page *rod.Page, opts AutomationO
 	if err != nil {
 		return err
 	}
-	if err := passwordEl.Input(opts.Password); err != nil {
-		return fmt.Errorf("failed to fill password: %w", err)
+	if inputErr := passwordEl.Input(opts.Password); inputErr != nil {
+		return fmt.Errorf("failed to fill password: %w", inputErr)
 	}
 
 	_, submitEl, err := automation.WaitForSelectorWithContext(ctx, page, []string{
@@ -167,12 +167,12 @@ func performGoodreadsLogin(ctx context.Context, page *rod.Page, opts AutomationO
 	if err != nil {
 		return err
 	}
-	if err := submitEl.Click(proto.InputMouseButtonLeft, 1); err != nil {
-		return fmt.Errorf("failed to submit login form: %w", err)
+	if clickErr := submitEl.Click(proto.InputMouseButtonLeft, 1); clickErr != nil {
+		return fmt.Errorf("failed to submit login form: %w", clickErr)
 	}
 
-	if err := waitForLoginSuccess(ctx, page); err != nil {
-		return err
+	if waitErr := waitForLoginSuccess(ctx, page); waitErr != nil {
+		return waitErr
 	}
 
 	slog.Info("Goodreads login completed")

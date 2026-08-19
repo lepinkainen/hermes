@@ -34,12 +34,12 @@ func diffIMDbLetterboxd(imdbMovies []imdbMovie, letterboxdMovies []letterboxdMov
 	matchedLetterboxd := map[string]bool{}
 
 	for imdbID, imdbMovie := range imdbByID {
-		letterboxdMovie, ok := letterboxdByID[imdbID]
+		lbMovie, ok := letterboxdByID[imdbID]
 		if !ok {
 			continue
 		}
 		matchedImdb[imdbItemKey(imdbMovie)] = true
-		matchedLetterboxd[letterboxdItemKey(letterboxdMovie)] = true
+		matchedLetterboxd[letterboxdItemKey(lbMovie)] = true
 	}
 
 	resolvedTitleYear := 0

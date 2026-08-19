@@ -185,8 +185,8 @@ func (e *BookBrainzEnricher) fetchFromAPI(ctx context.Context, isbn string) (*ca
 	}
 
 	var searchResp bbEditionSearchResponse
-	if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
-		return nil, fmt.Errorf("decoding search response: %w", err)
+	if decErr := json.NewDecoder(resp.Body).Decode(&searchResp); decErr != nil {
+		return nil, fmt.Errorf("decoding search response: %w", decErr)
 	}
 
 	if searchResp.Total == 0 || len(searchResp.Results) == 0 {

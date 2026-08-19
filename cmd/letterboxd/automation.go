@@ -72,16 +72,16 @@ func AutomateLetterboxdExport(parentCtx context.Context, opts AutomationOptions)
 		return "", fmt.Errorf("failed to open Letterboxd login page: %w", err)
 	}
 
-	if err := automation.ConfigurePageDownloadDirectory(page, downloadDir); err != nil {
-		return "", err
+	if cfgErr := automation.ConfigurePageDownloadDirectory(page, downloadDir); cfgErr != nil {
+		return "", cfgErr
 	}
 
-	if err := performLetterboxdLogin(ctx, page, opts); err != nil {
-		return "", err
+	if loginErr := performLetterboxdLogin(ctx, page, opts); loginErr != nil {
+		return "", loginErr
 	}
 
-	if err := triggerLetterboxdExport(page); err != nil {
-		return "", err
+	if exportErr := triggerLetterboxdExport(page); exportErr != nil {
+		return "", exportErr
 	}
 
 	zipPath, err := waitForDownload(ctx, downloadDir)
@@ -97,8 +97,8 @@ func AutomateLetterboxdExport(parentCtx context.Context, opts AutomationOptions)
 
 	// Merge watched and ratings CSVs
 	mergedPath := filepath.Join(downloadDir, "letterboxd_merged.csv")
-	if err := mergeWatchedAndRatings(watchedPath, ratingsPath, mergedPath); err != nil {
-		return "", err
+	if mergeErr := mergeWatchedAndRatings(watchedPath, ratingsPath, mergedPath); mergeErr != nil {
+		return "", mergeErr
 	}
 
 	// Move merged CSV to final destination
@@ -140,8 +140,8 @@ func performLetterboxdLogin(ctx context.Context, page *rod.Page, opts Automation
 	time.Sleep(500 * time.Millisecond)
 
 	// Fill username
-	if err := usernameEl.Input(opts.Username); err != nil {
-		return fmt.Errorf("failed to enter username: %w", err)
+	if inputErr := usernameEl.Input(opts.Username); inputErr != nil {
+		return fmt.Errorf("failed to enter username: %w", inputErr)
 	}
 
 	// Fill password
@@ -154,8 +154,8 @@ func performLetterboxdLogin(ctx context.Context, page *rod.Page, opts Automation
 		return err
 	}
 
-	if err := passwordEl.Input(opts.Password); err != nil {
-		return fmt.Errorf("failed to enter password: %w", err)
+	if inputErr := passwordEl.Input(opts.Password); inputErr != nil {
+		return fmt.Errorf("failed to enter password: %w", inputErr)
 	}
 
 	// Submit form
@@ -170,14 +170,14 @@ func performLetterboxdLogin(ctx context.Context, page *rod.Page, opts Automation
 	}
 
 	slog.Info("Clicking sign in button")
-	if err := buttonEl.Click(proto.InputMouseButtonLeft, 1); err != nil {
-		return fmt.Errorf("failed to click sign in: %w", err)
+	if clickErr := buttonEl.Click(proto.InputMouseButtonLeft, 1); clickErr != nil {
+		return fmt.Errorf("failed to click sign in: %w", clickErr)
 	}
 
 	time.Sleep(2 * time.Second)
 
-	if err := waitForLoginSuccess(ctx, page); err != nil {
-		return err
+	if waitErr := waitForLoginSuccess(ctx, page); waitErr != nil {
+		return waitErr
 	}
 
 	slog.Info("Letterboxd login completed")

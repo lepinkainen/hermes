@@ -153,8 +153,8 @@ func (e *OpenLibraryEnricher) fetchFromAPI(ctx context.Context, isbn string) (*c
 	defer func() { _ = resp.Body.Close() }()
 
 	var result map[string]openLibraryBookResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decoding response: %w", err)
+	if decErr := json.NewDecoder(resp.Body).Decode(&result); decErr != nil {
+		return nil, fmt.Errorf("decoding response: %w", decErr)
 	}
 
 	if len(result) == 0 {

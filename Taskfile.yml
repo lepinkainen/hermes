@@ -5,6 +5,10 @@ vars:
   BUILDDIR: build
   COVERAGE_DIR: coverage
   BINARY: "{{.BUILDDIR}}/{{.FUNCNAME}}"
+  # Own packages only - excludes the vendored llm-shared submodule so mutating
+  # tools (go fix) don't rewrite it and leave the submodule dirty.
+  GO_PACKAGES:
+    sh: go list ./... | grep -v '/llm-shared/' | tr '\n' ' '
 
 dotenv:
   - .env
@@ -27,7 +31,7 @@ tasks:
       - mkdir -p {{.BUILDDIR}}
       - >
         go build 
-        -ldflags="-X main.Version={{.GIT_COMMIT}} -w -s" 
+        -ldflags="-X main.Version=dev -X main.GitCommit={{.GIT_COMMIT}} -w -s" 
         -o {{.BINARY}}
     generates:
       - "{{.BINARY}}"
@@ -45,7 +49,7 @@ tasks:
       - mkdir -p {{.BUILDDIR}}
       - >
         GOOS=linux GOARCH=amd64 go build 
-        -ldflags="-X main.Version={{.GIT_COMMIT}} -w -s" 
+        -ldflags="-X main.Version=dev -X main.GitCommit={{.GIT_COMMIT}} -w -s" 
         -o {{.BUILDDIR}}/{{.FUNCNAME}}-linux
     generates:
       - "{{.BUILDDIR}}/{{.FUNCNAME}}-linux"
@@ -61,7 +65,7 @@ tasks:
       - mkdir -p {{.BUILDDIR}}
       - >
         go build
-        -ldflags="-X main.Version={{.GIT_COMMIT}} -w -s"
+        -ldflags="-X main.Version=dev -X main.GitCommit={{.GIT_COMMIT}} -w -s"
         -o {{.BINARY}}
     generates:
       - "{{.BINARY}}"
@@ -85,7 +89,7 @@ tasks:
     desc: Run Go tests with coverage for CI
     cmds:
       - mkdir -p {{.COVERAGE_DIR}}
-      - go test -tags=ci -cover ./...
+      - go test -tags=ci -cover -v ./...
     sources:
       - ./**/*.go
     generates:
@@ -94,8 +98,11 @@ tasks:
   lint:
     desc: Run Go linters
     cmds:
+      - go fix {{.GO_PACKAGES}}
       - find . -name "*.go" -not -path "./llm-shared/*" -exec goimports -w {} +
       - golangci-lint run ./...
+      - go vet {{.GO_PACKAGES}}
+      - go mod tidy
     sources:
       - ./**/*.go
     silent: true
@@ -103,12 +110,12 @@ tasks:
   vuln-go:
     desc: Scan dependencies for known vulnerabilities (advisory)
     cmds:
-      - govulncheck $(go list ./... | grep -v llm-shared)
+      - govulncheck {{.GO_PACKAGES}}
 
   deadcode-go:
     desc: Report unreachable Go functions (advisory; interface-only methods are expected false positives)
     cmds:
-      - deadcode -test $(go list ./... | grep -v llm-shared)
+      - deadcode -test {{.GO_PACKAGES}}
 
   cognit-go:
     desc: Report Go functions with cognitive complexity > 20 with per-branch diagnostics (advisory; tests ignored)

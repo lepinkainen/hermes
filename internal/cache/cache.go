@@ -289,11 +289,12 @@ func getOrFetchWithPolicy[T any](tableName, cacheKey string, fetchFunc FetchFunc
 	cached, fromCache, err := cache.Get(tableName, cacheKey, ttl)
 	if err == nil && fromCache {
 		var result T
-		if err := json.Unmarshal([]byte(cached), &result); err == nil {
+		unmarshalErr := json.Unmarshal([]byte(cached), &result)
+		if unmarshalErr == nil {
 			slog.Debug("Cache hit", "table", tableName, "key", cacheKey)
 			return result, true, nil
 		}
-		slog.Warn("Failed to unmarshal cached data, will refetch", "table", tableName, "key", cacheKey, "error", err)
+		slog.Warn("Failed to unmarshal cached data, will refetch", "table", tableName, "key", cacheKey, "error", unmarshalErr)
 	}
 
 	// Fetch from external source if not in cache
@@ -341,11 +342,12 @@ func getOrFetchWithTTLSelector[T any](tableName, cacheKey string, fetchFunc Fetc
 	cached, fromCache, err := cache.Get(tableName, cacheKey, maxTTL)
 	if err == nil && fromCache {
 		var result T
-		if err := json.Unmarshal([]byte(cached), &result); err == nil {
+		unmarshalErr := json.Unmarshal([]byte(cached), &result)
+		if unmarshalErr == nil {
 			slog.Debug("Cache hit", "table", tableName, "key", cacheKey)
 			return result, true, nil
 		}
-		slog.Warn("Failed to unmarshal cached data, will refetch", "table", tableName, "key", cacheKey, "error", err)
+		slog.Warn("Failed to unmarshal cached data, will refetch", "table", tableName, "key", cacheKey, "error", unmarshalErr)
 	}
 
 	// Fetch from external source if not in cache
