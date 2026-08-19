@@ -514,7 +514,7 @@ func processGameNote(ctx context.Context, file string, note *Note, opts Options,
 
 	if steamData != nil {
 		// Update the note with Steam data
-		if err := updateNoteWithSteamData(file, note, steamData, opts.RegenerateData); err != nil {
+		if err = updateNoteWithSteamData(file, note, steamData, opts.RegenerateData); err != nil {
 			slog.Warn("Failed to update game note", "path", file, "error", err)
 			return false, false // error
 		}
@@ -537,7 +537,7 @@ func processGameNote(ctx context.Context, file string, note *Note, opts Options,
 	}
 
 	// Update the note with RAWG data
-	if err := updateNoteWithGameData(file, note, gameData, opts.RegenerateData); err != nil {
+	if err = updateNoteWithGameData(file, note, gameData, opts.RegenerateData); err != nil {
 		slog.Warn("Failed to update game note", "path", file, "error", err)
 		return false, false // error
 	}

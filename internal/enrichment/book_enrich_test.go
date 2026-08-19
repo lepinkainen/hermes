@@ -11,8 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func strPtr(s string) *string { return &s }
-func intPtr(i int) *int       { return &i }
+//go:fix inline
+func strPtr(s string) *string { return new(s) }
+
+//go:fix inline
+func intPtr(i int) *int { return new(i) }
 
 // stubRunBookEnrichers installs a stub for runBookEnrichers and restores the
 // original after the test completes.
@@ -56,7 +59,7 @@ func TestEnrichFromBook_PrefersISBN13ForSearch(t *testing.T) {
 	var seenISBN string
 	stubRunBookEnrichers(t, func(_ context.Context, isbn string, _ []book.Enricher) (*book.EnrichmentData, error) {
 		seenISBN = isbn
-		return &book.EnrichmentData{Description: strPtr("desc")}, nil
+		return &book.EnrichmentData{Description: new("desc")}, nil
 	})
 
 	result, err := EnrichFromBook(t.Context(), "Dune", "0441172717", "9780441172719", BookEnrichmentOptions{})
@@ -70,11 +73,11 @@ func TestEnrichFromBook_PrefersISBN13ForSearch(t *testing.T) {
 func TestEnrichFromBook_MapsMergedFields(t *testing.T) {
 	stubRunBookEnrichers(t, func(_ context.Context, _ string, _ []book.Enricher) (*book.EnrichmentData, error) {
 		return &book.EnrichmentData{
-			Description:   strPtr("A great book"),
-			Subtitle:      strPtr("A subtitle"),
-			Publisher:     strPtr("Ace Books"),
-			PublishDate:   strPtr("1965"),
-			NumberOfPages: intPtr(412),
+			Description:   new("A great book"),
+			Subtitle:      new("A subtitle"),
+			Publisher:     new("Ace Books"),
+			PublishDate:   new("1965"),
+			NumberOfPages: new(412),
 			Subjects:      []string{"Science Fiction"},
 			SubjectPeople: []string{"Paul Atreides"},
 			Authors:       []string{"Frank Herbert"},
@@ -97,7 +100,7 @@ func TestEnrichFromBook_MapsMergedFields(t *testing.T) {
 func TestEnrichFromBook_GeneratesContentWithDefaultSections(t *testing.T) {
 	stubRunBookEnrichers(t, func(_ context.Context, _ string, _ []book.Enricher) (*book.EnrichmentData, error) {
 		return &book.EnrichmentData{
-			Description: strPtr("A great book"),
+			Description: new("A great book"),
 			Subjects:    []string{"Science Fiction"},
 		}, nil
 	})
@@ -118,7 +121,7 @@ func TestEnrichFromBook_GeneratesContentWithDefaultSections(t *testing.T) {
 func TestEnrichFromBook_ContentRespectsExplicitSections(t *testing.T) {
 	stubRunBookEnrichers(t, func(_ context.Context, _ string, _ []book.Enricher) (*book.EnrichmentData, error) {
 		return &book.EnrichmentData{
-			Description: strPtr("A great book"),
+			Description: new("A great book"),
 			Subjects:    []string{"Science Fiction"},
 		}, nil
 	})

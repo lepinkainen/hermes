@@ -35,7 +35,7 @@ func TestFetchRAWGSearchSuccess(t *testing.T) {
 
 		_ = json.NewEncoder(w).Encode(RAWGSearchResponse{
 			Results: []RAWGGameResult{
-				{ID: 1, Name: "Uncharted 2: Among Thieves", Metacritic: intPtr(96)},
+				{ID: 1, Name: "Uncharted 2: Among Thieves", Metacritic: new(96)},
 			},
 		})
 	})
@@ -189,8 +189,8 @@ func TestSelectRAWGResult_ExactMatchNonInteractive(t *testing.T) {
 func TestSelectRAWGResult_MetacriticRankedSelection(t *testing.T) {
 	results := []RAWGGameResult{
 		{ID: 1, Name: "Uncharted 2 Fan Compilation", Metacritic: nil},
-		{ID: 2, Name: "Uncharted 2: Among Thieves", Metacritic: intPtr(96)},
-		{ID: 3, Name: "Uncharted 2 Multiplayer Mod", Metacritic: intPtr(40)},
+		{ID: 2, Name: "Uncharted 2: Among Thieves", Metacritic: new(96)},
+		{ID: 3, Name: "Uncharted 2 Multiplayer Mod", Metacritic: new(40)},
 	}
 
 	selected, err := selectRAWGResult(results, "Uncharted 2", false)
@@ -201,8 +201,8 @@ func TestSelectRAWGResult_MetacriticRankedSelection(t *testing.T) {
 
 func TestSelectRAWGResult_MetacriticTiebreakKeepsFirst(t *testing.T) {
 	results := []RAWGGameResult{
-		{ID: 1, Name: "Game Remaster", Metacritic: intPtr(80)},
-		{ID: 2, Name: "Game Remake", Metacritic: intPtr(80)},
+		{ID: 1, Name: "Game Remaster", Metacritic: new(80)},
+		{ID: 2, Name: "Game Remake", Metacritic: new(80)},
 	}
 
 	selected, err := selectRAWGResult(results, "Game", false)
@@ -233,11 +233,11 @@ func TestSelectRAWGResult_NoMetacriticFallsBackToFirst(t *testing.T) {
 // during that run.
 func TestSelectRAWGResult_FranchiseContaminationGuard(t *testing.T) {
 	results := []RAWGGameResult{
-		{ID: 4340, Name: "Uncharted: Drake's Fortune", Metacritic: intPtr(88)},
-		{ID: 5703, Name: "Uncharted 3: Drake's Deception", Metacritic: intPtr(92)},
+		{ID: 4340, Name: "Uncharted: Drake's Fortune", Metacritic: new(88)},
+		{ID: 5703, Name: "Uncharted 3: Drake's Deception", Metacritic: new(92)},
 		{ID: 102541, Name: "Uncharted: Drake's Equation"},
 		{ID: 909144, Name: "Drake's Fortune"},
-		{ID: 47953, Name: "UNCHARTED: Fortune Hunter", Metacritic: intPtr(77)},
+		{ID: 47953, Name: "UNCHARTED: Fortune Hunter", Metacritic: new(77)},
 	}
 
 	selected, err := selectRAWGResult(results, "Uncharted Drake's Fortune", false)
@@ -251,11 +251,11 @@ func TestSelectRAWGResult_FranchiseContaminationGuard(t *testing.T) {
 // "Uncharted 3: Drake's Deception" in its top-5.
 func TestSelectRAWGResult_FranchiseContaminationGuard_LostLegacy(t *testing.T) {
 	results := []RAWGGameResult{
-		{ID: 21926, Name: "Uncharted: The Lost Legacy", Metacritic: intPtr(85)},
+		{ID: 21926, Name: "Uncharted: The Lost Legacy", Metacritic: new(85)},
 		{ID: 704634, Name: "Uncharted: Legacy of Thieves Collection"},
-		{ID: 4475, Name: "Uncharted: Golden Abyss", Metacritic: intPtr(80)},
+		{ID: 4475, Name: "Uncharted: Golden Abyss", Metacritic: new(80)},
 		{ID: 19256, Name: "Abyss Raiders: Uncharted"},
-		{ID: 5703, Name: "Uncharted 3: Drake's Deception", Metacritic: intPtr(92)},
+		{ID: 5703, Name: "Uncharted 3: Drake's Deception", Metacritic: new(92)},
 	}
 
 	selected, err := selectRAWGResult(results, "Uncharted The Lost Legacy", false)
@@ -273,10 +273,10 @@ func TestSelectRAWGResult_FranchiseContaminationGuard_LostLegacy(t *testing.T) {
 func TestSelectRAWGResult_Uncharted2PicksReviewedOverBogusExactMatch(t *testing.T) {
 	results := []RAWGGameResult{
 		{ID: 670945, Name: "Uncharted 2"},
-		{ID: 22513, Name: "Uncharted 2: Among Thieves", Metacritic: intPtr(96)},
-		{ID: 4475, Name: "Uncharted: Golden Abyss", Metacritic: intPtr(80)},
+		{ID: 22513, Name: "Uncharted 2: Among Thieves", Metacritic: new(96)},
+		{ID: 4475, Name: "Uncharted: Golden Abyss", Metacritic: new(80)},
 		{ID: 19256, Name: "Abyss Raiders: Uncharted"},
-		{ID: 5703, Name: "Uncharted 3: Drake's Deception", Metacritic: intPtr(92)},
+		{ID: 5703, Name: "Uncharted 3: Drake's Deception", Metacritic: new(92)},
 	}
 
 	selected, err := selectRAWGResult(results, "Uncharted 2", false)
@@ -294,11 +294,11 @@ func TestSelectRAWGResult_Uncharted2PicksReviewedOverBogusExactMatch(t *testing.
 // actually refers to. Fixture data is the real RAWG response.
 func TestSelectRAWGResult_TiedMetacriticPrefersExactMatch(t *testing.T) {
 	results := []RAWGGameResult{
-		{ID: 4491, Name: "Shadow of the Colossus (2011)", Metacritic: intPtr(91)},
-		{ID: 59248, Name: "Shadow of the Colossus", Metacritic: intPtr(91)},
-		{ID: 52368, Name: "Shadow of the Colossus  (2018)", Metacritic: intPtr(91)},
+		{ID: 4491, Name: "Shadow of the Colossus (2011)", Metacritic: new(91)},
+		{ID: 59248, Name: "Shadow of the Colossus", Metacritic: new(91)},
+		{ID: 52368, Name: "Shadow of the Colossus  (2018)", Metacritic: new(91)},
 		{ID: 5683, Name: "The ICO & Shadow of the Colossus Collection"},
-		{ID: 30180, Name: "Shadow of Destiny", Metacritic: intPtr(74)},
+		{ID: 30180, Name: "Shadow of Destiny", Metacritic: new(74)},
 	}
 
 	selected, err := selectRAWGResult(results, "Shadow of the Colossus", false)
@@ -316,10 +316,10 @@ func TestSelectRAWGResult_TiedMetacriticPrefersExactMatch(t *testing.T) {
 // RAWG response.
 func TestSelectRAWGResult_RomanNumeralMatchesArabicDigit(t *testing.T) {
 	results := []RAWGGameResult{
-		{ID: 23600, Name: "Diablo III", Metacritic: intPtr(88)},
-		{ID: 44093, Name: "Diablo III: Eternal Collection", Metacritic: intPtr(88)},
-		{ID: 28418, Name: "Diablo III: Reaper of Souls", Metacritic: intPtr(87)},
-		{ID: 42457, Name: "Diablo III: Ultimate Evil Edition", Metacritic: intPtr(88)},
+		{ID: 23600, Name: "Diablo III", Metacritic: new(88)},
+		{ID: 44093, Name: "Diablo III: Eternal Collection", Metacritic: new(88)},
+		{ID: 28418, Name: "Diablo III: Reaper of Souls", Metacritic: new(87)},
+		{ID: 42457, Name: "Diablo III: Ultimate Evil Edition", Metacritic: new(88)},
 		{ID: 239642, Name: "diablo 3-13"},
 	}
 

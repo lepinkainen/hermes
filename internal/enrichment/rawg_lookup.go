@@ -343,14 +343,11 @@ func normalizeGameTitleTokens(s string) []string {
 // the other. Comparing whole tokens (rather than raw substrings) avoids
 // false positives like "uncharted 2" matching "uncharted 20xx".
 func isTitlePrefixRelevant(a, b []string) bool {
-	n := len(a)
-	if len(b) < n {
-		n = len(b)
-	}
+	n := min(len(b), len(a))
 	if n == 0 {
 		return false
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if a[i] != b[i] {
 			return false
 		}
