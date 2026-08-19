@@ -50,7 +50,11 @@ func resolveSteamAppID(ctx context.Context, title string, existingAppID int, opt
 }
 
 func searchSteamAppID(ctx context.Context, title string, opts SteamEnrichmentOptions) (int, error) {
-	results, err := searchSteamStore(ctx, title)
+	// Obsidian filenames replace ":" with " - "; Steam's storesearch returns
+	// nothing for the spaced dash, so search with it collapsed to a space.
+	query := steamSearchTitle(title)
+
+	results, err := searchSteamStore(ctx, query)
 	if err != nil {
 		return 0, fmt.Errorf("steam search failed: %w", err)
 	}
@@ -143,6 +147,12 @@ func fetchSteamStoreSearch(ctx context.Context, query string) ([]tui.SteamSearch
 	return results, nil
 }
 
+// steamSearchTitle collapses the " - " that Obsidian substitutes for ":" in
+// filenames into a plain space, which Steam's storesearch matches.
+func steamSearchTitle(title string) string {
+	return strings.TrimSpace(strings.ReplaceAll(title, " - ", " "))
+}
+
 // normalizeSteamQuery normalizes a query string for use as a cache key
 func normalizeSteamQuery(query string) string {
 	// Convert to lowercase and replace spaces with underscores
@@ -163,15 +173,10 @@ func selectSteamResult(results []tui.SteamSearchResult, title string, interactiv
 		return nil, nil
 	}
 
-	// If only one result, auto-select it
-	if len(results) == 1 {
-		slog.Debug("Auto-selected single Steam result", "title", title, "appid", results[0].AppID)
-		return &results[0], nil
-	}
-
-	// Check for exact title match
-	exact := findExactSteamMatch(results, title)
-
+	// Interactive mode always shows the user everything Steam returned,
+	// unfiltered — a human can tell at a glance that a result is junk, so
+	// there's no need (and no benefit) to pre-filter by title compatibility
+	// here.
 	if interactive {
 		selection, err := selectSteamInteractive(title, results)
 		if err != nil {
@@ -180,14 +185,42 @@ func selectSteamResult(results []tui.SteamSearchResult, title string, interactiv
 		return selection, nil
 	}
 
-	// Non-interactive: use exact match or first result
-	if exact != nil {
+	// Non-interactive: restrict to results that are plausibly the same game
+	// as the note title before auto-selecting anything. Steam's storesearch
+	// can return a single, wholly unrelated result for cross-platform
+	// exclusives that were never released on Steam (e.g. searching
+	// "Uncharted 2" — a PS exclusive — surfaces an unrelated indie game).
+	// Blindly auto-selecting that (as a naive "only one result" or "no exact
+	// match, take the first" rule would) writes junk data into the note and
+	// — because EnrichFromSteam only falls back to RAWG on a nil result —
+	// permanently blocks the RAWG fallback from ever running. Filtering
+	// first lets a wholly incompatible result set fall through to nil so
+	// RAWG gets its chance.
+	var candidates []tui.SteamSearchResult
+	for _, r := range results {
+		if isGameTitleCompatible(r.Name, title) {
+			candidates = append(candidates, r)
+		}
+	}
+	if len(candidates) == 0 {
+		slog.Debug("No title-compatible Steam results; falling through to fallback", "title", title, "results", len(results))
+		return nil, nil
+	}
+
+	// If only one compatible result remains, auto-select it
+	if len(candidates) == 1 {
+		slog.Debug("Auto-selected single Steam result", "title", title, "appid", candidates[0].AppID)
+		return &candidates[0], nil
+	}
+
+	// Use exact match among candidates, or the first (most relevant) one
+	if exact := findExactSteamMatch(candidates, title); exact != nil {
 		slog.Debug("Auto-selected exact Steam match", "title", title, "appid", exact.AppID)
 		return exact, nil
 	}
 
-	slog.Debug("Auto-selected first Steam result", "title", title, "appid", results[0].AppID)
-	return &results[0], nil
+	slog.Debug("Auto-selected first Steam result", "title", title, "appid", candidates[0].AppID)
+	return &candidates[0], nil
 }
 
 func findExactSteamMatch(results []tui.SteamSearchResult, title string) *tui.SteamSearchResult {

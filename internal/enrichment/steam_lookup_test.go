@@ -221,6 +221,12 @@ func TestFetchSteamStoreSearchSuccess(t *testing.T) {
 	require.Equal(t, "Half-Life", results[0].Name)
 }
 
+func TestSteamSearchTitle(t *testing.T) {
+	require.Equal(t, "Star Wars Jedi Fallen Order", steamSearchTitle("Star Wars Jedi - Fallen Order"))
+	require.Equal(t, "Half-Life", steamSearchTitle("Half-Life"))
+	require.Equal(t, "Portal 2", steamSearchTitle("Portal 2"))
+}
+
 func TestFetchSteamStoreSearchHTTPError(t *testing.T) {
 	withSteamSearchServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -324,12 +330,63 @@ func TestSelectSteamResult_NoExactMatchNonInteractive(t *testing.T) {
 	results := []tui.SteamSearchResult{
 		{AppID: 70, Name: "Half-Life", HeaderImage: "hl.jpg"},
 		{AppID: 220, Name: "Half-Life 2", HeaderImage: "hl2.jpg"},
+		{AppID: 280, Name: "Half-Life: Source", HeaderImage: "hls.jpg"},
 	}
 
-	selected, err := selectSteamResult(results, "Portal", false)
+	// "Half-Life 3" has no exact match, but is title-compatible with the
+	// plain "Half-Life" entry (a prefix match) and not with the "2" or
+	// "Source" variants, so it should fall back to that sole candidate
+	// rather than blindly taking the first search result.
+	selected, err := selectSteamResult(results, "Half-Life 3", false)
 	require.NoError(t, err)
 	require.NotNil(t, selected)
-	require.Equal(t, 70, selected.AppID, "should select first result when no exact match")
+	require.Equal(t, 70, selected.AppID, "should select the sole title-compatible candidate when no exact match")
+}
+
+func TestSelectSteamResult_NoTitleCompatibleResultFallsThrough(t *testing.T) {
+	// Regression test: Steam's storesearch can return a single, wholly
+	// unrelated result for titles never released on Steam (e.g. "Uncharted
+	// 2", a PS exclusive). Previously this was auto-selected as "the only
+	// result", writing junk data and permanently blocking the RAWG
+	// fallback (which only runs when Steam yields nil). It must now fall
+	// through to nil so the caller's RAWG fallback gets a chance.
+	results := []tui.SteamSearchResult{
+		{AppID: 1155880, Name: "Some Indie Citybuilder", HeaderImage: "indie.jpg"},
+	}
+
+	selected, err := selectSteamResult(results, "Uncharted 2", false)
+	require.NoError(t, err)
+	require.Nil(t, selected, "wholly unrelated Steam result should fall through instead of being auto-selected")
+}
+
+func TestSelectSteamResult_TrademarkSymbolStillMatches(t *testing.T) {
+	// Regression test: Steam titles commonly carry a trademark symbol
+	// ("STAR WARS Jedi: Fallen Order™") that RAWG/note titles never have.
+	// normalizeGameTitleTokens must strip it so the title-compatibility gate
+	// doesn't itself reject legitimate Steam matches.
+	results := []tui.SteamSearchResult{
+		{AppID: 1172380, Name: "STAR WARS Jedi: Fallen Order™", HeaderImage: "swjfo.jpg"},
+	}
+
+	selected, err := selectSteamResult(results, "Star Wars Jedi Fallen Order", false)
+	require.NoError(t, err)
+	require.NotNil(t, selected)
+	require.Equal(t, 1172380, selected.AppID)
+}
+
+func TestSelectSteamResult_OnlyOneCompatibleAmongMultipleResults(t *testing.T) {
+	// A multi-result search where only one entry is actually the game in
+	// question — the incompatible entry sorts first, so a naive
+	// "auto-select the first result" rule would pick the wrong one.
+	results := []tui.SteamSearchResult{
+		{AppID: 999, Name: "Totally Unrelated Game", HeaderImage: "unrelated.jpg"},
+		{AppID: 620, Name: "Portal 2", HeaderImage: "portal2.jpg"},
+	}
+
+	selected, err := selectSteamResult(results, "Portal 2", false)
+	require.NoError(t, err)
+	require.NotNil(t, selected)
+	require.Equal(t, 620, selected.AppID, "should pick the title-compatible candidate over an incompatible earlier entry")
 }
 
 func TestFindExactSteamMatch_Found(t *testing.T) {

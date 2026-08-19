@@ -107,6 +107,22 @@ steam:
   output: "steam"
 ```
 
+### RAWG (game enhance fallback)
+
+`hermes enhance` enriches game notes primarily via the Steam Store, which is
+PC-only. Console/handheld exclusives (e.g. Uncharted, Shadow of the
+Colossus, Nintendo titles) fall back to [RAWG](https://rawg.io/apidocs), a
+platform-agnostic game database, when Steam has no listing for the title.
+
+```yaml
+rawg:
+  api_key: "your_rawg_api_key"
+```
+
+The `RAWG_API_KEY` environment variable is also read as a fallback. If
+neither is set, the RAWG fallback is silently skipped (same as ISBNdb) and
+unmatched game notes just log a warning.
+
 ## Enhance and TMDB
 
 Enhance and TMDB enrichment use a TMDB API key. The preferred source is the `TMDB_API_KEY` environment variable. You can also place the key in the config file using `TMDBAPIKey` if you need a file-based option.
