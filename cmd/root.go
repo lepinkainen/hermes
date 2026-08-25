@@ -172,8 +172,7 @@ func initConfig() {
 	viper.AddConfigPath(".")
 
 	if err := viper.ReadInConfig(); err != nil {
-		var cfgNotFoundErr viper.ConfigFileNotFoundError
-		if errors.As(err, &cfgNotFoundErr) {
+		if _, ok := errors.AsType[viper.ConfigFileNotFoundError](err); ok {
 			slog.Info("Config file not found, writing default config file...")
 			if writeErr := viper.SafeWriteConfig(); writeErr != nil {
 				slog.Error("Error writing config file", "error", writeErr)

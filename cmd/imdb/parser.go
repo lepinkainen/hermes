@@ -80,8 +80,7 @@ func ParseImdb() error {
 	// Write markdown files
 	slog.Info("Writing markdown")
 	if err := writeMoviesToMarkdown(movies, outputDir); err != nil {
-		var rateLimitErr *errors.RateLimitError
-		if stderrors.As(err, &rateLimitErr) {
+		if _, ok := stderrors.AsType[*errors.RateLimitError](err); ok {
 			slog.Error("Stopping import due to rate limit", "error", err)
 			return err
 		}

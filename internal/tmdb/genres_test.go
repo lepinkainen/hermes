@@ -12,9 +12,9 @@ import (
 )
 
 func TestGetGenresCachesResponse(t *testing.T) {
-	var calls int32
+	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&calls, 1)
+		calls.Add(1)
 		response := map[string]any{
 			"genres": []map[string]any{{"id": 1, "name": "Action"}},
 		}
@@ -33,7 +33,7 @@ func TestGetGenresCachesResponse(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Action", genres[1])
 
-	assert.Equal(t, int32(1), atomic.LoadInt32(&calls))
+	assert.Equal(t, int32(1), calls.Load())
 }
 
 func TestBuildGenreTags(t *testing.T) {

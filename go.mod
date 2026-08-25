@@ -1,6 +1,6 @@
 module github.com/lepinkainen/hermes
 
-go 1.26.1
+go 1.27.0
 
 require (
 	github.com/alecthomas/assert/v2 v2.11.0
