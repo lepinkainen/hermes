@@ -13,9 +13,9 @@ import (
 func TestCachedGetMovieDetailsCaches(t *testing.T) {
 	setupTMDBCache(t)
 
-	var calls int32
+	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&calls, 1)
+		calls.Add(1)
 		response := map[string]any{"id": 101, "title": "Cache Movie"}
 		w.Header().Set("Content-Type", "application/json")
 		require.NoError(t, json.NewEncoder(w).Encode(response))
@@ -34,15 +34,15 @@ func TestCachedGetMovieDetailsCaches(t *testing.T) {
 	require.True(t, fromCache)
 	require.Equal(t, float64(101), details["id"])
 
-	require.Equal(t, int32(1), atomic.LoadInt32(&calls))
+	require.Equal(t, int32(1), calls.Load())
 }
 
 func TestCachedGetTVDetailsCaches(t *testing.T) {
 	setupTMDBCache(t)
 
-	var calls int32
+	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&calls, 1)
+		calls.Add(1)
 		response := map[string]any{"id": 202, "name": "Cache Show"}
 		w.Header().Set("Content-Type", "application/json")
 		require.NoError(t, json.NewEncoder(w).Encode(response))
@@ -61,5 +61,5 @@ func TestCachedGetTVDetailsCaches(t *testing.T) {
 	require.True(t, fromCache)
 	require.Equal(t, float64(202), details["id"])
 
-	require.Equal(t, int32(1), atomic.LoadInt32(&calls))
+	require.Equal(t, int32(1), calls.Load())
 }
