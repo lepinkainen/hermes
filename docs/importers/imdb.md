@@ -62,6 +62,13 @@ imdb:
 
 The importer will use `imdb.omdb_api_key` when present and fall back to a shared `omdb.api_key`, so you can centralize the key if multiple importers use it.
 
+To route OMDb requests through an OMDB-API-compatible caching proxy instead of `http://www.omdbapi.com`, set `omdb.proxy_url` (applies to the imdb, letterboxd, and enhance commands):
+
+```yaml
+omdb:
+  proxy_url: "http://your-proxy:8090/"
+```
+
 ### Command-Line Options
 
 - `--input`, `-f`: Path to the IMDb CSV export file

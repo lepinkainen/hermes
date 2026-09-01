@@ -31,15 +31,31 @@ var (
 	}
 )
 
+// resolveBaseURL returns the configured OMDB proxy base URL when set,
+// otherwise the default OMDB API endpoint. The proxy is expected to be
+// OMDB-API-compatible (same query params). Trailing slashes are trimmed.
+func resolveBaseURL() string {
+	proxy := strings.TrimRight(strings.TrimSpace(viper.GetString("omdb.proxy_url")), "/")
+	if proxy != "" {
+		return proxy
+	}
+	return omdbBaseURL
+}
+
 // SetTestClient redirects the OMDB client at a test server and disables the
 // rate-limit wait. Returns a restore function. Test-only seam.
 func SetTestClient(baseURL string, do func(*http.Request) (*http.Response, error)) func() {
 	prevBase, prevDo, prevWait := omdbBaseURL, omdbHTTPDo, omdbRateWait
+	prevProxy := viper.GetString("omdb.proxy_url")
 	omdbBaseURL = baseURL
 	omdbHTTPDo = do
 	omdbRateWait = func(context.Context) error { return nil }
+	// Neutralize any configured proxy so the test server is authoritative;
+	// resolveBaseURL checks omdb.proxy_url before omdbBaseURL.
+	viper.Set("omdb.proxy_url", "")
 	return func() {
 		omdbBaseURL, omdbHTTPDo, omdbRateWait = prevBase, prevDo, prevWait
+		viper.Set("omdb.proxy_url", prevProxy)
 	}
 }
 
@@ -80,7 +96,7 @@ func FetchByIMDBID(ctx context.Context, imdbID string) (*OMDBResponse, error) {
 
 	slog.Debug("Fetching OMDB data by IMDb ID", "imdb_id", imdbID)
 
-	url := fmt.Sprintf("%s/?i=%s&apikey=%s", omdbBaseURL, imdbID, apiKey)
+	url := fmt.Sprintf("%s/?i=%s&apikey=%s", resolveBaseURL(), imdbID, apiKey)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
@@ -151,7 +167,7 @@ func FetchByTitleYear(ctx context.Context, title string, year int) (*OMDBRespons
 	// Encode the title for URL
 	escapedTitle := strings.ReplaceAll(title, " ", "+")
 
-	url := fmt.Sprintf("%s/?t=%s&y=%d&apikey=%s", omdbBaseURL, escapedTitle, year, apiKey)
+	url := fmt.Sprintf("%s/?t=%s&y=%d&apikey=%s", resolveBaseURL(), escapedTitle, year, apiKey)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
