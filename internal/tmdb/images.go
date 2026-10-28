@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/disintegration/imaging"
+	"github.com/lepinkainen/hermes/internal/httputil"
 )
 
 // GetCoverURLByID fetches the cover image URL by TMDB ID and media type.
@@ -78,6 +79,9 @@ func (c *Client) DownloadAndResizeImage(ctx context.Context, imageURL, savePath 
 	if err != nil {
 		return err
 	}
+	// image.tmdb.org is a consumer CDN, not the API; present a browser UA
+	// (the shared Transport leaves an explicit per-request header alone).
+	req.Header.Set("User-Agent", httputil.BrowserUserAgent)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

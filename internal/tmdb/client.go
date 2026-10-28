@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lepinkainen/hermes/internal/httputil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 )
 
@@ -46,10 +47,12 @@ type Client struct {
 // NewClient creates a new TMDB API client.
 func NewClient(apiKey string, opts ...Option) *Client {
 	client := &Client{
-		apiKey:        apiKey,
-		baseURL:       defaultBaseURL,
-		imageBaseURL:  defaultImageBaseURL,
-		httpClient:    &http.Client{Timeout: 10 * time.Second},
+		apiKey:       apiKey,
+		baseURL:      defaultBaseURL,
+		imageBaseURL: defaultImageBaseURL,
+		// api.themoviedb.org is a documented API: identify as hermes. The image
+		// CDN is handled separately in DownloadAndResizeImage.
+		httpClient:    httputil.NewClient(10 * time.Second),
 		rateLimiter:   ratelimit.New("TMDB", defaultRatePerSecond),
 		genreCache:    make(map[string]map[int]string),
 		retryAttempts: defaultMaxAttempts,

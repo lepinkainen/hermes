@@ -9,12 +9,14 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/lepinkainen/hermes/internal/httputil"
 )
 
 // coverHTTPClient is reused across cover downloads to share connection pools.
-var coverHTTPClient = &http.Client{
-	Timeout: 30 * time.Second,
-}
+// Cover images come from arbitrary consumer CDNs (OpenLibrary covers, Steam CDN,
+// TMDB images), which are not APIs and may block non-browser UAs.
+var coverHTTPClient = httputil.NewBrowserClient(30 * time.Second)
 
 // SetCoverHTTPClient swaps the cover-download HTTP client and returns a
 // restore function. Test-only seam.

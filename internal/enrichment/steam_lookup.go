@@ -13,13 +13,16 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/cache"
 	hermeserrors "github.com/lepinkainen/hermes/internal/errors"
+	"github.com/lepinkainen/hermes/internal/httputil"
 	"github.com/lepinkainen/hermes/internal/tui"
 )
 
 // HTTP seams — package vars so tests can redirect to an httptest.Server.
 var (
-	steamSearchURL        = "https://store.steampowered.com/api/storesearch/?term=%s&l=english&cc=US"
-	steamSearchHTTPClient = &http.Client{Timeout: 30 * time.Second}
+	steamSearchURL = "https://store.steampowered.com/api/storesearch/?term=%s&l=english&cc=US"
+	// store.steampowered.com is an undocumented storefront endpoint, picky about
+	// non-browser clients; present a browser UA. See internal/httputil.
+	steamSearchHTTPClient = httputil.NewBrowserClient(30 * time.Second)
 )
 
 // SteamStoreSearchResult represents a search result from Steam Store API.

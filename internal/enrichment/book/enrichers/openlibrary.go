@@ -11,6 +11,7 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/enrichment/book"
+	"github.com/lepinkainen/hermes/internal/httputil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 )
 
@@ -32,7 +33,7 @@ var _ book.Enricher = (*OpenLibraryEnricher)(nil)
 func NewOpenLibraryEnricher() *OpenLibraryEnricher {
 	return &OpenLibraryEnricher{
 		getHTTPClient: sync.OnceValue(func() *http.Client {
-			return &http.Client{Timeout: 10 * time.Second}
+			return httputil.NewClient(10 * time.Second)
 		}),
 		getRateLimiter: sync.OnceValue(func() *ratelimit.Limiter {
 			return ratelimit.New("OpenLibrary", 1)

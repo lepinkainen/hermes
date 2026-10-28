@@ -10,6 +10,7 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/enrichment/book"
+	"github.com/lepinkainen/hermes/internal/httputil"
 	"github.com/lepinkainen/hermes/internal/parseutil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 	"github.com/spf13/viper"
@@ -33,7 +34,7 @@ var _ book.Enricher = (*ISBNdbEnricher)(nil)
 func NewISBNdbEnricher() *ISBNdbEnricher {
 	return &ISBNdbEnricher{
 		getHTTPClient: sync.OnceValue(func() *http.Client {
-			return &http.Client{Timeout: 10 * time.Second}
+			return httputil.NewClient(10 * time.Second)
 		}),
 		getRateLimiter: sync.OnceValue(func() *ratelimit.Limiter {
 			return ratelimit.New("ISBNdb", 1)

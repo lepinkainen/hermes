@@ -13,12 +13,22 @@ import (
 	"time"
 
 	"github.com/lepinkainen/hermes/internal/errors"
+	"github.com/lepinkainen/hermes/internal/httputil"
 )
 
 const (
 	steamStoreAppDetailsURL    = "https://store.steampowered.com/api/appdetails"
 	steamOwnedGamesURL         = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/"
 	steamPlayerAchievementsURL = "https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/"
+)
+
+// HTTP clients. The Steam Web API (api.steampowered.com) is a documented API
+// and gets the hermes User-Agent. The storefront appdetails endpoint
+// (store.steampowered.com) is an undocumented consumer endpoint that is picky
+// about non-browser clients, so it presents a browser User-Agent.
+var (
+	steamAPIHTTPClient   = httputil.NewClient(30 * time.Second)
+	steamStoreHTTPClient = httputil.NewBrowserClient(30 * time.Second)
 )
 
 // parseRetryAfter extracts retry timing from Retry-After header
@@ -57,7 +67,7 @@ func getGameDetailsWithBaseURL(appID int, baseURL string) (*GameDetails, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to build request: %w", err)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := steamStoreHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch game details: %w", err)
 	}
@@ -134,7 +144,7 @@ func importSteamGamesWithBaseURL(steamID string, apiKey string, baseURL string) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to build request: %w", err)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := steamAPIHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Steam games: %w", err)
 	}
@@ -199,7 +209,7 @@ func getPlayerAchievementsWithBaseURL(steamID string, apiKey string, appID int, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to build request: %w", err)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := steamAPIHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch achievements: %w", err)
 	}

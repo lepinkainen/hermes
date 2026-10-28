@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lepinkainen/hermes/internal/httputil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 )
 
@@ -18,9 +19,7 @@ var (
 	olRateLimiter   *ratelimit.Limiter
 	rateLimiterOnce sync.Once
 	httpClientNew   = func() *http.Client {
-		return &http.Client{
-			Timeout: 10 * time.Second,
-		}
+		return httputil.NewClient(10 * time.Second)
 	}
 )
 

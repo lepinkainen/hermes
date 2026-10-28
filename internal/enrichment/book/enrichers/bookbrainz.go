@@ -12,6 +12,7 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/enrichment/book"
+	"github.com/lepinkainen/hermes/internal/httputil"
 	"github.com/lepinkainen/hermes/internal/parseutil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 )
@@ -35,7 +36,7 @@ var _ book.Enricher = (*BookBrainzEnricher)(nil)
 func NewBookBrainzEnricher() *BookBrainzEnricher {
 	return &BookBrainzEnricher{
 		getHTTPClient: sync.OnceValue(func() *http.Client {
-			return &http.Client{Timeout: 15 * time.Second}
+			return httputil.NewClient(15 * time.Second)
 		}),
 		getRateLimiter: sync.OnceValue(func() *ratelimit.Limiter {
 			return ratelimit.New("BookBrainz", 1)

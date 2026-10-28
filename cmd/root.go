@@ -16,6 +16,7 @@ import (
 	"github.com/lepinkainen/hermes/cmd/steam"
 	"github.com/lepinkainen/hermes/internal/cache"
 	"github.com/lepinkainen/hermes/internal/config"
+	"github.com/lepinkainen/hermes/internal/httputil"
 	"github.com/lepinkainen/humanlog"
 	"github.com/spf13/viper"
 )
@@ -56,6 +57,7 @@ var (
 // SetVersionInfo records the build information injected into main at link time.
 func SetVersionInfo(v, commit, date string) {
 	version, gitCommit, buildDate = v, commit, date
+	httputil.SetVersion(v)
 }
 
 // VersionString renders the build information shown by --version.

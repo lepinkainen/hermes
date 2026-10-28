@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lepinkainen/hermes/internal/httputil"
 	"github.com/lepinkainen/hermes/internal/parseutil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 )
@@ -23,7 +24,7 @@ var (
 	googleBooksRateLimiter   *ratelimit.Limiter
 	googleBooksLimiterOnce   sync.Once
 	googleBooksHTTPClientNew = func() *http.Client {
-		return &http.Client{Timeout: 10 * time.Second}
+		return httputil.NewClient(10 * time.Second)
 	}
 	googleBooksBaseURL = "https://www.googleapis.com/books/v1"
 )

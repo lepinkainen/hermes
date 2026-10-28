@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/lepinkainen/hermes/internal/errors"
+	"github.com/lepinkainen/hermes/internal/httputil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 	"github.com/spf13/viper"
 )
@@ -19,8 +20,10 @@ import (
 // httptest.Server and bypass the per-second OMDB throttle.
 var (
 	omdbBaseURL = "http://www.omdbapi.com"
-	omdbHTTPDo  = func(req *http.Request) (*http.Response, error) {
-		return http.DefaultClient.Do(req)
+	// OMDB is a documented API: identify as hermes.
+	omdbHTTPClient = httputil.NewClient(0)
+	omdbHTTPDo     = func(req *http.Request) (*http.Response, error) {
+		return omdbHTTPClient.Do(req)
 	}
 	// OMDB free tier allows 1000 req/day; 1 req/sec is conservative.
 	getOMDBRateLimiter = sync.OnceValue(func() *ratelimit.Limiter {

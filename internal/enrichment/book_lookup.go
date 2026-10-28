@@ -14,14 +14,16 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/cache"
 	hermeserrors "github.com/lepinkainen/hermes/internal/errors"
+	"github.com/lepinkainen/hermes/internal/httputil"
 	"github.com/lepinkainen/hermes/internal/ratelimit"
 	"github.com/lepinkainen/hermes/internal/tui"
 )
 
 // HTTP seams — package vars so tests can redirect to an httptest.Server.
 var (
-	openLibrarySearchURL        = "https://openlibrary.org/search.json"
-	openLibrarySearchHTTPClient = &http.Client{Timeout: 30 * time.Second}
+	openLibrarySearchURL = "https://openlibrary.org/search.json"
+	// OpenLibrary asks API clients for a descriptive, contact-bearing UA.
+	openLibrarySearchHTTPClient = httputil.NewClient(30 * time.Second)
 )
 
 // openLibrarySearchLimiter is a package-level singleton rate limiter for

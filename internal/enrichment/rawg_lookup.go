@@ -15,14 +15,16 @@ import (
 
 	"github.com/lepinkainen/hermes/internal/cache"
 	hermeserrors "github.com/lepinkainen/hermes/internal/errors"
+	"github.com/lepinkainen/hermes/internal/httputil"
 	"github.com/lepinkainen/hermes/internal/tui"
 	"github.com/spf13/viper"
 )
 
 // HTTP seams — package vars so tests can redirect to an httptest.Server.
 var (
-	rawgSearchURL  = "https://api.rawg.io/api/games"
-	rawgHTTPClient = &http.Client{Timeout: 30 * time.Second}
+	rawgSearchURL = "https://api.rawg.io/api/games"
+	// RAWG is a documented, keyed API: identify as hermes.
+	rawgHTTPClient = httputil.NewClient(30 * time.Second)
 )
 
 // RAWGGenre represents a genre entry in RAWG API responses.
