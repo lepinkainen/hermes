@@ -19,5 +19,3 @@ year: 2018
 | **Author** | Minimalist Author |
 | **Goodreads** | [goodreads.com/book/show/333](https://www.goodreads.com/book/show/333) |
 <!-- GOODREADS_DATA_END -->
-
-

@@ -28,5 +28,3 @@ type: game
 
 A minimalist puzzle game.
 <!-- STEAM_DATA_END -->
-
-

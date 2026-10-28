@@ -158,18 +158,7 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 		}
 	}
 
-	// Create the note
-	// Build markdown
-	markdown, err := obsidian.BuildNoteMarkdown(fm, body.String())
-	if err != nil {
-		return fmt.Errorf("failed to build markdown: %w", err)
-	}
-
-	// Add trailing newlines to match expected format
-	out := string(markdown) + "\n\n\n"
-
-	// Write content to file with logging
-	return fileutil.WriteMarkdownFile(filename, out, config.OverwriteFiles)
+	return obsidian.BuildAndWriteNote(filename, fm, body.String(), config.OverwriteFiles)
 }
 
 // buildAchievementsSection creates the achievements section with progress and checklist

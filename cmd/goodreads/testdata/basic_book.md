@@ -66,5 +66,3 @@ This is my review of the book.
 
 >[!note]- Private Notes
 > These are my private notes.
-
-

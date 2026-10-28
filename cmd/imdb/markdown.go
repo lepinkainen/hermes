@@ -157,15 +157,7 @@ func writeMovieToMarkdown(movie MovieSeen, directory string) error {
 		body.WriteString("\n")
 	}
 
-	// Create the note
-	// Build markdown
-	markdown, err := obsidian.BuildNoteMarkdown(fm, body.String())
-	if err != nil {
-		return fmt.Errorf("failed to build markdown: %w", err)
-	}
-
-	// Write content to file with logging
-	return fileutil.WriteMarkdownFile(filePath, string(markdown), config.OverwriteFiles)
+	return obsidian.BuildAndWriteNote(filePath, fm, body.String(), config.OverwriteFiles)
 }
 
 func mapTypeToType(titleType string) string {

@@ -216,20 +216,5 @@ func writeBookToMarkdown(book Book, directory string) error {
 	fm := buildBookFrontmatter(book)
 	body := buildBookBody(book, directory, fm)
 
-	markdown, err := obsidian.BuildNoteMarkdown(fm, body)
-	if err != nil {
-		return fmt.Errorf("failed to build markdown: %w", err)
-	}
-
-	out := append([]byte{}, markdown...)
-	out = append(out, []byte("\n\n\n")...)
-
-	written, err := fileutil.WriteFileWithOverwrite(filePath, out, 0o644, config.OverwriteFiles)
-	if err != nil {
-		return err
-	}
-
-	fileutil.LogFileWriteResult(written, filePath)
-
-	return nil
+	return obsidian.BuildAndWriteNote(filePath, fm, body, config.OverwriteFiles)
 }
