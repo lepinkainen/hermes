@@ -1,7 +1,6 @@
 package letterboxd
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -77,24 +76,15 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 		fm.Set("imdb_id", movie.ImdbID)
 	}
 
-	// Handle cover image
-	coverFilename := ""
-	if movie.TMDBEnrichment != nil && movie.TMDBEnrichment.CoverFilename != "" {
-		coverFilename = movie.TMDBEnrichment.CoverFilename
-		fm.Set("cover", movie.TMDBEnrichment.CoverPath)
-	} else if movie.PosterURL != "" {
-		// Download cover from poster URL
-		coverOpts := fileutil.CoverDownloadOptions{
-			URL:          movie.PosterURL,
-			OutputDir:    directory,
-			Filename:     fileutil.BuildCoverFilename(movie.Name),
-			UpdateCovers: config.UpdateCovers,
-		}
-		result, err := fileutil.DownloadCover(context.Background(), coverOpts)
-		if err == nil && result != nil {
-			coverFilename = result.Filename
-			fm.Set("cover", result.RelativePath)
-		}
+	// Handle cover image: TMDB enrichment cover first, then the poster URL
+	coverSource := obsidian.CoverSource{FallbackURL: movie.PosterURL}
+	if movie.TMDBEnrichment != nil {
+		coverSource.TMDBCoverPath = movie.TMDBEnrichment.CoverPath
+		coverSource.TMDBCoverFilename = movie.TMDBEnrichment.CoverFilename
+	}
+	cover := obsidian.ResolveCover(coverSource, movie.Name, directory)
+	if cover != nil {
+		fm.Set("cover", cover.FrontmatterValue)
 	}
 
 	// Add TMDB frontmatter fields if available
@@ -112,8 +102,8 @@ func writeMovieToMarkdown(movie Movie, directory string) error {
 	var body strings.Builder
 
 	// Add cover image using Obsidian syntax
-	if coverFilename != "" {
-		fmt.Fprintf(&body, "![[%s|%d]]\n\n", coverFilename, defaultCoverWidth)
+	if cover != nil {
+		body.WriteString(cover.Embed(defaultCoverWidth))
 	}
 
 	// Build Letterboxd content sections

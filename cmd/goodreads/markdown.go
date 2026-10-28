@@ -1,9 +1,7 @@
 package goodreads
 
 import (
-	"context"
 	"fmt"
-	"log/slog"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -15,11 +13,6 @@ import (
 )
 
 const defaultCoverWidth = 250
-
-type coverContent struct {
-	frontmatterValue string
-	embed            string
-}
 
 func buildBookFrontmatter(book Book) *obsidian.Frontmatter {
 	fm := obsidian.NewFrontmatterWithTitle(fileutil.SanitizeFilename(book.Title))
@@ -112,41 +105,16 @@ func buildBookFrontmatter(book Book) *obsidian.Frontmatter {
 	return fm
 }
 
-func buildCoverContent(book Book, directory string) coverContent {
-	var coverURL string
+// bookCoverURL picks the cover URL for a book: the enrichment-provided URL,
+// or one constructed from the OpenLibrary cover ID.
+func bookCoverURL(book Book) string {
 	if book.CoverURL != "" {
-		coverURL = book.CoverURL
-	} else if book.CoverID > 0 {
-		coverURL = fmt.Sprintf(openLibraryCoverURLFormat, book.CoverID)
+		return book.CoverURL
 	}
-
-	if coverURL == "" {
-		return coverContent{}
+	if book.CoverID > 0 {
+		return fmt.Sprintf(openLibraryCoverURLFormat, book.CoverID)
 	}
-
-	coverFilenameBase := fileutil.BuildCoverFilename(book.Title)
-	result, err := fileutil.DownloadCover(context.Background(), fileutil.CoverDownloadOptions{
-		URL:          coverURL,
-		OutputDir:    directory,
-		Filename:     coverFilenameBase,
-		UpdateCovers: config.UpdateCovers,
-	})
-	if err != nil {
-		slog.Warn("Failed to download cover", "title", book.Title, "error", err)
-		return coverContent{
-			frontmatterValue: coverURL,
-			embed:            fmt.Sprintf("![](%s)\n\n", coverURL),
-		}
-	}
-
-	if result == nil {
-		return coverContent{}
-	}
-
-	return coverContent{
-		frontmatterValue: result.RelativePath,
-		embed:            fmt.Sprintf("![[%s|%d]]\n\n", result.Filename, defaultCoverWidth),
-	}
+	return ""
 }
 
 func buildGoodreadsSection(book Book) string {
@@ -215,10 +183,14 @@ func buildPrivateNotesSection(notes string) string {
 func buildBookBody(book Book, directory string, fm *obsidian.Frontmatter) string {
 	var body strings.Builder
 
-	cover := buildCoverContent(book, directory)
-	if cover.frontmatterValue != "" {
-		fm.Set("cover", cover.frontmatterValue)
-		body.WriteString(cover.embed)
+	// On download failure, keep referencing the remote cover so the note still has one.
+	cover := obsidian.ResolveCover(obsidian.CoverSource{
+		FallbackURL:          bookCoverURL(book),
+		FallbackToURLOnError: true,
+	}, book.Title, directory)
+	if cover != nil {
+		fm.Set("cover", cover.FrontmatterValue)
+		body.WriteString(cover.Embed(defaultCoverWidth))
 	}
 
 	body.WriteString(buildGoodreadsSection(book))

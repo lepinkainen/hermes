@@ -2,7 +2,6 @@ package steam
 
 import (
 	"cmp"
-	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -57,18 +56,9 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	}
 
 	// Handle cover image
-	coverFilename := ""
-	if details.HeaderImage != "" {
-		coverResult, err := fileutil.DownloadCover(context.Background(), fileutil.CoverDownloadOptions{
-			URL:          details.HeaderImage,
-			OutputDir:    directory,
-			Filename:     fileutil.BuildCoverFilename(game.Name),
-			UpdateCovers: config.UpdateCovers,
-		})
-		if err == nil && coverResult != nil {
-			coverFilename = coverResult.Filename
-			fm.Set("cover", coverResult.RelativePath)
-		}
+	cover := obsidian.ResolveCover(obsidian.CoverSource{FallbackURL: details.HeaderImage}, game.Name, directory)
+	if cover != nil {
+		fm.Set("cover", cover.FrontmatterValue)
 	}
 
 	// Add developers as an array
@@ -118,8 +108,8 @@ func CreateMarkdownFile(game Game, details *GameDetails, directory string) error
 	var body strings.Builder
 
 	// Add cover image using Obsidian syntax
-	if coverFilename != "" {
-		fmt.Fprintf(&body, "![[%s|%d]]\n\n", coverFilename, defaultCoverWidth)
+	if cover != nil {
+		body.WriteString(cover.Embed(defaultCoverWidth))
 	}
 
 	// Build Steam content sections using the existing steam_sections.go
