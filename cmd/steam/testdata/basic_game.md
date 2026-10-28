@@ -43,5 +43,3 @@ This is a test game description.
 ![Test Game](https://example.com/screenshot1.jpg)
 
 ![Test Game](https://example.com/screenshot2.jpg)
-
-

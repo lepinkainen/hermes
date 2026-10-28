@@ -85,5 +85,3 @@ I found myself returning to the chapters on consciousness repeatedly, each time 
 > Lent to Alex on June 15, 2023. Need to follow up.
 > Potential thesis reference material - especially pages 341-362 on quantum entanglement theory.
 > Check the author's lecture series online for supplementary material.
-
-

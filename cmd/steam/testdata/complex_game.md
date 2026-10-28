@@ -75,5 +75,3 @@ With hundreds of quests, countless customization options, and a deep, engaging c
 ![Epic RPG: Deluxe Edition](https://example.com/epic_rpg_screenshot4.jpg)
 
 ![Epic RPG: Deluxe Edition](https://example.com/epic_rpg_screenshot5.jpg)
-
-
