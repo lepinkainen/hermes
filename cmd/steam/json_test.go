@@ -22,19 +22,17 @@ func TestWriteGameToJson(t *testing.T) {
 	testTime := time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC)
 	games := []GameDetails{
 		{
-			Game: Game{
-				AppID:           12345,
-				Name:            "Test Game One",
-				PlaytimeForever: 120,
-				PlaytimeRecent:  30,
-				LastPlayed:      testTime,
-				DetailsFetched:  true,
-			},
-			Description: "First test game",
-			ShortDesc:   "Game 1",
-			HeaderImage: "https://example.com/game1.jpg",
-			Developers:  []string{"Dev1"},
-			Publishers:  []string{"Pub1"},
+			AppID:           12345,
+			Name:            "Test Game One",
+			PlaytimeForever: 120,
+			PlaytimeRecent:  30,
+			LastPlayed:      testTime,
+			DetailsFetched:  true,
+			Description:     "First test game",
+			ShortDesc:       "Game 1",
+			HeaderImage:     "https://example.com/game1.jpg",
+			Developers:      []string{"Dev1"},
+			Publishers:      []string{"Pub1"},
 			ReleaseDate: struct {
 				ComingSoon bool   `json:"coming_soon"`
 				Date       string `json:"date"`
@@ -47,19 +45,17 @@ func TestWriteGameToJson(t *testing.T) {
 			Metacritic: MetacriticData{Score: 85, URL: "https://example.com/metacritic1"},
 		},
 		{
-			Game: Game{
-				AppID:           67890,
-				Name:            "Test Game Two",
-				PlaytimeForever: 0,
-				PlaytimeRecent:  0,
-				LastPlayed:      time.Time{},
-				DetailsFetched:  true,
-			},
-			Description: "Second test game",
-			ShortDesc:   "Game 2",
-			HeaderImage: "https://example.com/game2.jpg",
-			Developers:  []string{"Dev2", "Dev3"},
-			Publishers:  []string{"Pub2"},
+			AppID:           67890,
+			Name:            "Test Game Two",
+			PlaytimeForever: 0,
+			PlaytimeRecent:  0,
+			LastPlayed:      time.Time{},
+			DetailsFetched:  true,
+			Description:     "Second test game",
+			ShortDesc:       "Game 2",
+			HeaderImage:     "https://example.com/game2.jpg",
+			Developers:      []string{"Dev2", "Dev3"},
+			Publishers:      []string{"Pub2"},
 			ReleaseDate: struct {
 				ComingSoon bool   `json:"coming_soon"`
 				Date       string `json:"date"`
@@ -145,7 +141,7 @@ func TestWriteGameToJson_OverwriteProtection(t *testing.T) {
 	// Create initial file
 	initialData := []GameDetails{
 		{
-			Game: Game{AppID: 111, Name: "Initial Game"},
+			AppID: 111, Name: "Initial Game",
 		},
 	}
 	config.OverwriteFiles = true
@@ -155,7 +151,7 @@ func TestWriteGameToJson_OverwriteProtection(t *testing.T) {
 	// Try to write again without overwrite
 	newData := []GameDetails{
 		{
-			Game: Game{AppID: 222, Name: "New Game"},
+			AppID: 222, Name: "New Game",
 		},
 	}
 	config.OverwriteFiles = false

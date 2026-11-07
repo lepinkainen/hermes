@@ -12,17 +12,15 @@ func TestGameDetailsToMap(t *testing.T) {
 	testTime := time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC)
 
 	details := GameDetails{
-		Game: Game{
-			AppID:           12345,
-			Name:            "Test Game",
-			PlaytimeForever: 120,
-			PlaytimeRecent:  30,
-			LastPlayed:      testTime,
-			DetailsFetched:  true,
-		},
-		Description: "This is a detailed description of the test game.",
-		ShortDesc:   "Short description",
-		HeaderImage: "https://example.com/header.jpg",
+		AppID:           12345,
+		Name:            "Test Game",
+		PlaytimeForever: 120,
+		PlaytimeRecent:  30,
+		LastPlayed:      testTime,
+		DetailsFetched:  true,
+		Description:     "This is a detailed description of the test game.",
+		ShortDesc:       "Short description",
+		HeaderImage:     "https://example.com/header.jpg",
 		Screenshots: []Screenshot{
 			{ID: 1, PathURL: "https://example.com/screenshot1.jpg"},
 			{ID: 2, PathURL: "https://example.com/screenshot2.jpg"},
@@ -76,19 +74,17 @@ func TestGameDetailsToMap(t *testing.T) {
 func TestGameDetailsToMap_MinimalData(t *testing.T) {
 	// Test with minimal data (no optional fields)
 	details := GameDetails{
-		Game: Game{
-			AppID:           999,
-			Name:            "Minimal Game",
-			PlaytimeForever: 0,
-			PlaytimeRecent:  0,
-			LastPlayed:      time.Time{},
-			DetailsFetched:  false,
-		},
-		Description: "",
-		ShortDesc:   "",
-		HeaderImage: "",
-		Developers:  []string{},
-		Publishers:  []string{},
+		AppID:           999,
+		Name:            "Minimal Game",
+		PlaytimeForever: 0,
+		PlaytimeRecent:  0,
+		LastPlayed:      time.Time{},
+		DetailsFetched:  false,
+		Description:     "",
+		ShortDesc:       "",
+		HeaderImage:     "",
+		Developers:      []string{},
+		Publishers:      []string{},
 		ReleaseDate: struct {
 			ComingSoon bool   `json:"coming_soon"`
 			Date       string `json:"date"`
