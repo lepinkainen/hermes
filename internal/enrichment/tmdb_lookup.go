@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -106,6 +107,10 @@ func selectTMDBResult(results []tmdb.SearchResult, title string, year int, inter
 		return nil, nil
 	}
 
+	// Stably move exact title matches to the front (TMDB ranks by popularity,
+	// which buries an exact match behind substring matches).
+	filtered = sortExactTitleFirst(filtered, title)
+
 	// Prioritize expected media type after filtering
 	filtered = prioritizeMediaType(filtered, expectedMediaType)
 
@@ -205,6 +210,29 @@ func findExactMatch(results []tmdb.SearchResult, title string, year int) *tmdb.S
 	}
 
 	return match
+}
+
+// sortExactTitleFirst stably moves results whose title matches the query exactly
+// to the front, most-voted first. TMDB ranks by popularity, which buries an exact
+// title match behind substring matches ("The Debt Collector" over "The Collector").
+func sortExactTitleFirst(results []tmdb.SearchResult, title string) []tmdb.SearchResult {
+	normalized := strings.ToLower(strings.TrimSpace(title))
+
+	exact := make([]tmdb.SearchResult, 0, len(results))
+	rest := make([]tmdb.SearchResult, 0, len(results))
+	for _, result := range results {
+		if strings.ToLower(strings.TrimSpace(result.DisplayTitle())) == normalized {
+			exact = append(exact, result)
+		} else {
+			rest = append(rest, result)
+		}
+	}
+	if len(exact) == 0 {
+		return results
+	}
+
+	sort.SliceStable(exact, func(i, j int) bool { return exact[i].VoteCount > exact[j].VoteCount })
+	return append(exact, rest...)
 }
 
 func prioritizeMediaType(results []tmdb.SearchResult, mediaType string) []tmdb.SearchResult {

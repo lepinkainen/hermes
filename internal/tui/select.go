@@ -174,7 +174,7 @@ func newModel(title string, items []tmdbItem, sourceURL string) *model {
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.SetShowTitle(false)
-	l.SetShowPagination(false)
+	l.SetShowPagination(true)
 	l.DisableQuitKeybindings()
 	l.Styles.NoItems = lipgloss.NewStyle()
 

@@ -159,3 +159,41 @@ func TestFindExactMatch_MultipleExactMatches(t *testing.T) {
 		t.Errorf("findExactMatch() ID = %d, want 3", result.ID)
 	}
 }
+
+func TestSortExactTitleFirst(t *testing.T) {
+	// The real 7-result "The Collector" survivor set: popularity-ranked TMDB
+	// results bury the exact title match ("The Collector", ID 21407) behind
+	// substring matches like "The Debt Collector".
+	results := []tmdb.SearchResult{
+		{ID: 1630409, Title: "The Debt Collector", ReleaseDate: "2026-07-20", VoteCount: 133, MediaType: "movie"},
+		{ID: 513691, Title: "The Debt Collector", ReleaseDate: "2018-06-05", VoteCount: 261, MediaType: "movie"},
+		{ID: 531499, Title: "The Tax Collector", ReleaseDate: "2020-08-07", VoteCount: 568, MediaType: "movie"},
+		{ID: 9481, Title: "The Bone Collector", ReleaseDate: "1999-11-04", VoteCount: 3987, MediaType: "movie"},
+		{ID: 21407, Title: "The Collector", ReleaseDate: "2009-07-09", VoteCount: 1726, MediaType: "movie"},
+		{ID: 42740, Title: "The Collector", ReleaseDate: "1965-06-17", VoteCount: 235, MediaType: "movie"},
+		{ID: 95272, Name: "Lincoln Rhyme: Hunt for the Bone Collector", FirstAirDate: "2020-01-10", VoteCount: 147, MediaType: "tv"},
+	}
+
+	sorted := sortExactTitleFirst(results, "The Collector")
+	if len(sorted) != len(results) {
+		t.Fatalf("sortExactTitleFirst() returned %d results, want %d", len(sorted), len(results))
+	}
+	if sorted[0].ID != 21407 {
+		t.Errorf("sortExactTitleFirst() first ID = %d, want 21407", sorted[0].ID)
+	}
+	if sorted[1].ID != 42740 {
+		t.Errorf("sortExactTitleFirst() second ID = %d, want 42740", sorted[1].ID)
+	}
+}
+
+func TestSortExactTitleFirst_NoExactMatch(t *testing.T) {
+	results := []tmdb.SearchResult{
+		{ID: 1, Title: "The Debt Collector", VoteCount: 261},
+		{ID: 2, Title: "The Tax Collector", VoteCount: 568},
+	}
+
+	sorted := sortExactTitleFirst(results, "The Collector")
+	if len(sorted) != len(results) || sorted[0].ID != 1 || sorted[1].ID != 2 {
+		t.Errorf("sortExactTitleFirst() = %v, want unchanged input order", sorted)
+	}
+}
